@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surau</title>
+    <link rel="icon" href="https://www.google.com/favicon.ico" type="image/x-icon">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, #1a0a0a 0%, #2d1515 50%, #1a0505 100%);
+            color: #ffeedd;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Peach Blossom Animation */
+        .petal {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(ellipse at center, #ffb7c5 0%, #ff8fa3 50%, #ff6b8a 100%);
+            border-radius: 50% 0 50% 50%;
+            opacity: 0.8;
+            animation: fall linear infinite;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 0 8px rgba(255, 183, 197, 0.5);
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-10vh) rotate(0deg) scale(1);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 0.9;
+            }
+
+            90% {
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: translateY(110vh) rotate(720deg) scale(0.5);
+                opacity: 0;
+            }
+        }
+
+        /* Firecracker Animation */
+        .spark {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: explode 1s ease-out forwards;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* Lantern decoration */
+        .lanterns {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 100px;
+        }
+
+        .lantern {
+            width: 35px;
+            height: 45px;
+            background: linear-gradient(180deg, #ff4444 0%, #cc0000 100%);
+            border-radius: 50% 50% 45% 45%;
+            position: relative;
+            animation: swing 3s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.5), inset 0 0 15px rgba(255, 200, 100, 0.3);
+        }
+
+        .lantern::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 16px;
+            height: 6px;
+            background: #ffd700;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .lantern::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 5px;
+            height: 12px;
+            background: linear-gradient(180deg, #ffd700 0%, #ff8800 100%);
+            border-radius: 0 0 2px 2px;
+        }
+
+        @keyframes swing {
+
+            0%,
+            100% {
+                transform: rotate(-5deg);
+            }
+
+            50% {
+                transform: rotate(5deg);
+            }
+        }
+
+        /* Red Envelope */
+        .red-envelope {
+            position: fixed;
+            width: 50px;
+            height: 70px;
+            background: linear-gradient(180deg, #ff3333 0%, #cc0000 100%);
+            border-radius: 5px 5px 8px 8px;
+            pointer-events: none;
+            z-index: 8;
+            box-shadow: 0 5px 20px rgba(200, 0, 0, 0.4);
+        }
+
+        .red-envelope::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 25px;
+            height: 25px;
+            background: #ffd700;
+            border-radius: 50%;
+            box-shadow: inset 0 0 10px rgba(255, 100, 0, 0.5);
+        }
+
+        .red-envelope::after {
+            content: '福';
+            position: absolute;
+            top: 17px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            color: #cc0000;
+            font-weight: bold;
+        }
+
+        .envelope-1 {
+            bottom: 20%;
+            left: 20px;
+            animation: floatEnvelope 4s ease-in-out infinite;
+        }
+
+        .envelope-2 {
+            bottom: 40%;
+            right: 25px;
+            animation: floatEnvelope 5s ease-in-out infinite 1s;
+        }
+
+        .envelope-3 {
+            bottom: 60%;
+            left: 30px;
+            animation: floatEnvelope 4.5s ease-in-out infinite 0.5s;
+        }
+
+        @keyframes floatEnvelope {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(-3deg);
+            }
+
+            50% {
+                transform: translateY(-15px) rotate(3deg);
+            }
+        }
+
+        /* Horse in title */
+        .title-horse {
+            font-size: 2rem;
+            display: inline-block;
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 100;
+            padding-top: 60px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            color: #ffd700;
+        }
+
+        h1 .text-gradient {
+            background: linear-gradient(90deg, #ffd700, #ff6b6b, #ffd700);
+            background-size: 200% auto;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s linear infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 0% center;
+            }
+
+            100% {
+                background-position: 200% center;
+            }
+        }
+
+        .card {
+            background: rgba(50, 20, 20, 0.75);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 215, 0, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .card h2 {
+            color: #ffd700;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: 600;
+        }
+
+        .status-ready {
+            background: rgba(0, 255, 136, 0.15);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .status-waiting {
+            background: rgba(255, 165, 2, 0.15);
+            color: #ffa502;
+            border: 1px solid rgba(255, 165, 2, 0.3);
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        button {
+            padding: 8px 14px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-family: 'Quicksand', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+            transition: left 0.4s;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #000;
+            box-shadow: 0 3px 12px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 18px rgba(79, 172, 254, 0.6);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: #000;
+            box-shadow: 0 3px 12px rgba(56, 239, 125, 0.4);
+        }
+
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 18px rgba(56, 239, 125, 0.6);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: #fff;
+            box-shadow: 0 3px 12px rgba(255, 65, 108, 0.4);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 18px rgba(255, 65, 108, 0.6);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: #fff;
+            box-shadow: 0 3px 12px rgba(240, 147, 251, 0.4);
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 18px rgba(240, 147, 251, 0.6);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            box-shadow: 0 3px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-info:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 18px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-google {
+            background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
+            color: #000;
+            box-shadow: 0 3px 12px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn-google:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 18px rgba(255, 215, 0, 0.6);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
+            color: #fff;
+            box-shadow: 0 3px 12px rgba(142, 45, 226, 0.4);
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 18px rgba(142, 45, 226, 0.6);
+        }
+
+        .inline-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .inline-form label {
+            color: #ffd700;
+            font-size: 0.8rem;
+        }
+
+        input[type="number"] {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            width: 70px;
+            text-align: center;
+            font-family: 'Quicksand', sans-serif;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+        }
+
+        .result-box {
+            background: rgba(20, 10, 10, 0.8);
+            border: 1px solid rgba(139, 69, 19, 0.4);
+            border-radius: 10px;
+            padding: 14px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .result-box h3 {
+            color: #ffd700;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .result-box pre {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.75rem;
+            color: #38ef7d;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 215, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Lanterns -->
+    <div class="lanterns">
+        <div class="lantern" style="animation-delay: 0s;"></div>
+        <div class="lantern" style="animation-delay: 0.5s;"></div>
+        <div class="lantern" style="animation-delay: 1s;"></div>
+        <div class="lantern" style="animation-delay: 0.3s;"></div>
+        <div class="lantern" style="animation-delay: 0.8s;"></div>
+    </div>
+
+    <!-- Red Envelopes -->
+    <div class="red-envelope envelope-1"></div>
+    <div class="red-envelope envelope-2"></div>
+    <div class="red-envelope envelope-3"></div>
+
+    <div class="container">
+
+        <!-- Profile Management -->
+        <div class="card">
+            <div class="card-header">
+                <h2>📦 Quản Lý Profile</h2>
+            </div>
+            <div class="inline-form">
+                <label>Số lượng:</label>
+                <input id="count" type="number" value="5" min="1" max="20" />
+                <button class="btn-primary" onclick="createProfiles()">+ Tạo</button>
+                <button class="btn-danger" onclick="deleteAllProfiles()">Xóa Tất Cả</button>
+            </div>
+        </div>
+
+        <!-- Browser Control -->
+        <div class="card">
+            <div class="card-header">
+                <h2>🌐 Điều Khiển Browser</h2>
+                <div class="status-group">
+                    <span id="profileStatus" class="status-badge status-waiting">Chưa mở</span>
+                    <span id="sheetStatus" class="status-badge status-waiting">Chưa load</span>
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn-success" onclick="startAllProfiles()">▶ Mở</button>
+                <button class="btn-warning" onclick="closeAllProfiles()">⏹ Đóng</button>
+                <button class="btn-info" onclick="getSheetData()">📥 Load Sheet</button>
+                <button id="btnCapMonsterMode" class="btn-warning" onclick="toggleCapMonsterMode()">
+                    🔧 <span id="capMonsterModeText">Click</span>
+                </button>
+                <button id="btnCapMonsterOnOff" class="btn-success" onclick="toggleCapMonsterOnOff()">
+                    🟢 <span id="capMonsterOnOffText">ON</span>
+                </button>
+                <button id="btnStopAutomation" class="btn-stop" onclick="stopAutomation()" disabled>⏸ Dừng</button>
+            </div>
+        </div>
+
+        <!-- Automation -->
+        <div class="card">
+            <div class="card-header">
+                <h2>🤖 Automation</h2>
+            </div>
+            <div class="button-group">
+                <button id="btnLoginGoogle" class="btn-google" onclick="runLoginGoogle()" disabled>🔐 Login
+                    Google</button>
+                <button id="btnVerifyPhoneSheet" class="btn-primary" onclick="runVerifyPhoneSheet()" disabled>📞 Verify
+                    Phone Sheet</button>
+                <button id="btnAppealGoogle" class="btn-warning" onclick="runAppealGoogle()" disabled>⚠️ Appeal
+                    Google</button>
+                <button id="btnLogoutGoogle" class="btn-danger" onclick="runLogoutGoogle()">🚪 Logout</button>
+            </div>
+        </div>
+
+        <!-- Phone Check Queue -->
+        <div class="card">
+            <div class="card-header">
+                <h2>📱 Phone Check Queue</h2>
+                <div class="status-group">
+                    <span id="queueStatus" class="status-badge status-waiting">Chưa load</span>
+                </div>
+            </div>
+            <div class="button-group">
+                <button id="btnLoadQueue" class="btn-success" onclick="loadOrResetQueue()">🔄 Load 50 Phones &
+                    Start</button>
+                <button class="btn-info" onclick="showQueueStatus()">📊 Queue Status</button>
+            </div>
+        </div>
+
+        <!-- Result Display -->
+        <div class="result-box">
+            <h3>📋 Kết Quả:</h3>
+            <pre id="result">Chưa có dữ liệu</pre>
+        </div>
+    </div>
+
+    <script>
+        const API = 'http://localhost:3000';
+        window.openedProfiles = [];
+        window.sheetRows = [];
+
+        // 🔄 Restore state on page load
+        async function restoreState() {
+            try {
+                const res = await fetch(`${API}/profiles/state`);
+                const data = await res.json();
+
+                if (data.profiles && data.profiles.length > 0) {
+                    window.openedProfiles = data.profiles;
+                    console.log(`🔄 Restored ${data.count} opened profiles from backend`);
+                    updateStatus();
+                }
+            } catch (err) {
+                console.log('Could not restore state:', err.message);
+            }
+        }
+
+        // Call restore on page load
+        restoreState();
+
+        // CapMonster mode state
+        let capMonsterMode = 'Click'; // Default mode
+
+        async function toggleCapMonsterMode() {
+            if (window.openedProfiles.length === 0) {
+                alert('Chưa có profiles mở! Ấn nút "Mở" trước.');
+                return;
+            }
+
+            // Toggle mode
+            capMonsterMode = capMonsterMode === 'Token' ? 'Click' : 'Token';
+
+            // Update button text
+            document.getElementById('capMonsterModeText').textContent = capMonsterMode;
+
+            // Update button color
+            const btn = document.getElementById('btnCapMonsterMode');
+            if (capMonsterMode === 'Token') {
+                btn.className = 'btn-primary';
+            } else {
+                btn.className = 'btn-warning';
+            }
+
+            show(`Đang chuyển sang ${capMonsterMode} mode...`);
+
+            try {
+                const res = await fetch(`${API}/automation/capmonster/${capMonsterMode.toLowerCase()}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        profiles: window.openedProfiles.map(p => ({
+                            profileId: p.profile_id,
+                            remoteDebugAddress: p.remote_debugging_address
+                        }))
+                    }),
+                });
+                const data = await res.json();
+                show(`✅ Đã chuyển sang ${capMonsterMode} mode!`);
+                console.log(`🔧 CapMonster mode switched to ${capMonsterMode}`);
+            } catch (err) {
+                show('Lỗi: ' + err.message);
+            }
+        }
+
+        // CapMonster On/Off state
+        let capMonsterEnabled = true; // Default ON
+
+        async function toggleCapMonsterOnOff() {
+            if (window.openedProfiles.length === 0) {
+                alert('Chưa có profiles mở! Ấn nút "Mở" trước.');
+                return;
+            }
+
+            // Toggle state
+            capMonsterEnabled = !capMonsterEnabled;
+
+            // Update button text and color
+            const btn = document.getElementById('btnCapMonsterOnOff');
+            const textSpan = document.getElementById('capMonsterOnOffText');
+
+            if (capMonsterEnabled) {
+                textSpan.textContent = 'ON';
+                btn.className = 'btn-success';
+                btn.innerHTML = '🟢 <span id="capMonsterOnOffText">ON</span>';
+            } else {
+                textSpan.textContent = 'OFF';
+                btn.className = 'btn-danger';
+                btn.innerHTML = '🔴 <span id="capMonsterOnOffText">OFF</span>';
+            }
+
+            const action = capMonsterEnabled ? 'enable' : 'disable';
+            show(`Đang ${capMonsterEnabled ? 'bật' : 'tắt'} CapMonster...`);
+
+            try {
+                const res = await fetch(`${API}/automation/capmonster/${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        profiles: window.openedProfiles.map(p => ({
+                            profileId: p.profile_id,
+                            remoteDebugAddress: p.remote_debugging_address
+                        }))
+                    }),
+                });
+                const data = await res.json();
+                show(`✅ Đã ${capMonsterEnabled ? 'bật' : 'tắt'} CapMonster!`);
+                console.log(`🔌 CapMonster ${capMonsterEnabled ? 'enabled' : 'disabled'}`);
+            } catch (err) {
+                show('Lỗi: ' + err.message);
+            }
+        }
+
+        // Create falling petals all over the page
+        function createPetal() {
+            const petal = document.createElement('div');
+            petal.className = 'petal';
+            // Random position across entire width
+            petal.style.left = Math.random() * 100 + 'vw';
+            petal.style.animationDuration = (Math.random() * 5 + 6) + 's';
+            petal.style.animationDelay = Math.random() * 2 + 's';
+            petal.style.transform = `scale(${Math.random() * 0.5 + 0.5})`;
+            document.body.appendChild(petal);
+            setTimeout(() => petal.remove(), 13000);
+        }
+
+        // Create firecrackers
+        function createFirecracker(x, y) {
+            const colors = ['#ff0000', '#ffd700', '#ff6b6b', '#ff8c00', '#ff1493'];
+            for (let i = 0; i < 15; i++) {
+                const spark = document.createElement('div');
+                spark.className = 'spark';
+                spark.style.left = x + 'px';
+                spark.style.top = y + 'px';
+                spark.style.background = colors[Math.floor(Math.random() * colors.length)];
+                spark.style.setProperty('--tx', (Math.random() - 0.5) * 120 + 'px');
+                spark.style.setProperty('--ty', (Math.random() - 0.5) * 120 + 'px');
+                spark.style.boxShadow = `0 0 5px ${spark.style.background}`;
+                document.body.appendChild(spark);
+                setTimeout(() => spark.remove(), 1000);
+            }
+        }
+
+        setInterval(createPetal, 250);
+        setInterval(() => {
+            if (Math.random() > 0.6) {
+                createFirecracker(
+                    Math.random() * window.innerWidth,
+                    Math.random() * window.innerHeight * 0.4
+                );
+            }
+        }, 2500);
+
+        function show(data) {
+            // Nếu là kết quả automation, format đẹp hơn
+            if (data && typeof data === 'object' && data.results && Array.isArray(data.results)) {
+                const successCount = data.results.filter(r => r.success).length;
+                const failCount = data.results.filter(r => !r.success).length;
+
+                let output = `✅ Thành công: ${successCount} | ❌ Thất bại: ${failCount}\n\n`;
+
+                data.results.forEach((result, index) => {
+                    const status = result.success ? '✅' : '❌';
+                    const gmail = result.data?.gmail || 'N/A';
+                    const message = result.data?.message || result.error || 'No message';
+
+                    output += `${status} Profile ${result.profileId}: ${gmail}\n`;
+                    output += `   ${message}\n\n`;
+                });
+
+                document.getElementById('result').textContent = output;
+            } else {
+                // Hiển thị bình thường cho các response khác
+                document.getElementById('result').textContent =
+                    typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            }
+        }
+
+        function updateStatus() {
+            const profileStatus = document.getElementById('profileStatus');
+            const sheetStatus = document.getElementById('sheetStatus');
+            const btnLoginGoogle = document.getElementById('btnLoginGoogle');
+            const btnVerifyPhoneSheet = document.getElementById('btnVerifyPhoneSheet');
+            const btnAppealGoogle = document.getElementById('btnAppealGoogle');
+
+            if (window.openedProfiles.length > 0) {
+                profileStatus.textContent = `✓ ${window.openedProfiles.length}`;
+                profileStatus.className = 'status-badge status-ready';
+            } else {
+                profileStatus.textContent = 'Chưa mở';
+                profileStatus.className = 'status-badge status-waiting';
+            }
+
+            if (window.sheetRows.length > 0) {
+                sheetStatus.textContent = `✓ ${window.sheetRows.length}`;
+                sheetStatus.className = 'status-badge status-ready';
+            } else {
+                sheetStatus.textContent = 'Chưa load';
+                sheetStatus.className = 'status-badge status-waiting';
+            }
+
+            // Automation buttons are always enabled
+            btnLoginGoogle.disabled = false;
+            btnVerifyPhoneSheet.disabled = false;
+            btnAppealGoogle.disabled = false;
+        }
+
+        async function createProfiles() {
+            const count = Number(document.getElementById('count').value || 5);
+            show('Đang tạo ' + count + ' profiles...');
+            createFirecracker(window.innerWidth / 2, 100);
+
+            try {
+                const res = await fetch(`${API}/profiles/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count }),
+                });
+                show(await res.json());
+            } catch (err) { show('Lỗi: ' + err.message); }
+        }
+
+        async function deleteAllProfiles() {
+            if (!confirm('Xác nhận xóa toàn bộ?')) return;
+            show('Đang xóa...');
+
+            try {
+                const res = await fetch(`${API}/profiles/delete-all`, { method: 'DELETE' });
+                window.openedProfiles = [];
+                updateStatus();
+                show(await res.json());
+            } catch (err) { show('Lỗi: ' + err.message); }
+        }
+
+        async function startAllProfiles() {
+            show('Đang mở profiles...');
+
+            try {
+                const res = await fetch(`${API}/profiles/start-all`, { method: 'POST' });
+                const data = await res.json();
+                window.openedProfiles = data.profiles || [];
+                updateStatus();
+                show(data);
+                createFirecracker(window.innerWidth / 2, 180);
+            } catch (err) { show('Lỗi: ' + err.message); }
+        }
+
+        async function closeAllProfiles() {
+            show('Đang đóng...');
+
+            try {
+                const res = await fetch(`${API}/profiles/close-all`, { method: 'POST' });
+                window.openedProfiles = [];
+                updateStatus();
+                show(await res.json());
+            } catch (err) { show('Lỗi: ' + err.message); }
+        }
+
+        async function getSheetData() {
+            show('Đang tải...');
+
+            try {
+                const res = await fetch(`${API}/sheet/rows`);
+                const data = await res.json();
+                window.sheetRows = data.rows || [];
+                updateStatus();
+                show(data);
+            } catch (err) { show('Lỗi: ' + err.message); }
+        }
+
+        async function runLoginGoogle() {
+            console.log(`📊 Profiles: ${window.openedProfiles.length}, Sheet rows: ${window.sheetRows.length}`);
+
+            if (window.openedProfiles.length === 0) {
+                alert('Chưa có profiles mở! Ấn nút "Mở" trước.');
+                return;
+            }
+
+            if (window.sheetRows.length === 0) {
+                alert('Chưa load sheet data! Ấn nút "Load Sheet" trước.');
+                return;
+            }
+
+            // Sắp xếp profiles theo profile_id để đảm bảo profile 1 → sheet row 1, profile 2 → sheet row 2, etc.
+            const sortedProfiles = [...window.openedProfiles].sort((a, b) => {
+                const idA = typeof a.profile_id === 'string' ? parseInt(a.profile_id) : a.profile_id;
+                const idB = typeof b.profile_id === 'string' ? parseInt(b.profile_id) : b.profile_id;
+                return idA - idB;
+            });
+
+            const count = Math.min(sortedProfiles.length, window.sheetRows.length);
+            const jobs = [];
+            for (let i = 0; i < count; i++) {
+                jobs.push({
+                    profileId: sortedProfiles[i].profile_id,
+                    remoteDebugAddress: sortedProfiles[i].remote_debugging_address,
+                    sheetRow: window.sheetRows[i],
+                });
+                console.log(`🔗 Profile ${sortedProfiles[i].profile_id} → Sheet row ${i + 1}`);
+            }
+
+            console.log(`🚀 Creating ${count} jobs for automation`);
+            show(`Đang login ${count} tài khoản...`);
+            document.getElementById('btnStopAutomation').disabled = false;
+            document.getElementById('btnLoginGoogle').disabled = true;
+
+            try {
+                const res = await fetch(`${API}/automation/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ automation: 'login-google', profiles: jobs }),
+                });
+                show(await res.json());
+                createFirecracker(window.innerWidth / 2, 150);
+            } catch (err) { show('Lỗi: ' + err.message); }
+            finally {
+                document.getElementById('btnStopAutomation').disabled = true;
+                updateStatus();
+            }
+        }
+
+        async function stopAutomation() {
+            show('Đang dừng...');
+
+            try {
+                const res = await fetch(`${API}/automation/stop`, { method: 'POST' });
+                show({ message: 'Đã dừng automation', ...(await res.json()) });
+            } catch (err) { show('Lỗi: ' + err.message); }
+
+            // Vô hiệu hóa nút "Dừng"
+            document.getElementById('btnStopAutomation').disabled = true;
+
+            // Mở khóa lại nút "Load 50 Phones" sau khi dừng
+            const btnLoadQueue = document.getElementById('btnLoadQueue');
+            btnLoadQueue.disabled = false;
+
+            updateStatus();
+        }
+
+        async function runVerifyPhoneSheet() {
+            const count = Math.min(window.openedProfiles.length, window.sheetRows.length);
+            const jobs = [];
+            for (let i = 0; i < count; i++) {
+                jobs.push({
+                    profileId: window.openedProfiles[i].profile_id,
+                    remoteDebugAddress: window.openedProfiles[i].remote_debugging_address,
+                    sheetRow: window.sheetRows[i],
+                });
+            }
+
+            show(`Đang verify phone sheet ${count} tài khoản...`);
+            document.getElementById('btnStopAutomation').disabled = false;
+            document.getElementById('btnVerifyPhoneSheet').disabled = true;
+
+            try {
+                const res = await fetch(`${API}/automation/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ automation: 'verify-phone-sheet', profiles: jobs }),
+                });
+                show(await res.json());
+                createFirecracker(window.innerWidth / 2, 150);
+            } catch (err) { show('Lỗi: ' + err.message); }
+            finally {
+                document.getElementById('btnStopAutomation').disabled = true;
+                updateStatus();
+            }
+        }
+
+        async function runAppealGoogle() {
+            const count = Math.min(window.openedProfiles.length, window.sheetRows.length);
+            const jobs = [];
+            for (let i = 0; i < count; i++) {
+                jobs.push({
+                    profileId: window.openedProfiles[i].profile_id,
+                    remoteDebugAddress: window.openedProfiles[i].remote_debugging_address,
+                    sheetRow: window.sheetRows[i],
+                });
+            }
+
+            show(`Đang appeal Google ${count} tài khoản...`);
+            document.getElementById('btnStopAutomation').disabled = false;
+            document.getElementById('btnAppealGoogle').disabled = true;
+
+            try {
+                const res = await fetch(`${API}/automation/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ automation: 'appeal-google', profiles: jobs }),
+                });
+                show(await res.json());
+                createFirecracker(window.innerWidth / 2, 150);
+            } catch (err) { show('Lỗi: ' + err.message); }
+            finally {
+                document.getElementById('btnStopAutomation').disabled = true;
+                updateStatus();
+            }
+        }
+
+        async function runLogoutGoogle() {
+            if (window.openedProfiles.length === 0) {
+                alert('Chưa có profiles mở! Ấn nút "Mở" trước.');
+                return;
+            }
+
+            const jobs = window.openedProfiles.map(p => ({
+                profileId: p.profile_id,
+                remoteDebugAddress: p.remote_debugging_address,
+            }));
+
+            show(`Đang logout ${jobs.length} tài khoản...`);
+            document.getElementById('btnStopAutomation').disabled = false;
+            document.getElementById('btnLogoutGoogle').disabled = true;
+
+            try {
+                const res = await fetch(`${API}/automation/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ automation: 'logout-google', profiles: jobs }),
+                });
+                show(await res.json());
+                createFirecracker(window.innerWidth / 2, 150);
+            } catch (err) { show('Lỗi: ' + err.message); }
+            finally {
+                document.getElementById('btnStopAutomation').disabled = true;
+                document.getElementById('btnLogoutGoogle').disabled = false;
+            }
+        }
+
+        // === PHONE CHECK QUEUE FUNCTIONS ===
+
+        let queueLoaded = false; // Track nếu queue đã được load
+
+        async function loadOrResetQueue() {
+            if (window.openedProfiles.length === 0) {
+                alert('Chưa có profiles mở! Ấn nút "Mở" trước.');
+                return;
+            }
+
+            // Kiểm tra xem profiles có remote_debugging_address không
+            const invalidProfile = window.openedProfiles.find(p => !p.remote_debugging_address);
+            if (invalidProfile) {
+                alert('⚠️ Profiles chưa được mở đúng cách!\n\nVui lòng:\n1. Click nút "Đóng" để đóng hết\n2. Click nút "Mở" để mở lại profiles\n3. Thử lại');
+                console.error('Invalid profile detected:', window.openedProfiles);
+                return;
+            }
+
+            const btn = document.getElementById('btnLoadQueue');
+
+            if (queueLoaded) {
+                // Đã load rồi → Reset và load 50 số mới
+                const confirm = window.confirm('Load 50 số mới và chạy lại?');
+                if (!confirm) return;
+
+                show('🔄 Đang reset và load 50 số mới...');
+                btn.textContent = '⏳ Đang reset...';
+                btn.disabled = true;
+            } else {
+                // Lần đầu → Load 50 số
+                show('🔄 Đang load 50 phones vào queue...');
+                btn.textContent = '⏳ Đang load...';
+                btn.disabled = true;
+            }
+
+            try {
+                // Gọi API load/reset
+                const endpoint = queueLoaded ? '/phone/queue/reset' : '/phone/queue/load';
+                const loadRes = await fetch(`${API}${endpoint}`, {
+                    method: 'POST',
+                });
+                const loadData = await loadRes.json();
+
+                if (!loadData.success) {
+                    show(`❌ Không thể load phones: ${loadData.message}`);
+                    btn.textContent = '🔄 Load 50 Phones & Start';
+                    btn.disabled = false;
+                    return;
+                }
+
+                show(`✅ Đã load ${loadData.total} phones vào queue!`);
+                queueLoaded = true;
+
+                // Update button text
+                btn.textContent = '🔄 Load 50 Số Mới & Start';
+                btn.className = 'btn-warning'; // Change color to indicate it's now reset mode
+
+                // Update queue status badge
+                const queueStatus = document.getElementById('queueStatus');
+                queueStatus.textContent = `✓ ${loadData.total} phones`;
+                queueStatus.className = 'status-badge status-ready';
+
+                // Start automation
+                await runCheckPhoneVerify();
+
+                // Re-enable button
+                btn.disabled = false;
+
+            } catch (err) {
+                show('Lỗi: ' + err.message);
+                btn.textContent = queueLoaded ? '🔄 Load 50 Số Mới & Start' : '🔄 Load 50 Phones & Start';
+                btn.disabled = false;
+            }
+        }
+
+        async function runCheckPhoneVerify() {
+            show('🚀 Đang chạy Phone Check automation...');
+
+            try {
+                const btnStop = document.getElementById('btnStopAutomation');
+                btnStop.disabled = false;
+
+                // Tạo jobs với sheetRow để có thể update Google Sheet
+                const jobs = [];
+                for (let i = 0; i < window.openedProfiles.length; i++) {
+                    jobs.push({
+                        profileId: window.openedProfiles[i].profile_id,
+                        remoteDebugAddress: window.openedProfiles[i].remote_debugging_address,
+                        sheetRow: i < window.sheetRows.length ? window.sheetRows[i] : undefined
+                    });
+                }
+
+                const res = await fetch(`${API}/automation/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        automation: 'check-phone-verify',
+                        profiles: jobs
+                    })
+                });
+
+                const data = await res.json();
+                btnStop.disabled = true;
+
+                if (data.stopped) {
+                    show('⏸ Đã dừng automation.');
+                } else {
+                    show(data);
+                }
+
+            } catch (err) {
+                document.getElementById('btnStopAutomation').disabled = true;
+                show('Lỗi: ' + err.message);
+            }
+        }
+
+        async function showQueueStatus() {
+            show('📊 Đang lấy queue status...');
+
+            try {
+                const res = await fetch(`${API}/phone/queue/status`);
+                const data = await res.json();
+
+                const summary = `
+📊 TRẠNG THÁI QUEUE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📱 Tổng số phones đã load: ${data.total}
+
+🔄 Đang được check bởi browsers: ${data.assigned}
+   └─ Số đang được assign cho 1 browser nào đó
+
+✅ Đã check xong: ${data.checked} (${Math.round(data.checked / data.total * 100)}%)
+   ├─ ✓ Hợp lệ (dùng được): ${data.valid}
+   └─ ✗ Không hợp lệ (lỗi): ${data.invalid}
+
+⏳ Chưa check (còn trống): ${data.available}
+   └─ Số chưa ai lấy hoặc đã check xong nhưng chưa hết 5 browsers
+
+⏰ Thời gian load: ${data.loadedAt ? new Date(data.loadedAt).toLocaleString('vi-VN') : 'Chưa load'}
+
+💡 LƯU Ý: 
+- Mỗi số có thể được tối đa 5 browsers check (nếu cả 5 đều thấy invalid)
+- Số "Available" bao gồm: số chưa ai check + số invalid nhưng chưa đủ 5 browsers check
+`;
+
+                show(summary);
+
+            } catch (err) {
+                show('Lỗi: ' + err.message);
+            }
+        }
+
+        updateStatus();
+    </script>
+</body>
+
+</html>
