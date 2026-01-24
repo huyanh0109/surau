@@ -6,6 +6,7 @@ import { VerifyPhoneSheetAutomation } from './automations/verify-phone-sheet/ver
 import { AppealGoogleAutomation } from './automations/appeal-google/appeal-google.automation';
 import { CheckPhoneVerifyAutomation } from './automations/check-phone-verify/check-phone-verify.automation';
 import { LogoutGoogleAutomation } from './automations/logout-google/logout-google.automation';
+import { Setup2FAAutomation } from './automations/setup-2fa/setup-2fa.automation';
 import { AutomationEngine } from './engines/automation.engine';
 import { ChromeService } from './browser/chrome.service';
 import { CapMonsterHelper } from './helpers/capmonster-helper';
@@ -17,6 +18,7 @@ const automationRegistry: Record<string, () => AutomationEngine> = {
     'appeal-google': () => new AppealGoogleAutomation(),
     'check-phone-verify': () => new CheckPhoneVerifyAutomation(),
     'logout-google': () => new LogoutGoogleAutomation(),
+    'setup-2fa': () => new Setup2FAAutomation(),
 };
 
 @Injectable()

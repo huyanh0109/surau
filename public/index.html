@@ -573,6 +573,7 @@
                     Phone Sheet</button>
                 <button id="btnAppealGoogle" class="btn-warning" onclick="runAppealGoogle()" disabled>⚠️ Appeal
                     Google</button>
+                <button id="btnSetup2FA" class="btn-info" onclick="runSetup2FA()" disabled>🔑 Setup 2FA</button>
                 <button id="btnLogoutGoogle" class="btn-danger" onclick="runLogoutGoogle()">🚪 Logout</button>
             </div>
         </div>
@@ -786,6 +787,7 @@
             const btnLoginGoogle = document.getElementById('btnLoginGoogle');
             const btnVerifyPhoneSheet = document.getElementById('btnVerifyPhoneSheet');
             const btnAppealGoogle = document.getElementById('btnAppealGoogle');
+            const btnSetup2FA = document.getElementById('btnSetup2FA');
 
             if (window.openedProfiles.length > 0) {
                 profileStatus.textContent = `✓ ${window.openedProfiles.length}`;
@@ -807,6 +809,7 @@
             btnLoginGoogle.disabled = false;
             btnVerifyPhoneSheet.disabled = false;
             btnAppealGoogle.disabled = false;
+            btnSetup2FA.disabled = false;
         }
 
         async function createProfiles() {
@@ -1030,6 +1033,50 @@
                 document.getElementById('btnLogoutGoogle').disabled = false;
             }
         }
+
+        async function runSetup2FA() {
+            if (window.openedProfiles.length === 0) {
+                alert('Chưa có profiles mở! Ấn nút "Mở" trước.');
+                return;
+            }
+
+            const jobs = window.openedProfiles.map(p => ({
+                profileId: p.profile_id,
+                remoteDebugAddress: p.remote_debugging_address,
+            }));
+
+            show(`Đang setup 2FA cho ${jobs.length} tài khoản...`);
+            document.getElementById('btnStopAutomation').disabled = false;
+            document.getElementById('btnSetup2FA').disabled = true;
+
+            try {
+                const res = await fetch(`${API}/automation/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ automation: 'setup-2fa', profiles: jobs }),
+                });
+                const result = await res.json();
+                show(result);
+
+                // Hiển thị 2FA keys nếu có
+                if (result.results && result.results.length > 0) {
+                    console.log('🔑 2FA Keys:');
+                    result.results.forEach(r => {
+                        if (r.success && r.data?.secretKey) {
+                            console.log(`Profile ${r.profileId}: ${r.data.secretKey}`);
+                        }
+                    });
+                }
+
+                createFirecracker(window.innerWidth / 2, 150);
+            } catch (err) {
+                show('Lỗi: ' + err.message);
+            } finally {
+                document.getElementById('btnStopAutomation').disabled = true;
+                document.getElementById('btnSetup2FA').disabled = false;
+            }
+        }
+
 
         // === PHONE CHECK QUEUE FUNCTIONS ===
 

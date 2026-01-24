@@ -40,10 +40,32 @@ export class LoginGoogleAutomation implements AutomationEngine {
             await page.waitForSelector('input[type="password"]', { visible: true, timeout: 300000 });
             await new Promise(resolve => setTimeout(resolve, 2000));
             await page.type('input[type="password"]', sheetRow.PassWord, { delay: 10 });
-            await page.click('#passwordNext');
+
+            // Double click với delay để đảm bảo button được click
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await page.click('#passwordNext', { clickCount: 2, delay: 100 });
 
             // Đợi trang load sau khi nhập password 
             await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Tự động đóng popup "Save password?" của Chrome
+            try {
+                await page.evaluate(() => {
+                    // Tìm và click nút "Never" hoặc "No thanks"
+                    const buttons = Array.from(document.querySelectorAll('button'));
+                    const dismissBtn = buttons.find(btn =>
+                        btn.textContent?.includes('Never') ||
+                        btn.textContent?.includes('No thanks') ||
+                        btn.textContent?.includes('Không bao giờ') ||
+                        btn.textContent?.includes('Không, cảm ơn')
+                    );
+                    if (dismissBtn) {
+                        (dismissBtn as HTMLElement).click();
+                    }
+                });
+            } catch {
+                // Không có popup hoặc không tìm thấy nút, bỏ qua
+            }
             if (signal?.aborted) {
                 return { profileId: job.profileId, success: false, error: 'Stopped' };
             }
