@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xsurau Antidetect Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2035;
+            --bg-hover: #1f2a45;
+            --border: #2a3555;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --accent-hover: #818cf8;
+            --green: #22c55e;
+            --green-glow: rgba(34, 197, 94, 0.25);
+            --red: #ef4444;
+            --red-glow: rgba(239, 68, 68, 0.25);
+            --yellow: #f59e0b;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 18px; color: white;
+        }
+        .header h1 {
+            font-size: 20px; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-hover), #c084fc);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header-stats {
+            display: flex; gap: 24px; font-size: 13px; color: var(--text-secondary);
+        }
+        .stat-value { font-weight: 600; color: var(--text-primary); }
+
+        /* TOOLBAR */
+        .toolbar {
+            padding: 16px 32px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .btn {
+            padding: 8px 20px;
+            border: none; border-radius: 8px;
+            font-family: inherit; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-primary {
+            background: var(--accent); color: white;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-danger { background: var(--red); color: white; }
+        .btn-danger:hover { opacity: 0.85; }
+        .btn-ghost {
+            background: transparent; color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-run { background: var(--green); color: white; box-shadow: 0 0 12px var(--green-glow); }
+        .btn-run:hover { opacity: 0.85; }
+        .btn-stop { background: var(--red); color: white; }
+
+        /* TABLE */
+        .table-container {
+            padding: 0 32px 32px;
+        }
+        table {
+            width: 100%; border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 12px; overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        thead { background: var(--bg-secondary); }
+        th {
+            text-align: left; padding: 12px 16px;
+            font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+        td {
+            padding: 12px 16px; font-size: 13px;
+            border-top: 1px solid var(--border);
+        }
+        tr:hover td { background: var(--bg-hover); }
+        .profile-name { font-weight: 600; }
+        .profile-id { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+
+        /* STATUS BADGE */
+        .badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 600;
+        }
+        .badge-running {
+            background: var(--green-glow); color: var(--green);
+        }
+        .badge-stopped {
+            background: rgba(100, 116, 139, 0.2); color: var(--text-muted);
+        }
+        .badge-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+        }
+        .badge-running .badge-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .badge-stopped .badge-dot { background: var(--text-muted); }
+
+        .proxy-cell {
+            font-family: monospace; font-size: 12px; color: var(--text-secondary);
+            max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .gpu-cell { font-size: 11px; color: var(--text-secondary); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .actions { display: flex; gap: 6px; }
+        .ext-count { font-size: 12px; color: var(--yellow); font-weight: 600; }
+
+        /* MODAL */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+            z-index: 100; align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 28px; width: 480px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        .modal h2 { font-size: 18px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block; font-size: 12px; font-weight: 600;
+            color: var(--text-secondary); margin-bottom: 6px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 10px 14px;
+            background: var(--bg-primary); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary);
+            font-family: inherit; font-size: 13px; outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group textarea:focus { border-color: var(--accent); }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .form-group small { display: block; margin-top: 4px; font-size: 11px; color: var(--text-muted); }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: var(--text-muted);
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state p { font-size: 14px; margin-bottom: 20px; }
+
+        /* TOAST */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; }
+        .toast {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 20px; margin-bottom: 8px;
+            font-size: 13px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="header-left">
+        <div class="logo">X</div>
+        <h1>Xsurau Antidetect Manager</h1>
+    </div>
+    <div class="header-stats">
+        <span>Tổng: <span class="stat-value" id="totalCount">0</span></span>
+        <span>Đang chạy: <span class="stat-value" style="color: var(--green)" id="runningCount">0</span></span>
+    </div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+    <div>
+        <button class="btn btn-primary" onclick="openCreateModal()">＋ Tạo Profile</button>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <button class="btn btn-ghost" onclick="loadProfiles()">↻ Làm mới</button>
+        <button class="btn btn-danger btn-sm" onclick="closeAllProfiles()">⏹ Đóng tất cả</button>
+    </div>
+</div>
+
+<!-- TABLE -->
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Tên</th>
+                <th>Trạng thái</th>
+                <th>Proxy</th>
+                <th>GPU (WebGL)</th>
+                <th>Extension</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody id="profileTable">
+        </tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="icon">🌐</div>
+        <p>Chưa có profile nào. Hãy tạo profile đầu tiên!</p>
+        <button class="btn btn-primary" onclick="openCreateModal()">＋ Tạo Profile</button>
+    </div>
+</div>
+
+<!-- MODAL: CREATE / EDIT -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h2 id="modalTitle">Tạo Profile Mới</h2>
+        <input type="hidden" id="editProfileId">
+        <div class="form-group">
+            <label>Tên Profile</label>
+            <input type="text" id="inputName" placeholder="VD: Nick Facebook 01">
+        </div>
+        <div class="form-group">
+            <label>Proxy</label>
+            <input type="text" id="inputProxy" placeholder="http://user:pass@ip:port hoặc socks5://ip:port">
+            <small>Để trống nếu không dùng proxy</small>
+        </div>
+        <div class="form-group">
+            <label>Extension (đường dẫn thư mục)</label>
+            <textarea id="inputExtensions" placeholder="Mỗi dòng 1 đường dẫn, VD:&#10;C:\Users\huyan\extensions\captcha-solver&#10;C:\Users\huyan\extensions\proxy-auth"></textarea>
+            <small>Mỗi dòng 1 đường dẫn tuyệt đối tới thư mục extension đã giải nén</small>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal()">Hủy</button>
+            <button class="btn btn-primary" onclick="saveProfile()">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const API = 'http://localhost:1337/api';
+
+async function loadProfiles() {
+    const res = await fetch(`${API}/profiles`);
+    const profiles = await res.json();
+
+    const table = document.getElementById('profileTable');
+    const empty = document.getElementById('emptyState');
+    const total = document.getElementById('totalCount');
+    const running = document.getElementById('runningCount');
+
+    total.textContent = profiles.length;
+    running.textContent = profiles.filter(p => p.status === 'running').length;
+
+    if (profiles.length === 0) {
+        table.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    table.innerHTML = profiles.map(p => `
+        <tr>
+            <td>
+                <div class="profile-name">${escHtml(p.name)}</div>
+                <div class="profile-id">${p.id}</div>
+            </td>
+            <td>
+                <span class="badge badge-${p.status}">
+                    <span class="badge-dot"></span>
+                    ${p.status === 'running' ? 'Đang chạy' : 'Đã dừng'}
+                </span>
+            </td>
+            <td class="proxy-cell" title="${escHtml(p.proxy || '')}">${p.proxy || '<span style="color:var(--text-muted)">— Không —</span>'}</td>
+            <td class="gpu-cell" title="${escHtml(p.gpu?.renderer || '')}">${extractGpuShort(p.gpu?.renderer)}</td>
+            <td><span class="ext-count">${(p.extensions || []).length > 0 ? p.extensions.length + ' ext' : '<span style="color:var(--text-muted)">0</span>'}</span></td>
+            <td class="actions">
+                ${p.status === 'running'
+                    ? `<button class="btn btn-stop btn-sm" onclick="closeProfile('${p.id}')">⏹ Dừng</button>`
+                    : `<button class="btn btn-run btn-sm" onclick="launchProfile('${p.id}')">▶ Mở</button>`
+                }
+                <button class="btn btn-ghost btn-sm" onclick="openEditModal('${p.id}')">✏️</button>
+                <button class="btn btn-ghost btn-sm" onclick="deleteProfile('${p.id}')" ${p.status === 'running' ? 'disabled style="opacity:0.3"' : ''}>🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function launchProfile(id) {
+    showToast('🚀 Đang mở trình duyệt...');
+    const res = await fetch(`${API}/profiles/${id}/launch`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
+    const data = await res.json();
+    if (data.error) showToast('❌ ' + data.error);
+    else showToast('✅ Đã mở thành công!');
+    loadProfiles();
+}
+
+async function closeProfile(id) {
+    await fetch(`${API}/profiles/${id}/close`, { method: 'POST' });
+    showToast('⏹ Đã đóng profile.');
+    loadProfiles();
+}
+
+async function closeAllProfiles() {
+    await fetch(`${API}/close-all`, { method: 'POST' });
+    showToast('⏹ Đã đóng tất cả.');
+    loadProfiles();
+}
+
+async function deleteProfile(id) {
+    if (!confirm('Bạn có chắc muốn XÓA profile này? (Toàn bộ cookie/data sẽ bị mất)')) return;
+    const res = await fetch(`${API}/profiles/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.error) showToast('❌ ' + data.error);
+    else showToast('🗑️ Đã xóa.');
+    loadProfiles();
+}
+
+function openCreateModal() {
+    document.getElementById('modalTitle').textContent = 'Tạo Profile Mới';
+    document.getElementById('editProfileId').value = '';
+    document.getElementById('inputName').value = '';
+    document.getElementById('inputProxy').value = '';
+    document.getElementById('inputExtensions').value = '';
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function openEditModal(id) {
+    const res = await fetch(`${API}/profiles/${id}`);
+    const p = await res.json();
+    document.getElementById('modalTitle').textContent = 'Sửa Profile';
+    document.getElementById('editProfileId').value = id;
+    document.getElementById('inputName').value = p.name || '';
+    document.getElementById('inputProxy').value = p.proxy || '';
+    document.getElementById('inputExtensions').value = (p.extensions || []).join('\n');
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('active');
+}
+
+async function saveProfile() {
+    const editId = document.getElementById('editProfileId').value;
+    const name = document.getElementById('inputName').value.trim();
+    const proxy = document.getElementById('inputProxy').value.trim() || null;
+    const extText = document.getElementById('inputExtensions').value.trim();
+    const extensions = extText ? extText.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+    if (editId) {
+        // Update
+        await fetch(`${API}/profiles/${editId}`, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ name, proxy, extensions })
+        });
+        showToast('✅ Đã cập nhật profile.');
+    } else {
+        // Create
+        await fetch(`${API}/profiles`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ name, proxy, extensions })
+        });
+        showToast('✅ Đã tạo profile mới!');
+    }
+    closeModal();
+    loadProfiles();
+}
+
+function extractGpuShort(renderer) {
+    if (!renderer) return '<span style="color:var(--text-muted)">—</span>';
+    const match = renderer.match(/ANGLE \((\w+), (.+?) Direct3D/);
+    if (match) return `${match[1]} ${match[2].replace(/NVIDIA |Intel\(R\) |AMD /g, '').trim()}`;
+    return renderer.substring(0, 40);
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+// Click overlay để đóng modal
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+});
+
+// Auto-refresh mỗi 3 giây
+setInterval(loadProfiles, 3000);
+
+// Load lần đầu
+loadProfiles();
+</script>
+</body>
+</html>
