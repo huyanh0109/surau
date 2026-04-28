@@ -4,41 +4,30 @@ import { AutomationJob, AutomationResult } from '../../types/automation-job';
 import { LogStreamService } from '../../../log-stream/log-stream.service';
 import { generateSync } from 'otplib';
 
-export class LoginGoogleAutomation implements AutomationEngine {
-    name = 'login-google';
+export class PasswordGoogleAutomation implements AutomationEngine {
+    name = 'password-google';
 
     async run(page: Page, job: AutomationJob, signal?: AbortSignal, logger?: LogStreamService): Promise<AutomationResult> {
         try {
             const { sheetRow } = job;
 
-            if (!sheetRow?.Gmail || !sheetRow?.PassWord) {
-                throw new Error('Missing Gmail or Password in sheetRow');
+            if (!sheetRow?.PassWord) {
+                throw new Error('Missing Password in sheetRow');
             }
 
             if (signal?.aborted) {
                 return { profileId: job.profileId, success: false, error: 'Stopped' };
             }
 
-            // 1. Mở trang login
-            await page.goto('https://accounts.google.com/v3/signin/identifier?authuser=0&continue=https%3A%2F%2Fone.google.com%2F&ec=GAlAywM&hl=en_GB&flowName=GlifWebSignIn&flowEntry=AddSession&dsh=S1778782401%3A1705652493426088&theme=glif', {
-                waitUntil: 'networkidle2',
-            });
+            // Note: We skip the navigation to login page and email entry
+            // This automation assumes the page is already at the password prompt.
 
             if (signal?.aborted) {
                 return { profileId: job.profileId, success: false, error: 'Stopped' };
             }
 
-            // 2. Nhập email
-            await page.waitForSelector('input[type="email"]', { timeout: 30000 });
-            await page.type('input[type="email"]', sheetRow.Gmail, { delay: 10 });
-            await page.click('#identifierNext');
-
-            if (signal?.aborted) {
-                return { profileId: job.profileId, success: false, error: 'Stopped' };
-            }
-
-            // 3. Chờ và nhập password
-            await page.waitForSelector('input[type="password"]', { visible: true, timeout: 300000 });
+            // 1. Chờ và nhập password
+            await page.waitForSelector('input[type="password"]', { visible: true, timeout: 30000 });
             await new Promise(resolve => setTimeout(resolve, 2000));
             await page.type('input[type="password"]', sheetRow.PassWord, { delay: 10 });
 
@@ -52,7 +41,6 @@ export class LoginGoogleAutomation implements AutomationEngine {
             // Tự động đóng popup "Save password?" của Chrome
             try {
                 await page.evaluate(() => {
-                    // Tìm và click nút "Never" hoặc "No thanks"
                     const buttons = Array.from(document.querySelectorAll('button'));
                     const dismissBtn = buttons.find(btn =>
                         btn.textContent?.includes('Never') ||
@@ -65,39 +53,30 @@ export class LoginGoogleAutomation implements AutomationEngine {
                     }
                 });
             } catch {
-                // Không có popup hoặc không tìm thấy nút, bỏ qua
+                // Ignore
             }
+
             if (signal?.aborted) {
                 return { profileId: job.profileId, success: false, error: 'Stopped' };
             }
 
-            // 4. Xác minh qua Email hoặc 2FA
+            // 2. Xác minh qua Email hoặc 2FA (Recovery)
             try {
-                // Kiểm tra Recover là email hay 2FA secret
                 const isEmailRecovery = this.isEmail(sheetRow.Recover);
 
                 if (isEmailRecovery) {
-                    // ===== LUỒNG EMAIL KHÔI PHỤC =====
                     const recoveryOption = await page.waitForSelector('[data-challengetype="12"]', { visible: true, timeout: 10000 });
-
                     if (recoveryOption) {
                         await recoveryOption.evaluate(el => el.scrollIntoView({ block: 'center' }));
                         await new Promise(resolve => setTimeout(resolve, 500));
                         await recoveryOption.click();
                     }
-
-                    // Đợi trang chuyển sau khi click
                     await new Promise(resolve => setTimeout(resolve, 3000));
-                    // Nhập email khôi phục
                     await page.waitForSelector('[name="knowledgePreregisteredEmailResponse"]', { visible: true, timeout: 10000 });
                     await page.type('[name="knowledgePreregisteredEmailResponse"]', sheetRow.Recover, { delay: 10 });
                     await new Promise(resolve => setTimeout(resolve, 500));
-
-                    // Click nút Next
                     await this.clickNextButton(page);
-                } else {
-                    // ===== LUỒNG 2FA =====
-                    // Thử click tùy chọn 2FA nếu có
+                } else if (sheetRow.Recover) {
                     try {
                         const twoFAOption = await page.waitForSelector('[data-challengeid="3"]', { visible: true, timeout: 5000 });
                         if (twoFAOption) {
@@ -107,36 +86,29 @@ export class LoginGoogleAutomation implements AutomationEngine {
                             await new Promise(resolve => setTimeout(resolve, 2000));
                         }
                     } catch {
-                        // Không có [data-challengeid="3"], chuyển thẳng đến ô nhập
+                        // Skip
                     }
 
-                    // Tìm ô nhập mã TOTP
                     await page.waitForSelector('[type="tel"]', { visible: true, timeout: 10000 });
-
-                    // Tạo mã 2FA từ secret
                     const code = this.generate2FACode(sheetRow.Recover);
-
-                    // Nhập mã vào ô
                     await page.type('[type="tel"]', code, { delay: 10 });
                     await new Promise(resolve => setTimeout(resolve, 500));
-
-                    // Click nút Next
                     await this.clickNextButton(page);
                 }
             } catch (error: any) {
-                // Có thể không cần xác minh
-                // console.log(error.message);
+                // Verification might not be needed
             }
 
             if (signal?.aborted) {
                 return { profileId: job.profileId, success: false, error: 'Stopped' };
             }
-            // 5. Chờ đăng nhập thành công
+
             try {
                 await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
             } catch (error: any) {
                 // Done
             }
+
             return {
                 profileId: job.profileId,
                 success: true,
@@ -150,22 +122,15 @@ export class LoginGoogleAutomation implements AutomationEngine {
             };
         }
     }
-    /**
- * Kiểm tra xem chuỗi có phải email không
- */
+
     private isEmail(value: string): boolean {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(value);
     }
 
-    /**
-     * Tạo mã 2FA TOTP từ secret
-     */
     private generate2FACode(secret: string): string {
         try {
-            // Loại bỏ khoảng trắng và chuyển thành uppercase
             const cleanSecret = secret.replace(/\s/g, '').toUpperCase();
-            // Tạo TOTP code
             const token = generateSync({ secret: cleanSecret });
             return token;
         } catch (error: any) {
@@ -173,9 +138,6 @@ export class LoginGoogleAutomation implements AutomationEngine {
         }
     }
 
-    /**
-     * Click nút Next với nhiều cách fallback
-     */
     private async clickNextButton(page: Page): Promise<void> {
         const nextButtonClicked = await Promise.race([
             page.click('button:has-text("Next")').then(() => true).catch(() => false),
@@ -184,7 +146,6 @@ export class LoginGoogleAutomation implements AutomationEngine {
         ]);
 
         if (!nextButtonClicked) {
-            // Fallback: tìm button chứa text Next hoặc Tiếp theo
             await page.evaluate(() => {
                 const buttons = Array.from(document.querySelectorAll('button'));
                 const nextBtn = buttons.find(btn =>

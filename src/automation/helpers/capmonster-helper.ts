@@ -2,11 +2,14 @@ import { Page, Browser } from 'puppeteer-core';
 
 export class CapMonsterHelper {
     /**
-     * Chuyển ReCaptcha2 mode sang Token
+     * Chuyển chế độ giải captcha (Token/Click) cho loại captcha cụ thể
      */
-    static async switchToTokenMode(page: Page): Promise<void> {
+    static async switchCaptchaMode(page: Page, mode: 'Token' | 'Click', captchaType: 'ReCaptcha2' | 'ReCaptchaEnterprise' = 'ReCaptcha2'): Promise<void> {
         try {
-            const extensionId = 'iiaoghhehhhblbajkopbiebfenlfnecl';
+            let extensionId = await this.getCapMonsterExtensionId(page.browser());
+            if (!extensionId) {
+                extensionId = 'gdnifgdibaknmedgkcocainknamefbnf'; // Fallback
+            }
             const extensionUrl = `chrome-extension://${extensionId}/popup.html`;
 
             const popupPage = await page.browser().newPage();
@@ -15,23 +18,31 @@ export class CapMonsterHelper {
             // Đợi extension load
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            // Click vào label có text "Token" (Ant Design Radio)
-            const clicked = await popupPage.evaluate(() => {
-                const labels = Array.from(document.querySelectorAll('label'));
-                const tokenLabel = labels.find(label => {
+            // Click vào label có text phù hợp trong group tương ứng
+            const clicked = await popupPage.evaluate((targetMode, targetType) => {
+                const groupId = `captcha-clicks-or-token-${targetType}`;
+                const group = document.getElementById(groupId);
+
+                if (!group) return 'group-not-found';
+
+                const labels = Array.from(group.querySelectorAll('label'));
+                const targetLabel = labels.find(label => {
                     const text = label.textContent?.trim();
-                    return text === 'Token';
+                    return text === targetMode;
                 });
 
-                if (tokenLabel) {
-                    (tokenLabel as HTMLElement).click();
-                    return true;
+                if (targetLabel) {
+                    (targetLabel as HTMLElement).click();
+                    return 'ok';
                 }
-                return false;
-            });
+                return 'label-not-found';
+            }, mode, captchaType);
 
-            if (!clicked) {
-                throw new Error('Token radio button not found');
+            if (clicked === 'group-not-found') {
+                throw new Error(`Captcha group "${captchaType}" not found in extension popup`);
+            }
+            if (clicked === 'label-not-found') {
+                throw new Error(`${mode} radio button not found for ${captchaType}`);
             }
 
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -42,42 +53,31 @@ export class CapMonsterHelper {
     }
 
     /**
+     * Chuyển ReCaptcha2 mode sang Token
+     */
+    static async switchToTokenMode(page: Page): Promise<void> {
+        return this.switchCaptchaMode(page, 'Token', 'ReCaptcha2');
+    }
+
+    /**
      * Chuyển ReCaptcha2 mode sang Click
      */
     static async switchToClickMode(page: Page): Promise<void> {
-        try {
-            const extensionId = 'iiaoghhehhhblbajkopbiebfenlfnecl';
-            const extensionUrl = `chrome-extension://${extensionId}/popup.html`;
+        return this.switchCaptchaMode(page, 'Click', 'ReCaptcha2');
+    }
 
-            const popupPage = await page.browser().newPage();
-            await popupPage.goto(extensionUrl, { waitUntil: 'networkidle2', timeout: 10000 });
+    /**
+     * Chuyển ReCaptcha Enterprise mode sang Token
+     */
+    static async switchToEnterpriseTokenMode(page: Page): Promise<void> {
+        return this.switchCaptchaMode(page, 'Token', 'ReCaptchaEnterprise');
+    }
 
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Click vào label có text "Click" (Ant Design Radio)
-            const clicked = await popupPage.evaluate(() => {
-                const labels = Array.from(document.querySelectorAll('label'));
-                const clickLabel = labels.find(label => {
-                    const text = label.textContent?.trim();
-                    return text === 'Click';
-                });
-
-                if (clickLabel) {
-                    (clickLabel as HTMLElement).click();
-                    return true;
-                }
-                return false;
-            });
-
-            if (!clicked) {
-                throw new Error('Click radio button not found');
-            }
-
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await popupPage.close();
-        } catch (error: any) {
-            throw error;
-        }
+    /**
+     * Chuyển ReCaptcha Enterprise mode sang Click
+     */
+    static async switchToEnterpriseClickMode(page: Page): Promise<void> {
+        return this.switchCaptchaMode(page, 'Click', 'ReCaptchaEnterprise');
     }
 
     /**
@@ -85,7 +85,10 @@ export class CapMonsterHelper {
      */
     static async enableExtension(page: Page): Promise<void> {
         try {
-            const extensionId = 'iiaoghhehhhblbajkopbiebfenlfnecl';
+            let extensionId = await this.getCapMonsterExtensionId(page.browser());
+            if (!extensionId) {
+                extensionId = 'gdnifgdibaknmedgkcocainknamefbnf'; // Fallback
+            }
             const extensionUrl = `chrome-extension://${extensionId}/popup.html`;
 
             const popupPage = await page.browser().newPage();
@@ -124,7 +127,10 @@ export class CapMonsterHelper {
      */
     static async disableExtension(page: Page): Promise<void> {
         try {
-            const extensionId = 'iiaoghhehhhblbajkopbiebfenlfnecl';
+            let extensionId = await this.getCapMonsterExtensionId(page.browser());
+            if (!extensionId) {
+                extensionId = 'gdnifgdibaknmedgkcocainknamefbnf'; // Fallback
+            }
             const extensionUrl = `chrome-extension://${extensionId}/popup.html`;
 
             const popupPage = await page.browser().newPage();

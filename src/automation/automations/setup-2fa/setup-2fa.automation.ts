@@ -1,6 +1,7 @@
 import { Page } from 'puppeteer-core';
 import { AutomationEngine } from '../../engines/automation.engine';
 import { AutomationJob, AutomationResult } from '../../types/automation-job';
+import { LogStreamService } from '../../../log-stream/log-stream.service';
 import { generateSync } from 'otplib';
 import { GoogleSheetClient } from '../../../google-sheet/google-sheet.client';
 import { GoogleSheetReader } from '../../../google-sheet/google-sheet.reader';
@@ -9,7 +10,7 @@ import { GoogleSheetWriter } from '../../../google-sheet/google-sheet.writer';
 export class Setup2FAAutomation implements AutomationEngine {
     name = 'setup-2fa';
 
-    async run(page: Page, job: AutomationJob, signal?: AbortSignal): Promise<AutomationResult> {
+    async run(page: Page, job: AutomationJob, signal?: AbortSignal, logger?: LogStreamService): Promise<AutomationResult> {
         try {
             if (signal?.aborted) {
                 return { profileId: job.profileId, success: false, error: 'Stopped' };

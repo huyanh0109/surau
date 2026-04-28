@@ -20,6 +20,10 @@ export class ChromeService {
      */
     async getOrCreatePage(browser: Browser) {
         const pages = await browser.pages();
+        // Tìm page không phải là of extension
+        const validPage = pages.find(p => !p.url().startsWith('chrome-extension://'));
+        if (validPage) return validPage;
+
         return pages.length ? pages[0] : await browser.newPage();
     }
 

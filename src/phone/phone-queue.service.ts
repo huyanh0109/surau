@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PhoneService } from './phone.service';
+import { LogStreamService } from '../log-stream/log-stream.service';
 
 interface PhoneAssignment {
     phoneNumber: string;
@@ -13,7 +14,10 @@ export class PhoneQueueService {
     private phones: PhoneAssignment[] = [];
     private loadedAt: Date | null = null;
 
-    constructor(private readonly phoneService: PhoneService) { }
+    constructor(
+        private readonly phoneService: PhoneService,
+        private readonly logStream: LogStreamService,
+    ) { }
 
     /**
      * Load 70 phones chưa dùng từ Google Sheet vào RAM
@@ -43,7 +47,7 @@ export class PhoneQueueService {
 
             this.loadedAt = new Date();
 
-            // console.log(`📋 Loaded ${this.phones.length} phones to queue at ${this.loadedAt.toISOString()}`);
+            this.logStream.log(`📋 Queue: Loaded ${this.phones.length} phones`, 'success');
 
             return {
                 success: true,
@@ -80,7 +84,7 @@ export class PhoneQueueService {
 
         // Nếu không có số nào available, return null
         const totalAvailable = this.phones.filter(p => p.assignedToProfile === null && !p.checkedByProfiles.has(profileId)).length;
-        console.log(`⚠️ No more phones available for profile ${profileId}. Total available for others: ${totalAvailable}`);
+        this.logStream.log(`⚠️ No more phones for Profile ${profileId}`, 'warning');
         return null;
     }
 
@@ -106,8 +110,7 @@ export class PhoneQueueService {
         // Unassign (để profile khác có thể check nếu invalid)
         phone.assignedToProfile = null;
 
-        const status = isValid ? '✅ VALID' : '❌ INVALID';
-        console.log(`${status} - ${phoneNumber} checked by profile ${profileId}`);
+        this.logStream.log(`${isValid ? '✓' : '✗'} [P${profileId}] ${phoneNumber}`, isValid ? 'success' : 'error');
 
         return {
             success: true,

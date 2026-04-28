@@ -3,52 +3,72 @@ import { AutomationRunner } from './engines/automation-runner';
 import { AutomationJob, AutomationResult } from './types/automation-job';
 import { LoginGoogleAutomation } from './automations/login-google/login-google.automation';
 import { VerifyPhoneSheetAutomation } from './automations/verify-phone-sheet/verify-phone-sheet.automation';
+import { VerifyPhoneSheetCheckAutomation } from './automations/verify-phone-sheet-check/verify-phone-sheet-check.automation';
 import { AppealGoogleAutomation } from './automations/appeal-google/appeal-google.automation';
 import { CheckPhoneVerifyAutomation } from './automations/check-phone-verify/check-phone-verify.automation';
 import { LogoutGoogleAutomation } from './automations/logout-google/logout-google.automation';
 import { Setup2FAAutomation } from './automations/setup-2fa/setup-2fa.automation';
+import { PasswordGoogleAutomation } from './automations/password-google/password-google.automation';
+import { SolveCaptchaApiAutomation } from './automations/solve-captcha-api/solve-captcha-api.automation';
+import { LoginCaptchaRetryAutomation } from './automations/login-captcha-retry/login-captcha-retry.automation';
+import { SolveCaptchaContinuousAutomation } from './automations/solve-captcha-continuous/solve-captcha-continuous.automation';
 import { AutomationEngine } from './engines/automation.engine';
 import { ChromeService } from './browser/chrome.service';
 import { CapMonsterHelper } from './helpers/capmonster-helper';
+import { LogStreamService } from '../log-stream/log-stream.service';
 
 // Registry các automation
 const automationRegistry: Record<string, () => AutomationEngine> = {
     'login-google': () => new LoginGoogleAutomation(),
     'verify-phone-sheet': () => new VerifyPhoneSheetAutomation(),
+    'verify-phone-sheet-check': () => new VerifyPhoneSheetCheckAutomation(),
     'appeal-google': () => new AppealGoogleAutomation(),
     'check-phone-verify': () => new CheckPhoneVerifyAutomation(),
     'logout-google': () => new LogoutGoogleAutomation(),
     'setup-2fa': () => new Setup2FAAutomation(),
+    'password-google': () => new PasswordGoogleAutomation(),
+    'solve-captcha-api': () => new SolveCaptchaApiAutomation(),
+    'login-captcha-retry': () => new LoginCaptchaRetryAutomation(),
+    'solve-captcha-continuous': () => new SolveCaptchaContinuousAutomation(),
 };
 
 @Injectable()
 export class AutomationService {
-    private abortController: AbortController | null = null;
-    private isRunning = false;
+    private abortControllers: Map<string, AbortController> = new Map();
+    private runningStatus: Map<string, boolean> = new Map();
 
     constructor(
         private readonly runner: AutomationRunner,
         private readonly chromeService: ChromeService,
+        private readonly logStream: LogStreamService,
     ) { }
 
     /**
      * Kiểm tra xem automation có đang chạy không
      */
     getStatus() {
-        return {
-            isRunning: this.isRunning,
-        };
+        const isRunning = Array.from(this.runningStatus.values()).some(v => v === true);
+        return { isRunning, runningTasks: Object.fromEntries(this.runningStatus) };
     }
 
     /**
      * Dừng automation đang chạy
      */
-    stopAutomation() {
-        if (this.abortController) {
-            this.abortController.abort();
-            this.abortController = null;
+    stopAutomation(automationName?: string) {
+        if (automationName) {
+            const controller = this.abortControllers.get(automationName);
+            if (controller) {
+                controller.abort();
+                this.abortControllers.delete(automationName);
+            }
+            this.runningStatus.set(automationName, false);
+        } else {
+            for (const controller of this.abortControllers.values()) {
+                controller.abort();
+            }
+            this.abortControllers.clear();
+            this.runningStatus.clear();
         }
-        this.isRunning = false;
         return { stopped: true };
     }
 
@@ -65,25 +85,33 @@ export class AutomationService {
             throw new Error(`Automation "${automationName}" not found`);
         }
 
-        // Tạo AbortController mới
-        this.abortController = new AbortController();
-        this.isRunning = true;
+        // Tạo AbortController mới riêng cho automation này
+        if (this.abortControllers.has(automationName)) {
+            // Dừng tiến trình cũ nếu nó đang chạy
+            this.stopAutomation(automationName);
+        }
+
+        const controller = new AbortController();
+        this.abortControllers.set(automationName, controller);
+        this.runningStatus.set(automationName, true);
 
         const engine = engineFactory();
 
         try {
-            const results = await this.runner.runMany(engine, jobs, this.abortController.signal);
+            const results = await this.runner.runMany(engine, jobs, controller.signal, this.logStream);
 
-            this.isRunning = false;
+            this.runningStatus.set(automationName, false);
+            this.abortControllers.delete(automationName);
 
             return {
                 success: results.every(r => r.success),
                 results,
             };
         } catch (error: any) {
-            this.isRunning = false;
+            this.runningStatus.set(automationName, false);
+            this.abortControllers.delete(automationName);
 
-            if (error.name === 'AbortError' || this.abortController?.signal.aborted) {
+            if (error.name === 'AbortError' || controller.signal.aborted) {
                 return {
                     success: false,
                     results: [],
@@ -108,6 +136,7 @@ export class AutomationService {
     async switchCapMonsterMode(
         profiles: { profileId: string; remoteDebugAddress: string }[],
         mode: 'token' | 'click',
+        captchaType: 'ReCaptcha2' | 'ReCaptchaEnterprise' = 'ReCaptcha2',
     ): Promise<{ success: boolean; results: any[] }> {
         const results = await Promise.all(
             profiles.map(async (profileInfo) => {
@@ -115,16 +144,14 @@ export class AutomationService {
                     const browser = await this.chromeService.connect(profileInfo.remoteDebugAddress);
                     const page = await this.chromeService.getOrCreatePage(browser);
 
-                    if (mode === 'token') {
-                        await CapMonsterHelper.switchToTokenMode(page);
-                    } else {
-                        await CapMonsterHelper.switchToClickMode(page);
-                    }
+                    const formattedMode = mode === 'token' ? 'Token' : 'Click';
+                    await CapMonsterHelper.switchCaptchaMode(page, formattedMode, captchaType);
 
                     return {
                         profileId: profileInfo.profileId,
                         success: true,
                         mode,
+                        captchaType,
                     };
                 } catch (error: any) {
                     return {

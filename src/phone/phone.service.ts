@@ -96,21 +96,37 @@ export class PhoneService {
                 headers: { 'Content-Type': 'application/json' },
             });
 
-            // Check if response is JSON
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                const text = await response.text();
+            // Read response as text first to handle both JSON and plain text
+            const responseText = await response.text();
+            let data: any = {};
+            let isError = false;
 
+            try {
+                // Try to parse as JSON (for existing API)
+                data = JSON.parse(responseText);
+            } catch (e) {
+                // If not JSON, it might be the new API (text/plain)
+                // Check for specific error format: {"message":"error","status":"fail"}|2026-03-04
+                if (responseText.includes('{"message":"error"') && responseText.includes('"status":"fail"')) {
+                    isError = true;
+                    // Try to parse the JSON part if needed, or just handle as error
+                } else {
+                    // Assume it's a success text response
+                    data = { text: responseText };
+                }
+            }
+
+            // Check for error/fail status from JSON or identified error
+            if (isError || (data.status && data.status === 'fail')) {
                 throw new HttpException(
                     {
                         statusCode: 500,
-                        message: 'API returned invalid response, try again',
+                        message: 'API returned error or no code yet',
+                        rawResponse: responseText
                     },
                     HttpStatus.INTERNAL_SERVER_ERROR,
                 );
             }
-
-            const data = await response.json();
 
             // Extract code from text if available
             let code = '';
@@ -172,21 +188,55 @@ export class PhoneService {
                 return false;
             }
 
-            if (!phone.LastUse) {
-                // If no LastUse, consider it available
+            if (!phone.LastUse || phone.LastUse.trim() === '') {
+                // If no LastUse, consider it available (never used)
                 return true;
             }
 
             try {
-                // Parse LastUse date (format: YYYY-MM-DD HH:mm:ss)
-                const lastUseDate = new Date(phone.LastUse);
+                // Try to parse LastUse date
+                // Handle formats: YYYY-MM-DD HH:mm:ss, DD/MM/YYYY HH:mm:ss, etc.
+                let lastUseDate: Date;
+                const dateStr = phone.LastUse.trim();
+
+                // Check for DD/MM/YYYY format (common in sheets)
+                // Regex for DD/MM/YYYY or D/M/YYYY
+                const dmyMatch = dateStr.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+
+                if (dmyMatch) {
+                    // Extract parts
+                    const day = parseInt(dmyMatch[1]);
+                    const month = parseInt(dmyMatch[2]) - 1; // Month is 0-indexed in JS
+                    const year = parseInt(dmyMatch[3]);
+                    const hour = dmyMatch[4] ? parseInt(dmyMatch[4]) : 0;
+                    const min = dmyMatch[5] ? parseInt(dmyMatch[5]) : 0;
+                    const sec = dmyMatch[6] ? parseInt(dmyMatch[6]) : 0;
+
+                    lastUseDate = new Date(year, month, day, hour, min, sec);
+                } else {
+                    // Try standard parser
+                    lastUseDate = new Date(dateStr);
+                }
+
+                // Check if date is valid
+                if (isNaN(lastUseDate.getTime())) {
+                    console.warn(`⚠️ [Filter] Invalid LastUse date for ${phone.PhoneNumber}: "${phone.LastUse}" -> Treating as UNAVAILABLE to be safe`);
+                    return false; // Skip invalid dates to avoid reusing recently used phones with bad format
+                }
+
                 const diffTime = now.getTime() - lastUseDate.getTime();
                 const diffDays = diffTime / (1000 * 60 * 60 * 24);
 
+                // Debug log for phones that are close to the limit (e.g. < 10 days)
+                // if (diffDays < 10) {
+                //     console.log(`ℹ️ [Filter] Phone ${phone.PhoneNumber}: LastUse=${phone.LastUse}, Diff=${diffDays.toFixed(2)} days`);
+                // }
+
                 return diffDays > daysSinceLastUse;
             } catch (error) {
-                // If parsing fails, consider it available
-                return true;
+                console.error(`❌ [Filter] Error parsing date for ${phone.PhoneNumber}: ${error}`);
+                // If parsing fails definitely, consider it unavailable to be safe
+                return false;
             }
         });
 

@@ -1,0 +1,12 @@
+name = "look-phone-surau"
+main = "src/worker.js"
+compatibility_date = "2026-01-20"
+
+[env.production]
+name = "look-phone-surau"
+
+[env.production.vars]
+# Environment variables will be set in Cloudflare dashboard
+# PORT = "3000"
+# GOOGLE_SHEET_ID = "your_sheet_id"
+# GOOGLE_SHEET_NAME = "RentPhone"

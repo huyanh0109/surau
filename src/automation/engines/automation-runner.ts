@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ChromeService } from '../browser/chrome.service';
 import { AutomationEngine } from './automation.engine';
 import { AutomationJob, AutomationResult } from '../types/automation-job';
+import { LogStreamService } from '../../log-stream/log-stream.service';
 
 @Injectable()
 export class AutomationRunner {
@@ -14,6 +15,7 @@ export class AutomationRunner {
         engine: AutomationEngine,
         job: AutomationJob,
         signal?: AbortSignal,
+        logger?: LogStreamService,
     ): Promise<AutomationResult> {
         // Kiểm tra nếu đã bị abort
         if (signal?.aborted) {
@@ -31,7 +33,7 @@ export class AutomationRunner {
             const page = await this.chromeService.getOrCreatePage(browser);
 
             // Chạy automation
-            const result = await engine.run(page, job, signal);
+            const result = await engine.run(page, job, signal, logger);
 
             return result;
         } catch (error: any) {
@@ -50,7 +52,8 @@ export class AutomationRunner {
         engine: AutomationEngine,
         jobs: AutomationJob[],
         signal?: AbortSignal,
+        logger?: LogStreamService,
     ): Promise<AutomationResult[]> {
-        return Promise.all(jobs.map(job => this.runOne(engine, job, signal)));
+        return Promise.all(jobs.map(job => this.runOne(engine, job, signal, logger)));
     }
 }

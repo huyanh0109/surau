@@ -13,8 +13,8 @@ export class AutomationController {
     }
 
     @Post('stop')
-    stop() {
-        return this.automationService.stopAutomation();
+    stop(@Body() body: { type?: string }) {
+        return this.automationService.stopAutomation(body?.type);
     }
 
     @Get('status')
@@ -31,12 +31,22 @@ export class AutomationController {
 
     @Post('capmonster/token')
     async switchToToken(@Body() body: { profiles: { profileId: string; remoteDebugAddress: string }[] }) {
-        return this.automationService.switchCapMonsterMode(body.profiles, 'token');
+        return this.automationService.switchCapMonsterMode(body.profiles, 'token', 'ReCaptcha2');
     }
 
     @Post('capmonster/click')
     async switchToClick(@Body() body: { profiles: { profileId: string; remoteDebugAddress: string }[] }) {
-        return this.automationService.switchCapMonsterMode(body.profiles, 'click');
+        return this.automationService.switchCapMonsterMode(body.profiles, 'click', 'ReCaptcha2');
+    }
+
+    @Post('capmonster/enterprise/token')
+    async switchToEnterpriseToken(@Body() body: { profiles: { profileId: string; remoteDebugAddress: string }[] }) {
+        return this.automationService.switchCapMonsterMode(body.profiles, 'token', 'ReCaptchaEnterprise');
+    }
+
+    @Post('capmonster/enterprise/click')
+    async switchToEnterpriseClick(@Body() body: { profiles: { profileId: string; remoteDebugAddress: string }[] }) {
+        return this.automationService.switchCapMonsterMode(body.profiles, 'click', 'ReCaptchaEnterprise');
     }
 
     @Post('capmonster/enable')

@@ -12,11 +12,11 @@ export class PhoneSheetReader {
         const res = await this.sheets.spreadsheets.values.get({
             spreadsheetId: this.spreadsheetId,
             // Sử dụng range cụ thể để đọc tất cả rows, kể cả dòng trống
-            range: `${this.sheetName}!A2:E1000`,
+            range: `${this.sheetName}!A2:E3000`,
         });
 
         const values = res.data.values || [];
-        // console.log(`📊 Google Sheets API returned ${values.length} rows from range ${this.sheetName}!A2:E1000`);
+        // console.log(`📊 Google Sheets API returned ${values.length} rows from range ${this.sheetName}!A2:E3000`);
 
         const mapped = values.map((row, index) => ({
             rowIndex: index + 2,
@@ -34,8 +34,13 @@ export class PhoneSheetReader {
         return mapped;
     }
 
+    private normalize(phone: string): string {
+        return phone.replace(/\D/g, '');
+    }
+
     async findByPhone(phoneNumber: string): Promise<PhoneRow | null> {
         const rows = await this.getAllRows();
-        return rows.find(r => r.PhoneNumber === phoneNumber) || null;
+        const normalizedInput = this.normalize(phoneNumber);
+        return rows.find(r => this.normalize(r.PhoneNumber) === normalizedInput) || null;
     }
 }

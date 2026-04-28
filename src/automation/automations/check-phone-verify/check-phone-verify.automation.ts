@@ -1,15 +1,15 @@
 import { Page } from 'puppeteer-core';
 import { AutomationEngine } from '../../engines/automation.engine';
 import { AutomationJob, AutomationResult } from '../../types/automation-job';
+import { LogStreamService } from '../../../log-stream/log-stream.service';
 
 export class CheckPhoneVerifyAutomation implements AutomationEngine {
     name = 'check-phone-verify';
 
-    async run(page: Page, job: AutomationJob, signal?: AbortSignal): Promise<AutomationResult> {
-        console.log(`🚀 [Profile ${job.profileId}] Starting check-phone-verify automation`);
+    async run(page: Page, job: AutomationJob, signal?: AbortSignal, logger?: LogStreamService): Promise<AutomationResult> {
+        logger?.log(`[P${job.profileId}] Starting phone check...`, 'info');
         try {
             if (signal?.aborted) {
-                console.log(`⏹️ [Profile ${job.profileId}] Automation stopped by signal`);
                 return { profileId: job.profileId, success: false, error: 'Stopped' };
             }
 
@@ -51,7 +51,7 @@ export class CheckPhoneVerifyAutomation implements AutomationEngine {
                 }
 
                 const phone = phoneData.phoneNumber;
-                console.log(`🔍 [Profile ${job.profileId}] [Attempt ${attempt}] Checking phone: ${phone}`);
+                logger?.log(`[P${job.profileId}] Checking: ${phone}`, 'info');
 
                 // Xóa nội dung cũ trong input
                 console.log(`🧹 [Profile ${job.profileId}] Clearing phone input field...`);
@@ -96,9 +96,7 @@ export class CheckPhoneVerifyAutomation implements AutomationEngine {
                 const isInvalid = await this.checkIfPhoneInvalid(page);
 
                 if (isInvalid) {
-                    console.log(`❌ [Profile ${job.profileId}] Phone ${phone} is invalid (error detected after 1st click)`);
-                    // Mark là invalid trong queue
-                    console.log(`📝 [Profile ${job.profileId}] Marking phone ${phone} as invalid in queue...`);
+                    logger?.log(`[P${job.profileId}] ✗ ${phone} (Invalid)`, 'error');
                     await this.markPhoneInQueue(phone, job.profileId, false);
                     console.log(`➡️ [Profile ${job.profileId}] Continuing to next phone...`);
                     continue; // Thử số tiếp theo
@@ -170,7 +168,7 @@ export class CheckPhoneVerifyAutomation implements AutomationEngine {
 
                     // Phone này đã pass hết các bước, sử dụng số từ trang
                     usablePhone = actualPhoneFromPage;
-                    console.log(`✅ [Profile ${job.profileId}] Phone ${actualPhoneFromPage} is valid, proceeding to get code`);
+                    logger?.log(`[P${job.profileId}] ✓ ${usablePhone} (Valid)`, 'success');
 
                     // Thoát loop vì đã tìm được số hợp lệ
                     console.log(`🎯 [Profile ${job.profileId}] Valid phone found, exiting loop`);
@@ -205,7 +203,7 @@ export class CheckPhoneVerifyAutomation implements AutomationEngine {
                 console.error(`❌ [Profile ${job.profileId}] Failed to get verification code`);
                 throw new Error('Failed to get verification code');
             }
-            console.log(`✅ [Profile ${job.profileId}] Got verification code: ${verificationCode}`);
+            logger?.log(`[P${job.profileId}] Code: ${verificationCode}`, 'success');
 
             // 7. Điền verification code vào input
             console.log(`⌨️ [Profile ${job.profileId}] Waiting for code input field...`);
@@ -317,9 +315,8 @@ export class CheckPhoneVerifyAutomation implements AutomationEngine {
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             // 9. Mark phone as valid và update Google Sheet
-            console.log(`📝 [Profile ${job.profileId}] Marking phone ${usablePhone} as valid in queue...`);
             await this.markPhoneInQueue(usablePhone, job.profileId, true);
-            console.log(`✅ [Profile ${job.profileId}] Phone ${usablePhone} marked as valid`);
+            logger?.log(`[P${job.profileId}] Verified!`, 'success');
 
             // 10. Cập nhật cột D (Phone) trong Google Sheet nếu có Gmail
             if (job.sheetRow?.Gmail) {
@@ -355,7 +352,7 @@ export class CheckPhoneVerifyAutomation implements AutomationEngine {
      */
     private async getNextPhoneFromQueue(profileId: number): Promise<{ phoneNumber: string } | null> {
         try {
-            const apiUrl = `http://localhost:3000/phone/queue/next?profileId=${profileId}`;
+            const apiUrl = `http://localhost:3500/phone/queue/next?profileId=${profileId}`;
             console.log(`🌐 [Profile ${profileId}] Calling API: ${apiUrl}`);
             const response = await fetch(apiUrl);
             const data = await response.json();
@@ -379,7 +376,7 @@ export class CheckPhoneVerifyAutomation implements AutomationEngine {
      */
     private async markPhoneInQueue(phoneNumber: string, profileId: number, isValid: boolean): Promise<void> {
         try {
-            const apiUrl = `http://localhost:3000/phone/queue/mark`;
+            const apiUrl = `http://localhost:3500/phone/queue/mark`;
             console.log(`🌐 [Profile ${profileId}] Marking phone ${phoneNumber} as ${isValid ? 'VALID' : 'INVALID'}`);
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -438,7 +435,7 @@ export class CheckPhoneVerifyAutomation implements AutomationEngine {
      * Gọi API để lấy verification code với retry
      */
     private async getVerificationCode(phoneNumber: string, profileId: string): Promise<string> {
-        const apiUrl = `http://localhost:3000/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
+        const apiUrl = `http://localhost:3500/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
         console.log(`🌐 [Profile ${profileId}] API URL: ${apiUrl}`);
         const maxRetries = 5;
         let attempt = 0;
@@ -520,7 +517,7 @@ export class CheckPhoneVerifyAutomation implements AutomationEngine {
      */
     private async updatePhoneInSheet(gmail: string, phoneNumber: string): Promise<void> {
         try {
-            const apiUrl = `http://localhost:3000/sheet/update-phone`;
+            const apiUrl = `http://localhost:3500/sheet/update-phone`;
 
             const response = await fetch(apiUrl, {
                 method: 'POST',

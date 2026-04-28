@@ -1,9 +1,11 @@
-import axios from 'axios';
+import axios from '../axios-fetch';
 import { Injectable } from '@nestjs/common';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { calcGridByDisplay } from './window-layout.util';
 import { ProfileStateService } from './profile-state.service';
 import { ChromeService } from '../automation/browser/chrome.service';
+import { AutomationService } from '../automation/automation.service';
+import { exec } from 'child_process';
 
 @Injectable()
 export class GemloginService {
@@ -12,6 +14,7 @@ export class GemloginService {
     constructor(
         private readonly profileState: ProfileStateService,
         private readonly chromeService: ChromeService,
+        private readonly automationService: AutomationService,
     ) { }
 
     async createProfile(dto: CreateProfileDto = {}) {
@@ -32,7 +35,7 @@ export class GemloginService {
 
                 group_name: 'All',
 
-                // ✅ PROXY: raw string
+                // ✅ PROXY: Lấy từ .env mặc định
                 raw_proxy: process.env.PROXY_HTTP || '',
 
                 startup_urls: '',
@@ -139,54 +142,62 @@ export class GemloginService {
 
         // 2️⃣ Start TẤT CẢ profiles SONG SONG
         const results = await Promise.all(
-            profiles.map(async (profile: any, i: number) => {
-                const layout = calcGridByDisplay(i, {
-                    rows: 4,
-                    cols: 5,
-                    screenWidth: 3840,
-                    screenHeight: 2160,
-                    displayScale: 0.8,
-                });
+            profiles.map((profile: any, i: number) => {
+                return (async () => {
+                    const layout = calcGridByDisplay(i, {
+                        rows: 4,
+                        cols: 5,
+                        screenWidth: 3840,
+                        screenHeight: 2160,
+                        displayScale: 0.8,
+                    });
 
-                const params = new URLSearchParams({
-                    win_pos: layout.win_pos,
-                    win_size: layout.win_size,
-                    win_scale: String(layout.win_scale),
-                });
+                    const params = new URLSearchParams({
+                        win_pos: layout.win_pos,
+                        win_size: layout.win_size,
+                        win_scale: String(layout.win_scale),
+                    });
 
-                const url = `${this.baseUrl}/profiles/start/${profile.id}?${params.toString()}`;
-                const res = await axios.get(url);
+                    const url = `${this.baseUrl}/profiles/start/${profile.id}?${params.toString()}`;
 
-                const profileInfo = {
-                    profile_id: profile.id,
-                    remote_debugging_address:
-                        res.data?.data?.remote_debugging_address || res.data?.remote_debugging_address,
-                    win_pos: layout.win_pos,
-                    win_size: layout.win_size,
-                };
-
-                // 💾 Lưu vào state
-                this.profileState.setProfileOpened(profile.id, profileInfo);
-
-                // 🔄 Restore URL nếu có
-                const savedUrl = this.profileState.getProfileUrl(profile.id);
-                if (savedUrl && profileInfo.remote_debugging_address) {
                     try {
-                        const browser = await this.chromeService.connect(profileInfo.remote_debugging_address);
-                        const page = await this.chromeService.getOrCreatePage(browser);
-                        await page.goto(savedUrl, { waitUntil: 'networkidle2', timeout: 10000 }).catch(() => { });
-                    } catch (err) {
-                        // Silent fail
-                    }
-                }
+                        // Fire the request immediately
+                        const res = await axios.get(url);
 
-                return profileInfo;
+                        const profileInfo = {
+                            profile_id: profile.id,
+                            remote_debugging_address:
+                                res.data?.data?.remote_debugging_address || res.data?.remote_debugging_address,
+                            win_pos: layout.win_pos,
+                            win_size: layout.win_size,
+                        };
+
+                        // 💾 Lưu vào state
+                        this.profileState.setProfileOpened(profile.id, profileInfo);
+
+                        // 🔄 Restore URL nếu có (chạy ngầm, không block)
+                        const savedUrl = this.profileState.getProfileUrl(profile.id);
+                        if (savedUrl && profileInfo.remote_debugging_address) {
+                            this.chromeService.connect(profileInfo.remote_debugging_address)
+                                .then(browser => this.chromeService.getOrCreatePage(browser))
+                                .then(page => page.goto(savedUrl, { waitUntil: 'networkidle2', timeout: 10000 }))
+                                .catch(() => { });
+                        }
+
+                        return profileInfo;
+                    } catch (err: any) {
+                        console.error(`[Gemlogin] Failed to start profile ${profile.id}:`, err?.message);
+                        return null;
+                    }
+                })();
             })
         );
 
+        const validProfiles = results.filter(p => p !== null);
+
         return {
-            total: results.length,
-            profiles: results,
+            total: validProfiles.length,
+            profiles: validProfiles,
         };
     }
     async closeAllProfiles() {
@@ -223,6 +234,8 @@ export class GemloginService {
                         status: 'closed',
                     };
                 } catch (err: any) {
+                    // Dọn dẹp profile lỗi để không bị kẹt mãi mãi (Zombie Profiles)
+                    this.profileState.setProfileClosed(profileInfo.profile_id);
                     return {
                         profile_id: profileInfo.profile_id,
                         status: 'error',
@@ -242,6 +255,44 @@ export class GemloginService {
         return {
             profiles: this.profileState.getOpenedProfiles(),
             count: this.profileState.getOpenedCount(),
+        };
+    }
+
+    async freeRam() {
+        // 1️⃣ Dừng tất cả automation ngầm
+        try {
+            this.automationService.stopAutomation();
+        } catch (e) { }
+
+        // 2️⃣ Cố gắng đóng profiles qua API (Graceful attempt)
+        try {
+            await this.closeAllProfiles();
+        } catch (e) { }
+
+        // 3️⃣ Xóa sạch state nội bộ
+        const opened = this.profileState.getOpenedProfiles();
+        for (const p of opened) {
+            this.profileState.setProfileClosed(p.profile_id);
+        }
+
+        // 4️⃣ FORCE KILL tất cả browser processes (Surgical Purge)
+        // Chỉ giết những chrome.exe có chứa "GemLogin" trong command line
+        // để không làm sập trình duyệt đang xem Dashboard của người dùng.
+        const commands = [
+            'powershell -Command "Get-CimInstance Win32_Process -Filter \'Name = \'\'chrome.exe\'\'\' | Where-Object { $_.CommandLine -like \'*GemLogin*\' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"',
+            'taskkill /F /IM chromedriver.exe /T',
+            'taskkill /F /IM Gembrowser.exe /T',
+        ];
+
+        for (const cmd of commands) {
+            exec(cmd, (err) => {
+                // Ignore errors (e.g. process not found)
+            });
+        }
+
+        return {
+            success: true,
+            message: 'All browser processes terminated and memory released.',
         };
     }
 

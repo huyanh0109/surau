@@ -40,4 +40,9 @@ export class ProfileController {
         return this.gemlogin.getProfilesState();
     }
 
+    @Post('free-ram')
+    freeRam() {
+        return this.gemlogin.freeRam();
+    }
+
 }

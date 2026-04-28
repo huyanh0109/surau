@@ -1,11 +1,12 @@
 import { Page } from 'puppeteer-core';
 import { AutomationEngine } from '../../engines/automation.engine';
 import { AutomationJob, AutomationResult } from '../../types/automation-job';
+import { LogStreamService } from '../../../log-stream/log-stream.service';
 
 export class AppealGoogleAutomation implements AutomationEngine {
     name = 'appeal-google';
 
-    async run(page: Page, job: AutomationJob, signal?: AbortSignal): Promise<AutomationResult> {
+    async run(page: Page, job: AutomationJob, signal?: AbortSignal, logger?: LogStreamService): Promise<AutomationResult> {
         try {
             if (signal?.aborted) {
                 return { profileId: job.profileId, success: false, error: 'Stopped' };
@@ -287,7 +288,7 @@ export class AppealGoogleAutomation implements AutomationEngine {
                     const currentDate = getCurrentDateGMT7();
 
                     // Call API để update cột F (Note) thành "appealing" và cột H (DateAppeal)
-                    const updateResponse = await fetch('http://localhost:3000/sheet/update-note-and-appeal', {
+                    const updateResponse = await fetch('http://localhost:3500/sheet/update-note-and-appeal', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

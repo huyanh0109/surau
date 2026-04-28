@@ -2,6 +2,7 @@ import { Page } from 'puppeteer-core';
 import { CapMonsterHelper } from '../../helpers/capmonster-helper';
 import { AutomationEngine } from '../../engines/automation.engine';
 import { AutomationJob, AutomationResult } from '../../types/automation-job';
+import { LogStreamService } from '../../../log-stream/log-stream.service';
 
 /**
  * Test automation để switch CapMonster mode
@@ -10,7 +11,7 @@ import { AutomationJob, AutomationResult } from '../../types/automation-job';
 export class TestCapMonsterSwitchAutomation implements AutomationEngine {
     name = 'test-capmonster-switch';
 
-    async run(page: Page, job: AutomationJob, signal?: AbortSignal): Promise<AutomationResult> {
+    async run(page: Page, job: AutomationJob, signal?: AbortSignal, logger?: LogStreamService): Promise<AutomationResult> {
         try {
             console.log(`🧪 Testing CapMonster mode switch for profile ${job.profileId}`);
 

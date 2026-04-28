@@ -1,11 +1,12 @@
 import { Page } from 'puppeteer-core';
 import { AutomationEngine } from '../../engines/automation.engine';
 import { AutomationJob, AutomationResult } from '../../types/automation-job';
+import { LogStreamService } from '../../../log-stream/log-stream.service';
 
 export class VerifyPhoneSheetAutomation implements AutomationEngine {
     name = 'verify-phone-sheet';
 
-    async run(page: Page, job: AutomationJob, signal?: AbortSignal): Promise<AutomationResult> {
+    async run(page: Page, job: AutomationJob, signal?: AbortSignal, logger?: LogStreamService): Promise<AutomationResult> {
         try {
             const { sheetRow } = job;
 
@@ -30,7 +31,7 @@ export class VerifyPhoneSheetAutomation implements AutomationEngine {
 
             // 3. Gọi API phone để lấy verification code (với retry)
             const phoneNumber = sheetRow.Phone;
-            const apiUrl = `http://localhost:3000/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
+            const apiUrl = `http://localhost:3500/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
             let verificationCode = '';
             const maxRetries = 5;
             let attempt = 0;
@@ -146,7 +147,7 @@ export class VerifyPhoneSheetAutomation implements AutomationEngine {
     private async updateSheetAfterVerification(gmail: string): Promise<void> {
         try {
             const currentDate = this.getCurrentDateGMT7();
-            const apiUrl = `http://localhost:3000/sheet/update-note-and-date`;
+            const apiUrl = `http://localhost:3500/sheet/update-note-and-date`;
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
