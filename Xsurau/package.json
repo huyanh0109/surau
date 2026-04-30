@@ -8,9 +8,13 @@
     "test": "node manager.js"
   },
   "dependencies": {
-    "express": "^4.21.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.0",
     "fingerprint-generator": "^2.1.55",
+    "googleapis": "^171.4.0",
+    "otplib": "^13.4.0",
+    "patchright": "^1.59.4",
     "playwright": "^1.43.0"
   }
 }

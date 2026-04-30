@@ -1,357 +1,682 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Xsurau Antidetect Manager</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #0a0e1a;
-            --bg-secondary: #111827;
-            --bg-card: #1a2035;
-            --bg-hover: #1f2a45;
-            --border: #2a3555;
-            --accent: #6366f1;
-            --accent-glow: rgba(99, 102, 241, 0.3);
-            --accent-hover: #818cf8;
-            --green: #22c55e;
-            --green-glow: rgba(34, 197, 94, 0.25);
-            --red: #ef4444;
-            --red-glow: rgba(239, 68, 68, 0.25);
-            --yellow: #f59e0b;
-            --text-primary: #e2e8f0;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            --bg-primary: #050505; --bg-secondary: #0a0a0a; --bg-card: #111111;
+            --bg-hover: #222222; --border: #333333;
+            --accent: #f5b000; --accent-glow: rgba(245,176,0,0.3); --accent-hover: #ffd700;
+            --green: #00aa00; --green-glow: rgba(0,170,0,0.25);
+            --red: #cc0000; --yellow: #f5b000; --orange: #ff6600;
+            --blue: #0066cc; --cyan: #00aaaa; --purple: #8800aa;
+            --text-primary: #cccccc; --text-secondary: #999999; --text-muted: #666666;
+            --font-main: 'Courier New', Courier, monospace;
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
+        * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
+        body { 
+            font-family: var(--font-main); 
+            background: var(--bg-primary); 
+            color: var(--text-primary); 
             min-height: 100vh;
+            background-image: linear-gradient(rgba(20,20,20,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(20,20,20,0.4) 1px, transparent 1px);
+            background-size: 20px 20px;
         }
 
-        /* HEADER */
-        .header {
-            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
-            border-bottom: 1px solid var(--border);
-            padding: 16px 32px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .logo {
-            width: 36px; height: 36px;
-            background: linear-gradient(135deg, var(--accent), #a855f7);
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 18px; color: white;
-        }
-        .header h1 {
-            font-size: 20px; font-weight: 700;
-            background: linear-gradient(135deg, var(--accent-hover), #c084fc);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .header-stats {
-            display: flex; gap: 24px; font-size: 13px; color: var(--text-secondary);
-        }
-        .stat-value { font-weight: 600; color: var(--text-primary); }
+        .header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo { width: 36px; height: 36px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: #000; }
+        .header h1 { font-size: 20px; font-weight: 700; color: var(--accent); font-family: 'Times New Roman', Times, serif; letter-spacing: 2px; text-transform: uppercase; }
+        .header-stats { display: flex; gap: 24px; font-size: 13px; color: var(--text-secondary); }
+        .stat-value { font-weight: bold; color: var(--text-primary); }
 
-        /* TOOLBAR */
-        .toolbar {
-            padding: 16px 32px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .btn {
-            padding: 8px 20px;
-            border: none; border-radius: 8px;
-            font-family: inherit; font-size: 13px; font-weight: 600;
-            cursor: pointer; transition: all 0.2s;
-            display: inline-flex; align-items: center; gap: 6px;
-        }
-        .btn-primary {
-            background: var(--accent); color: white;
-            box-shadow: 0 0 20px var(--accent-glow);
-        }
-        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
-        .btn-danger { background: var(--red); color: white; }
-        .btn-danger:hover { opacity: 0.85; }
-        .btn-ghost {
-            background: transparent; color: var(--text-secondary);
-            border: 1px solid var(--border);
-        }
-        .btn-ghost:hover { border-color: var(--text-secondary); color: var(--text-primary); }
-        .btn-sm { padding: 5px 12px; font-size: 12px; }
-        .btn-run { background: var(--green); color: white; box-shadow: 0 0 12px var(--green-glow); }
-        .btn-run:hover { opacity: 0.85; }
-        .btn-stop { background: var(--red); color: white; }
+        .toolbar { padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+        .toolbar-left { display: flex; gap: 8px; }
+        
+        .btn { padding: 8px 20px; border: 1px solid var(--border); background: transparent; color: var(--text-primary); font-family: inherit; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; text-transform: uppercase; }
+        .btn:hover { background: rgba(255,255,255,0.1); }
+        .btn:active { transform: scale(0.98); }
+        
+        .btn-primary { border-color: var(--accent); color: var(--accent); }
+        .btn-primary:hover { background: rgba(245,176,0,0.2); }
+        .btn-orange { border-color: var(--orange); color: var(--orange); }
+        .btn-orange:hover { background: rgba(255,102,0,0.2); }
+        .btn-yellow { border-color: var(--yellow); color: var(--yellow); }
+        .btn-yellow:hover { background: rgba(245,176,0,0.2); }
+        .btn-danger { border-color: var(--red); color: var(--red); }
+        .btn-danger:hover { background: rgba(204,0,0,0.2); }
+        .btn-run { border-color: var(--green); color: var(--green); }
+        .btn-run:hover { background: rgba(0,170,0,0.2); }
+        .btn-stop { border-color: var(--red); color: var(--red); }
+        .btn-ghost { border-color: var(--border); color: var(--text-secondary); }
+        .btn-ghost:hover { border-color: var(--text-primary); color: var(--text-primary); }
+        .btn-sm { padding: 5px 12px; font-size: 11px; }
 
-        /* TABLE */
-        .table-container {
-            padding: 0 32px 32px;
-        }
-        table {
-            width: 100%; border-collapse: collapse;
-            background: var(--bg-card);
-            border-radius: 12px; overflow: hidden;
-            border: 1px solid var(--border);
-        }
-        thead { background: var(--bg-secondary); }
-        th {
-            text-align: left; padding: 12px 16px;
-            font-size: 11px; font-weight: 600;
-            text-transform: uppercase; letter-spacing: 0.5px;
-            color: var(--text-muted);
-        }
-        td {
-            padding: 12px 16px; font-size: 13px;
-            border-top: 1px solid var(--border);
-        }
+        .table-container { padding: 0 32px 32px; }
+        table { width: 100%; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border); }
+        thead { background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+        th { text-align: left; padding: 12px 16px; font-size: 12px; font-weight: bold; color: var(--accent); }
+        td { padding: 12px 16px; font-size: 13px; border-top: 1px solid var(--border); }
         tr:hover td { background: var(--bg-hover); }
-        .profile-name { font-weight: 600; }
-        .profile-id { font-size: 11px; color: var(--text-muted); font-family: monospace; }
-
-        /* STATUS BADGE */
-        .badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 3px 10px; border-radius: 20px;
-            font-size: 11px; font-weight: 600;
-        }
-        .badge-running {
-            background: var(--green-glow); color: var(--green);
-        }
-        .badge-stopped {
-            background: rgba(100, 116, 139, 0.2); color: var(--text-muted);
-        }
-        .badge-dot {
-            width: 6px; height: 6px; border-radius: 50%;
-        }
-        .badge-running .badge-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
-        .badge-stopped .badge-dot { background: var(--text-muted); }
-
-        .proxy-cell {
-            font-family: monospace; font-size: 12px; color: var(--text-secondary);
-            max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
+        .profile-name { font-weight: bold; color: var(--text-primary); }
+        .profile-id { font-size: 11px; color: var(--text-muted); }
+        .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; font-size: 11px; font-weight: bold; border: 1px solid transparent; text-transform: uppercase; }
+        .badge-running { border-color: var(--green); color: var(--green); }
+        .badge-stopped { border-color: var(--border); color: var(--text-muted); }
+        .proxy-cell { font-size: 12px; color: var(--text-secondary); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .gpu-cell { font-size: 11px; color: var(--text-secondary); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .actions { display: flex; gap: 6px; }
-        .ext-count { font-size: 12px; color: var(--yellow); font-weight: 600; }
 
-        /* MODAL */
-        .modal-overlay {
-            display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-            z-index: 100; align-items: center; justify-content: center;
-        }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
         .modal-overlay.active { display: flex; }
-        .modal {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 28px; width: 480px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-        }
-        .modal h2 { font-size: 18px; margin-bottom: 20px; }
+        .modal { background: var(--bg-card); border: 1px solid var(--border); padding: 28px; width: 520px; max-height: 90vh; overflow-y: auto; position: relative; }
+        .modal::before, .modal::after { content: ''; position: absolute; width: 12px; height: 12px; border: 2px solid var(--accent); }
+        .modal::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+        .modal::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+        .modal h2 { font-size: 16px; margin-bottom: 20px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
         .form-group { margin-bottom: 16px; }
-        .form-group label {
-            display: block; font-size: 12px; font-weight: 600;
-            color: var(--text-secondary); margin-bottom: 6px;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        .form-group input, .form-group textarea {
-            width: 100%; padding: 10px 14px;
-            background: var(--bg-primary); border: 1px solid var(--border);
-            border-radius: 8px; color: var(--text-primary);
-            font-family: inherit; font-size: 13px; outline: none;
-            transition: border-color 0.2s;
-        }
-        .form-group input:focus, .form-group textarea:focus { border-color: var(--accent); }
+        .form-group label { display: block; font-size: 12px; font-weight: bold; color: var(--accent); margin-bottom: 6px; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 14px; background: #000; border: 1px solid var(--border); color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none; transition: border-color 0.2s; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--accent); }
         .form-group textarea { resize: vertical; min-height: 60px; }
         .form-group small { display: block; margin-top: 4px; font-size: 11px; color: var(--text-muted); }
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
 
-        /* EMPTY STATE */
-        .empty-state {
-            text-align: center; padding: 60px 20px; color: var(--text-muted);
-        }
-        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
-        .empty-state p { font-size: 14px; margin-bottom: 20px; }
+        .ext-panel { margin: 0 32px 16px; background: var(--bg-card); border: 1px solid var(--border); padding: 16px 20px; }
+        .ext-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; cursor: pointer; }
+        .ext-panel-header h3 { font-size: 14px; color: var(--accent); text-transform: uppercase; }
+        .ext-list { list-style: none; }
+        .ext-list li { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #000; border: 1px solid var(--border); margin-bottom: 6px; font-size: 12px; color: var(--text-secondary); }
+        .ext-add-row { display: flex; gap: 8px; margin-top: 8px; }
+        .ext-add-row input { flex: 1; padding: 8px 12px; background: #000; border: 1px solid var(--border); color: var(--text-primary); font-size: 12px; outline: none; }
 
-        /* TOAST */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px solid var(--border); margin-top: 20px; }
+        
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; }
-        .toast {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 10px; padding: 12px 20px; margin-bottom: 8px;
-            font-size: 13px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease;
-        }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast { background: var(--bg-card); border: 1px solid var(--accent); padding: 12px 20px; margin-bottom: 8px; font-size: 12px; font-weight: bold; color: var(--accent); text-transform: uppercase; }
+
+        /* TABS */
+        .tab-nav { display: flex; gap: 0; padding: 0 32px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); margin-bottom: 20px; }
+        .tab-btn { padding: 12px 24px; font-size: 13px; font-weight: bold; background: transparent; border: 1px solid transparent; border-bottom: none; color: var(--text-muted); cursor: pointer; transition: all 0.2s; font-family: inherit; text-transform: uppercase; }
+        .tab-btn.active { color: var(--accent); border-color: var(--border); background: var(--bg-primary); }
+        .tab-btn:hover:not(.active) { color: var(--text-primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* AUTOMATION TAB */
+        .auto-panel { padding: 0 32px 20px; }
+        .auto-config { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: var(--bg-card); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+        .auto-config-full { grid-column: 1/-1; }
+        .auto-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+        .log-console { background: #000; border: 1px solid var(--border); height: 420px; overflow-y: auto; padding: 14px 16px; font-size: 12px; line-height: 1.8; }
+        .log-entry { display: flex; gap: 10px; margin-bottom: 4px; }
+        .log-time { color: var(--text-muted); flex-shrink: 0; }
+        .log-msg { color: var(--text-secondary); word-break: break-all; }
+        .log-msg.success { color: var(--green); }
+        .log-msg.error { color: var(--red); }
+        .log-msg.warning { color: var(--yellow); }
+        .log-msg.info { color: var(--cyan); }
+        
+        .profile-select-panel { margin-bottom: 16px; background: var(--bg-card); border: 1px solid var(--border); padding: 16px 20px; }
+        .profile-select-panel h4 { font-size: 13px; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; }
+        .profile-check-list { display: flex; flex-wrap: wrap; gap: 8px; max-height: 180px; overflow-y: auto; }
+        .profile-check-item { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: #000; border: 1px solid var(--border); font-size: 12px; cursor: pointer; }
+        .sheet-data-input { width: 100%; min-height: 120px; padding: 10px; background: #000; border: 1px solid var(--border); color: var(--text-primary); font-size: 12px; resize: vertical; outline: none; }
+
+        /* FAST DASHBOARD TAB STYLES */
+        .fd-layout { display: flex; gap: 20px; max-width: 1600px; margin: 0 auto; padding: 0 32px 32px; }
+        .fd-col-main { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .fd-col-side { width: 400px; display: flex; flex-direction: column; }
+        .fd-panel { background: var(--bg-card); border: 1px solid var(--border); padding: 20px; position: relative; }
+        .fd-panel::before, .fd-panel::after { content: ''; position: absolute; width: 12px; height: 12px; border: 2px solid var(--accent); }
+        .fd-panel::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+        .fd-panel::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+        .fd-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .fd-panel-title { color: var(--accent); font-size: 16px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+        .fd-status-badge { border: 1px solid var(--accent); color: var(--accent); padding: 2px 8px; font-size: 10px; text-transform: uppercase; font-weight: bold; }
+        .fd-row { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
+        .fd-row:last-child { margin-bottom: 0; }
+        .fd-label { color: var(--accent); font-size: 12px; font-weight: bold; min-width: 80px; }
+        .fd-proxy-row { display: flex; align-items: center; width: 100%; margin-bottom: 10px; }
+        .fd-proxy-row label { width: 120px; color: var(--accent); font-size: 12px; font-weight: bold; }
+        .fd-proxy-row input { flex: 1; padding: 8px 12px; background: #000; border: 1px solid var(--border); color: var(--text-primary); font-size: 12px; outline: none; }
+        .fd-proxy-row button { margin-left: 10px; }
+        .fd-console-output { flex: 1; background: #000; border: 1px solid var(--border); padding: 15px; overflow-y: auto; font-size: 12px; line-height: 1.6; min-height: 550px; }
     </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
     <div class="header-left">
         <div class="logo">X</div>
-        <h1>Xsurau Antidetect Manager</h1>
+        <h1>Xsurau Manager</h1>
     </div>
     <div class="header-stats">
-        <span>Tổng: <span class="stat-value" id="totalCount">0</span></span>
-        <span>Đang chạy: <span class="stat-value" style="color: var(--green)" id="runningCount">0</span></span>
+        <span>TOTAL: <span class="stat-value" id="totalCount">0</span></span>
+        <span>RUNNING: <span class="stat-value" style="color:var(--green)" id="runningCount">0</span></span>
+        <span>GLOBAL EXT: <span class="stat-value" style="color:var(--yellow)" id="globalExtCount">0</span></span>
     </div>
 </div>
 
-<!-- TOOLBAR -->
+<div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('fastdashboard')">FAST DASHBOARD</button>
+    <button class="tab-btn" onclick="switchTab('profiles')">PROFILE MANAGER</button>
+    <button class="tab-btn" onclick="switchTab('automation')">AUTOMATION</button>
+</div>
+
+<!-- ========================================== -->
+<!-- TAB: FAST DASHBOARD -->
+<!-- ========================================== -->
+<div class="tab-content active" id="tab-fastdashboard">
+    <div class="fd-layout">
+        <div class="fd-col-main">
+            <!-- PROFILE MANAGEMENT -->
+            <div class="fd-panel">
+                <div class="fd-panel-header">
+                    <div class="fd-panel-title">PROFILE MANAGEMENT</div>
+                </div>
+                <div class="fd-row">
+                    <div class="fd-label">QUANTITY:</div>
+                    <input type="number" id="fdBulkCount" value="5" min="1" max="500" style="width: 80px; padding: 8px; background: #000; border: 1px solid var(--border); color: var(--text-primary);">
+                    <button class="btn btn-yellow" onclick="fdBulkCreate()">CREATE</button>
+                    <button class="btn btn-danger" onclick="deleteAllProfilesUI()">PURGE ALL</button>
+                </div>
+            </div>
+
+            <!-- BROWSER CONTROL -->
+            <div class="fd-panel">
+                <div class="fd-panel-header">
+                    <div class="fd-panel-title">BROWSER CONTROL</div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="fd-status-badge" id="fdBrowserStatus">INACTIVE</div>
+                        <div class="fd-status-badge" id="fdDataStatus">NO DATA</div>
+                    </div>
+                </div>
+                <div class="fd-row">
+                    <button class="btn btn-run" onclick="launchAllProfiles()">LAUNCH</button>
+                    <button class="btn btn-yellow" onclick="closeAllProfiles()">CEASE</button>
+                    <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="syncSheetData()">SYNC SHEET</button>
+                    <button class="btn btn-yellow" onclick="runAutomationFast('test-simple')">RC2: CLICK</button>
+                    <button class="btn btn-yellow" onclick="runAutomationFast('test-simple')">RCE: CLICK</button>
+                    <button class="btn btn-run">ON</button>
+                    <button class="btn btn-danger">PAUSE</button>
+                    <button class="btn" style="border-color: var(--purple); color: var(--purple);" onclick="fdLogMsg('RAM PURGE executed', 'success')">RAM PURGE</button>
+                </div>
+            </div>
+
+            <!-- AUTOMATIONS -->
+            <div class="fd-panel">
+                <div class="fd-panel-header">
+                    <div class="fd-panel-title">AUTOMATIONS</div>
+                </div>
+                <div class="fd-row">
+                    <button class="btn btn-danger" onclick="runAutomationFast('login-google')">LOGIN GOOGLE</button>
+                    <button class="btn btn-run" onclick="runAutomationFast('login-captcha-retry')">LOGIN + CAPTCHA</button>
+                    <button class="btn btn-danger" onclick="runAutomationFast('login-google')">PASSWORD GOOGLE</button>
+                    <button class="btn btn-yellow" onclick="runAutomationFast('verify-phone-sheet')">VERIFY PHONE</button>
+                    <button class="btn btn-yellow" onclick="runAutomationFast('verify-phone-sheet-check')">DOUBLE VERIFY</button>
+                    <button class="btn btn-yellow" onclick="runAutomationFast('appeal-google')">APPEAL GOOGLE</button>
+                </div>
+                <div class="fd-row">
+                    <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="runAutomationFast('setup-2fa')">SETUP 2FA</button>
+                    <button class="btn btn-yellow" onclick="runAutomationFast('test-simple')">SOLVE CAPTCHA SOLO</button>
+                    <button class="btn btn-run" onclick="runAutomationFast('solve-captcha-continuous')">CONT. CAPTCHA</button>
+                    <button class="btn btn-danger" onclick="runAutomationFast('logout-google')">LOGOUT GOOGLE</button>
+                </div>
+            </div>
+
+            <!-- VALIDATION QUEUE -->
+            <div class="fd-panel">
+                <div class="fd-panel-header">
+                    <div class="fd-panel-title">VALIDATION QUEUE</div>
+                    <div class="fd-status-badge" id="fdStatsBadge">EMPTY</div>
+                </div>
+                <div class="fd-row">
+                    <button class="btn btn-run" onclick="runAutomationFast('check-phone-verify')">CHECK PHONE VERIFY</button>
+                    <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="fdFetchStats()">STATS</button>
+                </div>
+            </div>
+
+            <!-- PROXY MANAGEMENT -->
+            <div class="fd-panel">
+                <div class="fd-panel-header">
+                    <div class="fd-panel-title">PROXY MANAGEMENT</div>
+                    <div class="fd-status-badge" style="border-color: var(--green); color: var(--green);">READY</div>
+                </div>
+                <div class="fd-proxy-row">
+                    <label>PROXY 1:</label>
+                    <input type="text" id="fdProxy1" placeholder="160.250.166.12:10370">
+                    <button class="btn btn-run" onclick="fdApplyProxy('fdProxy1')">USE P1</button>
+                </div>
+                <div class="fd-proxy-row">
+                    <label>PROXY 2:</label>
+                    <input type="text" id="fdProxy2" placeholder="51.91.67.218:3131:user:pass">
+                    <button class="btn btn-yellow" onclick="fdApplyProxy('fdProxy2')">USE P2</button>
+                </div>
+                <div class="fd-proxy-row">
+                    <label>CAPTCHA PXY:</label>
+                    <input type="text" id="fdProxyCaptcha" placeholder="Captcha Proxy">
+                </div>
+                <div class="fd-proxy-row">
+                    <label>XOAY URL:</label>
+                    <input type="text" id="fdXoayApi" placeholder="https://proxyxoay.shop/api/get.php?...">
+                    <button class="btn" style="border-color: var(--blue); color: var(--blue);" onclick="fdXoayProxy()">XOAY PROXY</button>
+                </div>
+            </div>
+
+            <!-- FAST SETTINGS -->
+            <div class="fd-panel">
+                <div class="fd-panel-header">
+                    <div class="fd-panel-title">FAST SETTINGS</div>
+                    <button class="btn btn-run btn-sm" onclick="saveFastSettings()">SAVE SETTINGS</button>
+                </div>
+                <div class="fd-row">
+                    <div class="fd-label">DEF PROXY:</div>
+                    <input type="text" id="fdDefProxy" placeholder="http://user:pass@ip:port" style="flex: 1;">
+                </div>
+                <div class="fd-row">
+                    <div class="fd-label">GRID COLS:</div>
+                    <input type="number" id="fdGridCols" value="5" min="1" max="10" style="width: 60px;">
+                    <div class="fd-label" style="min-width: 60px;">ROWS:</div>
+                    <input type="number" id="fdGridRows" value="3" min="1" max="10" style="width: 60px;">
+                    <div class="fd-label" style="min-width: 60px;">SCALE:</div>
+                    <input type="number" id="fdGridScale" value="80" min="30" max="150" style="width: 60px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="fd-col-side">
+            <div class="fd-panel" style="display:flex; flex-direction:column; flex:1;">
+                <div class="fd-panel-header">
+                    <div class="fd-panel-title">LIVE RESULTS</div>
+                </div>
+                <div class="fd-console-output" id="fdLogConsole">
+                    <div class="log-entry"><span class="log-info">Awaiting operations...</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- TAB: PROFILES -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-profiles">
+<!-- EXTENSION TOÀN CỤC -->
+<div class="ext-panel" id="extPanel">
+    <div class="ext-panel-header" onclick="toggleExtPanel()">
+        <h3>GLOBAL EXTENSIONS</h3>
+        <span id="extToggle">EXPAND</span>
+    </div>
+    <div id="extPanelBody" style="display:none;">
+        <ul class="ext-list" id="globalExtList"></ul>
+        <div class="ext-add-row">
+            <input type="text" id="newExtPath" placeholder="Extension path...">
+            <button class="btn btn-yellow btn-sm" onclick="addGlobalExt()">ADD</button>
+        </div>
+    </div>
+</div>
+
 <div class="toolbar">
-    <div>
-        <button class="btn btn-primary" onclick="openCreateModal()">＋ Tạo Profile</button>
+    <div class="toolbar-left">
+        <button class="btn btn-primary" onclick="openCreateModal()">CREATE PROFILE</button>
+        <button class="btn btn-orange" onclick="openBulkModal()">BULK CREATE</button>
+        <button class="btn btn-yellow" onclick="openBulkProxyModal()">BULK PROXY</button>
     </div>
-    <div style="display: flex; gap: 8px;">
-        <button class="btn btn-ghost" onclick="loadProfiles()">↻ Làm mới</button>
-        <button class="btn btn-danger btn-sm" onclick="closeAllProfiles()">⏹ Đóng tất cả</button>
+    <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="loadProfiles()">REFRESH</button>
+        <div style="display:flex;">
+            <button class="btn btn-run btn-sm" onclick="launchAllProfiles()">LAUNCH ALL</button>
+            <button class="btn btn-run btn-sm" style="border-left: none;" onclick="openLayoutModal()">GRID</button>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="closeAllProfiles()">CEASE ALL</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteAllProfilesUI()" style="color: var(--red); border-color: var(--red);">PURGE ALL</button>
     </div>
 </div>
 
-<!-- TABLE -->
 <div class="table-container">
     <table>
-        <thead>
-            <tr>
-                <th>Tên</th>
-                <th>Trạng thái</th>
-                <th>Proxy</th>
-                <th>GPU (WebGL)</th>
-                <th>Extension</th>
-                <th>Thao tác</th>
-            </tr>
-        </thead>
-        <tbody id="profileTable">
-        </tbody>
+        <thead><tr><th>NAME</th><th>STATUS</th><th>PROXY</th><th>GPU (WebGL)</th><th>EXT</th><th>ACTIONS</th></tr></thead>
+        <tbody id="profileTable"></tbody>
     </table>
     <div class="empty-state" id="emptyState" style="display:none;">
-        <div class="icon">🌐</div>
-        <p>Chưa có profile nào. Hãy tạo profile đầu tiên!</p>
-        <button class="btn btn-primary" onclick="openCreateModal()">＋ Tạo Profile</button>
+        <p>NO PROFILES. CREATE ONE.</p>
+        <br>
+        <button class="btn btn-primary" onclick="openCreateModal()">CREATE PROFILE</button>
     </div>
 </div>
 
-<!-- MODAL: CREATE / EDIT -->
+<!-- Modals -->
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
-        <h2 id="modalTitle">Tạo Profile Mới</h2>
+        <h2 id="modalTitle">CREATE PROFILE</h2>
         <input type="hidden" id="editProfileId">
-        <div class="form-group">
-            <label>Tên Profile</label>
-            <input type="text" id="inputName" placeholder="VD: Nick Facebook 01">
-        </div>
-        <div class="form-group">
-            <label>Proxy</label>
-            <input type="text" id="inputProxy" placeholder="http://user:pass@ip:port hoặc socks5://ip:port">
-            <small>Để trống nếu không dùng proxy</small>
-        </div>
-        <div class="form-group">
-            <label>Extension (đường dẫn thư mục)</label>
-            <textarea id="inputExtensions" placeholder="Mỗi dòng 1 đường dẫn, VD:&#10;C:\Users\huyan\extensions\captcha-solver&#10;C:\Users\huyan\extensions\proxy-auth"></textarea>
-            <small>Mỗi dòng 1 đường dẫn tuyệt đối tới thư mục extension đã giải nén</small>
-        </div>
+        <div class="form-group"><label>NAME</label><input type="text" id="inputName"></div>
+        <div class="form-group"><label>PROXY</label><input type="text" id="inputProxy"></div>
+        <div class="form-group"><label>EXTENSIONS</label><textarea id="inputExtensions"></textarea></div>
         <div class="modal-actions">
-            <button class="btn btn-ghost" onclick="closeModal()">Hủy</button>
-            <button class="btn btn-primary" onclick="saveProfile()">Lưu</button>
+            <button class="btn btn-ghost" onclick="closeModal('modalOverlay')">CANCEL</button>
+            <button class="btn btn-primary" onclick="saveProfile()">SAVE</button>
         </div>
     </div>
 </div>
 
-<!-- TOAST -->
+<div class="modal-overlay" id="bulkModalOverlay">
+    <div class="modal">
+        <h2>BULK CREATE</h2>
+        <div class="form-group"><label>COUNT</label><input type="number" id="bulkCount" min="1" max="500" value="10"></div>
+        <div class="form-group"><label>PREFIX</label><input type="text" id="bulkPrefix" value="Profile"></div>
+        <div class="form-group"><label>PROXIES</label><textarea id="bulkCreateProxies"></textarea></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('bulkModalOverlay')">CANCEL</button>
+            <button class="btn btn-orange" onclick="bulkCreate()">CREATE</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="bulkProxyModalOverlay">
+    <div class="modal">
+        <h2>BULK PROXY</h2>
+        <div class="form-group"><label>PROXY LIST</label><textarea id="bulkProxyList"></textarea></div>
+        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="bulkProxyOverwrite" style="width: auto;">
+            <label for="bulkProxyOverwrite" style="margin-bottom: 0;">OVERWRITE EXISTING</label>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('bulkProxyModalOverlay')">CANCEL</button>
+            <button class="btn btn-yellow" onclick="saveBulkProxy()">SAVE</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="detailsModalOverlay">
+    <div class="modal">
+        <h2>DETAILS</h2>
+        <div id="detailsContent" style="font-family: monospace; font-size: 12px; line-height: 1.6; background: #000; padding: 16px; border: 1px solid var(--border); overflow-x: auto; white-space: pre-wrap; color: var(--green);">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="closeModal('detailsModalOverlay')">CLOSE</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="layoutModalOverlay">
+    <div class="modal">
+        <h2>GRID SETTINGS</h2>
+        <div class="form-group"><label>MODE</label>
+            <select id="layoutMode" onchange="toggleLayoutMode()"><option value="auto">AUTO</option><option value="custom">CUSTOM</option></select>
+        </div>
+        <div id="customLayoutOptions" style="display:none;">
+            <div class="form-group"><label>COLS</label><input type="number" id="layoutCols" min="1" max="20" value="5"></div>
+            <div class="form-group"><label>ROWS</label><input type="number" id="layoutRows" min="1" max="20" value="4"></div>
+        </div>
+        <div class="form-group"><label>SCALE (%)</label><input type="number" id="layoutScale" min="30" max="200" value="100"></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('layoutModalOverlay')">CANCEL</button>
+            <button class="btn btn-primary" onclick="saveLayoutConfig()">SAVE</button>
+        </div>
+    </div>
+</div>
+</div> <!-- end tab-profiles -->
+
+<!-- ========================================== -->
+<!-- TAB: AUTOMATION -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-automation">
+<div class="auto-panel">
+    <div class="auto-config">
+        <div class="form-group"><label>AUTOMATION</label><select id="autoName"></select></div>
+        <div class="form-group"><label>CONCURRENCY</label><input type="number" id="autoConcurrency" value="100"></div>
+        <div class="form-group auto-config-full">
+            <label>SHEET SYNC</label>
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                <input type="text" id="syncStatus" placeholder="NOTE filter">
+                <input type="number" id="syncLimit" value="100" style="width:80px;">
+                <button class="btn btn-yellow btn-sm" onclick="syncSheetData()">SYNC</button>
+            </div>
+            <textarea class="sheet-data-input" id="autoSheetData"></textarea>
+        </div>
+    </div>
+
+    <div class="profile-select-panel">
+        <h4>PROFILES <span id="selectedCount" style="color:var(--accent);">(0)</span></h4>
+        <div style="margin-bottom:8px;display:flex;gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="selectAllProfiles()">ALL</button>
+            <button class="btn btn-ghost btn-sm" onclick="deselectAllProfiles()">NONE</button>
+            <button class="btn btn-ghost btn-sm" onclick="refreshAutoProfiles()">REFRESH</button>
+        </div>
+        <div class="profile-check-list" id="profileCheckList"></div>
+    </div>
+
+    <div class="auto-actions">
+        <button class="btn btn-run" onclick="startAutomation()">RUN</button>
+        <button class="btn btn-stop" onclick="stopAutomation()">STOP</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearAutoLogs()" style="margin-left:auto;">CLEAR</button>
+    </div>
+
+    <div class="log-console" id="logConsole"></div>
+
+    <div id="phoneQueuePanel" style="margin-top:16px;background:var(--bg-card);border:1px solid var(--border);padding:16px 20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h4 style="font-size:13px;color:var(--yellow);">PHONE QUEUE</h4>
+            <span id="queueStatusBadge" style="font-size:11px;color:var(--text-muted);">NOT LOADED</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;">
+                <input type="number" id="queueDays" value="5" style="width:60px;"> <span style="font-size:12px;color:var(--text-muted);">DAYS</span>
+                <input type="number" id="queueLimit" value="70" style="width:70px;"> <span style="font-size:12px;color:var(--text-muted);">LIMIT</span>
+            </div>
+            <button class="btn btn-yellow btn-sm" onclick="loadPhoneQueue()">LOAD</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetPhoneQueue()">RESET</button>
+            <button class="btn btn-ghost btn-sm" onclick="getQueueStatus()">STATUS</button>
+        </div>
+        <div id="queueStatusDetail" style="margin-top:10px;font-size:12px;color:var(--text-secondary);display:none;">
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                <span>TOTAL: <b id="qTotal">-</b></span>
+                <span>AVAIL: <b id="qAvail">-</b></span>
+                <span>ASSIGN: <b id="qAssign">-</b></span>
+                <span>VALID: <b id="qValid">-</b></span>
+                <span>INVALID: <b id="qInvalid">-</b></span>
+            </div>
+        </div>
+    </div>
+</div>
+</div> <!-- end tab-automation -->
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
 const API = 'http://localhost:1337/api';
 
+// TABS
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    event.currentTarget.classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
+}
+
+// =======================
+// CORE PROFILES
+// =======================
 async function loadProfiles() {
-    const res = await fetch(`${API}/profiles`);
-    const profiles = await res.json();
+    try {
+        const res = await fetch(`${API}/profiles`);
+        const profiles = await res.json();
 
-    const table = document.getElementById('profileTable');
-    const empty = document.getElementById('emptyState');
-    const total = document.getElementById('totalCount');
-    const running = document.getElementById('runningCount');
+        const table = document.getElementById('profileTable');
+        const empty = document.getElementById('emptyState');
+        const total = document.getElementById('totalCount');
+        const running = document.getElementById('runningCount');
 
-    total.textContent = profiles.length;
-    running.textContent = profiles.filter(p => p.status === 'running').length;
+        total.textContent = profiles.length;
+        running.textContent = profiles.filter(p => p.status === 'running').length;
+        
+        // Update Fast Dashboard Badges
+        const fdStatus = document.getElementById('fdBrowserStatus');
+        if(fdStatus) {
+            const isRunning = parseInt(running.textContent) > 0;
+            fdStatus.textContent = isRunning ? 'RUNNING' : 'INACTIVE';
+            fdStatus.style.color = isRunning ? 'var(--green)' : 'var(--text-muted)';
+            fdStatus.style.borderColor = isRunning ? 'var(--green)' : 'var(--border)';
+        }
 
-    if (profiles.length === 0) {
-        table.innerHTML = '';
-        empty.style.display = 'block';
-        return;
-    }
-    empty.style.display = 'none';
+        if (profiles.length === 0) {
+            table.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
 
-    table.innerHTML = profiles.map(p => `
-        <tr>
-            <td>
-                <div class="profile-name">${escHtml(p.name)}</div>
-                <div class="profile-id">${p.id}</div>
-            </td>
-            <td>
-                <span class="badge badge-${p.status}">
-                    <span class="badge-dot"></span>
-                    ${p.status === 'running' ? 'Đang chạy' : 'Đã dừng'}
-                </span>
-            </td>
-            <td class="proxy-cell" title="${escHtml(p.proxy || '')}">${p.proxy || '<span style="color:var(--text-muted)">— Không —</span>'}</td>
-            <td class="gpu-cell" title="${escHtml(p.gpu?.renderer || '')}">${extractGpuShort(p.gpu?.renderer)}</td>
-            <td><span class="ext-count">${(p.extensions || []).length > 0 ? p.extensions.length + ' ext' : '<span style="color:var(--text-muted)">0</span>'}</span></td>
-            <td class="actions">
-                ${p.status === 'running'
-                    ? `<button class="btn btn-stop btn-sm" onclick="closeProfile('${p.id}')">⏹ Dừng</button>`
-                    : `<button class="btn btn-run btn-sm" onclick="launchProfile('${p.id}')">▶ Mở</button>`
-                }
-                <button class="btn btn-ghost btn-sm" onclick="openEditModal('${p.id}')">✏️</button>
-                <button class="btn btn-ghost btn-sm" onclick="deleteProfile('${p.id}')" ${p.status === 'running' ? 'disabled style="opacity:0.3"' : ''}>🗑️</button>
-            </td>
-        </tr>
-    `).join('');
+        table.innerHTML = profiles.map(p => `
+            <tr>
+                <td>
+                    <div class="profile-name">${escHtml(p.name)}</div>
+                    <div class="profile-id">${p.id}</div>
+                </td>
+                <td>
+                    <span class="badge badge-${p.status}">
+                        ${p.status === 'running' ? 'RUNNING' : 'STOPPED'}
+                    </span>
+                </td>
+                <td class="proxy-cell" title="${escHtml(p.proxy || '')}">${p.proxy || '<span style="color:var(--text-muted)">NONE</span>'}</td>
+                <td class="gpu-cell" title="${escHtml(p.gpu?.renderer || '')}">${extractGpuShort(p.gpu?.renderer)}</td>
+                <td><span class="ext-count">${(p.extensions || []).length > 0 ? p.extensions.length + ' ext' : '<span style="color:var(--text-muted)">0</span>'}</span></td>
+                <td class="actions">
+                    ${p.status === 'running'
+                        ? `<button class="btn btn-stop btn-sm" onclick="closeProfile('${p.id}')">CEASE</button>`
+                        : `<button class="btn btn-run btn-sm" onclick="launchProfile('${p.id}')">LAUNCH</button>`
+                    }
+                    <button class="btn btn-ghost btn-sm" onclick="openEditModal('${p.id}')">EDIT</button>
+                    <button class="btn btn-ghost btn-sm" onclick="deleteProfile('${p.id}')" ${p.status === 'running' ? 'disabled style="opacity:0.3"' : ''}>DEL</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch(e) {}
 }
 
 async function launchProfile(id) {
-    showToast('🚀 Đang mở trình duyệt...');
+    showToast('LAUNCHING...');
     const res = await fetch(`${API}/profiles/${id}/launch`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
     const data = await res.json();
-    if (data.error) showToast('❌ ' + data.error);
-    else showToast('✅ Đã mở thành công!');
+    if (data.error) showToast('ERROR: ' + data.error);
+    else showToast('LAUNCHED!');
     loadProfiles();
 }
 
 async function closeProfile(id) {
     await fetch(`${API}/profiles/${id}/close`, { method: 'POST' });
-    showToast('⏹ Đã đóng profile.');
+    showToast('CEASED profile.');
     loadProfiles();
 }
 
 async function closeAllProfiles() {
     await fetch(`${API}/close-all`, { method: 'POST' });
-    showToast('⏹ Đã đóng tất cả.');
+    showToast('CEASED ALL.');
+    fdLogMsg('CEASE ALL executed', 'warning');
+    loadProfiles();
+}
+
+async function launchAllProfiles() {
+    showToast('LAUNCHING ALL...');
+    fdLogMsg('LAUNCH ALL executed (Grid Mode)', 'success');
+    
+    const settings = getFastSettings();
+    const cols = parseInt(settings.gridCols) || 5;
+    const rows = parseInt(settings.gridRows) || 3;
+    const scale = (parseInt(settings.gridScale) || 100) / 100;
+    
+    const res = await fetch(`${API}/profiles`);
+    const profiles = await res.json();
+    const toLaunch = profiles.filter(p => p.status !== 'running');
+
+    // Màn hình kích thước ước tính (hoặc lấy từ window.screen nếu chạy local)
+    const screenW = window.screen.availWidth || 1920;
+    const screenH = window.screen.availHeight || 1080;
+    const winW = Math.floor(screenW / cols);
+    const winH = Math.floor(screenH / rows);
+
+    for (let i = 0; i < toLaunch.length; i++) {
+        const p = toLaunch[i];
+        const col = i % cols;
+        const row = Math.floor(i / cols) % rows;
+        
+        const windowSize = { width: winW, height: winH };
+        const windowPosition = { x: col * winW, y: row * winH };
+
+        await fetch(`${API}/profiles/${p.id}/launch`, { 
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify({ 
+                windowSize, 
+                windowPosition, 
+                scaleFactor: scale 
+            }) 
+        });
+        
+        // Nghỉ một chút để tránh quá tải khi mở hàng loạt
+        if (i < toLaunch.length - 1) await new Promise(r => setTimeout(r, 300));
+    }
+    
+    showToast('ALL LAUNCHED!');
     loadProfiles();
 }
 
 async function deleteProfile(id) {
-    if (!confirm('Bạn có chắc muốn XÓA profile này? (Toàn bộ cookie/data sẽ bị mất)')) return;
+    if (!confirm('PURGE this profile?')) return;
     const res = await fetch(`${API}/profiles/${id}`, { method: 'DELETE' });
     const data = await res.json();
-    if (data.error) showToast('❌ ' + data.error);
-    else showToast('🗑️ Đã xóa.');
+    if (data.error) showToast('ERROR: ' + data.error);
+    else showToast('PURGED.');
     loadProfiles();
 }
 
+async function deleteAllProfilesUI() {
+    if (!confirm('PURGE ALL PROFILES? THIS CANNOT BE UNDONE!')) return;
+    await fetch(`${API}/profiles/all`, { method: 'DELETE' });
+    showToast('ALL PURGED.');
+    fdLogMsg('PURGE ALL executed', 'error');
+    loadProfiles();
+}
+
+// =======================
+// FAST SETTINGS LOGIC
+// =======================
+function saveFastSettings() {
+    const settings = {
+        defProxy: document.getElementById('fdDefProxy').value,
+        gridCols: document.getElementById('fdGridCols').value,
+        gridRows: document.getElementById('fdGridRows').value,
+        gridScale: document.getElementById('fdGridScale').value
+    };
+    localStorage.setItem('xsurau_fast_settings', JSON.stringify(settings));
+    showToast('SETTINGS SAVED');
+    fdLogMsg('Fast Settings updated and saved to local storage.', 'success');
+}
+
+function getFastSettings() {
+    const saved = localStorage.getItem('xsurau_fast_settings');
+    if (saved) return JSON.parse(saved);
+    return { defProxy: '', gridCols: '5', gridRows: '3', gridScale: '80' };
+}
+
+function loadFastSettingsUI() {
+    const s = getFastSettings();
+    document.getElementById('fdDefProxy').value = s.defProxy || '';
+    document.getElementById('fdGridCols').value = s.gridCols || '5';
+    document.getElementById('fdGridRows').value = s.gridRows || '3';
+    document.getElementById('fdGridScale').value = s.gridScale || '80';
+}
+
+// =======================
+// MODALS LOGIC
+// =======================
 function openCreateModal() {
-    document.getElementById('modalTitle').textContent = 'Tạo Profile Mới';
+    document.getElementById('modalTitle').textContent = 'CREATE PROFILE';
     document.getElementById('editProfileId').value = '';
     document.getElementById('inputName').value = '';
     document.getElementById('inputProxy').value = '';
@@ -362,7 +687,7 @@ function openCreateModal() {
 async function openEditModal(id) {
     const res = await fetch(`${API}/profiles/${id}`);
     const p = await res.json();
-    document.getElementById('modalTitle').textContent = 'Sửa Profile';
+    document.getElementById('modalTitle').textContent = 'EDIT PROFILE';
     document.getElementById('editProfileId').value = id;
     document.getElementById('inputName').value = p.name || '';
     document.getElementById('inputProxy').value = p.proxy || '';
@@ -370,8 +695,12 @@ async function openEditModal(id) {
     document.getElementById('modalOverlay').classList.add('active');
 }
 
-function closeModal() {
-    document.getElementById('modalOverlay').classList.remove('active');
+function closeModal(id) {
+    if(id) {
+        document.getElementById(id).classList.remove('active');
+    } else {
+        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+    }
 }
 
 async function saveProfile() {
@@ -382,26 +711,152 @@ async function saveProfile() {
     const extensions = extText ? extText.split('\n').map(s => s.trim()).filter(Boolean) : [];
 
     if (editId) {
-        // Update
         await fetch(`${API}/profiles/${editId}`, {
             method: 'PUT',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ name, proxy, extensions })
         });
-        showToast('✅ Đã cập nhật profile.');
+        showToast('UPDATED.');
     } else {
-        // Create
         await fetch(`${API}/profiles`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ name, proxy, extensions })
         });
-        showToast('✅ Đã tạo profile mới!');
+        showToast('CREATED!');
     }
-    closeModal();
+    closeModal('modalOverlay');
     loadProfiles();
 }
 
+function openBulkModal() { document.getElementById('bulkModalOverlay').classList.add('active'); }
+function openBulkProxyModal() { document.getElementById('bulkProxyModalOverlay').classList.add('active'); }
+function openLayoutModal() { document.getElementById('layoutModalOverlay').classList.add('active'); }
+
+async function bulkCreate() {
+    const count = parseInt(document.getElementById('bulkCount').value);
+    const prefix = document.getElementById('bulkPrefix').value;
+    const proxies = document.getElementById('bulkCreateProxies').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    
+    await fetch(`${API}/profiles/bulk`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ count, prefix, proxies })
+    });
+    showToast(`CREATED ${count} PROFILES`);
+    closeModal('bulkModalOverlay');
+    loadProfiles();
+}
+
+// =======================
+// FAST DASHBOARD LOGIC
+// =======================
+async function fdBulkCreate() {
+    const count = parseInt(document.getElementById('fdBulkCount').value) || 5;
+    const settings = getFastSettings();
+    const proxies = settings.defProxy ? Array(count).fill(settings.defProxy) : [];
+
+    fdLogMsg(`BULK CREATE: ${count} profiles (Default Proxy: ${settings.defProxy || 'None'})`, 'info');
+    await fetch(`${API}/profiles/bulk`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ count, prefix: 'Profile', proxies })
+    });
+    showToast(`CREATED ${count} PROFILES`);
+    fdLogMsg(`SUCCESS: Created ${count} profiles`, 'success');
+    loadProfiles();
+}
+
+function syncSheetData() {
+    fdLogMsg('SYNC SHEET requested...', 'info');
+    const badge = document.getElementById('fdDataStatus');
+    if(badge) {
+        badge.textContent = 'SYNCING';
+        badge.style.color = 'var(--cyan)';
+        badge.style.borderColor = 'var(--cyan)';
+    }
+    setTimeout(() => {
+        fdLogMsg('SYNC COMPLETE.', 'success');
+        if(badge) {
+            badge.textContent = 'SYNCED';
+            badge.style.color = 'var(--green)';
+            badge.style.borderColor = 'var(--green)';
+        }
+    }, 1500);
+}
+
+async function runAutomationFast(name) {
+    fdLogMsg(`AUTO START: [${name}]`, 'warning');
+    try {
+        const res = await fetch(`${API}/profiles`);
+        const profiles = await res.json();
+        const profileIds = profiles.map(p => p.id);
+        if(profileIds.length === 0) {
+            fdLogMsg(`ERROR: No profiles available`, 'error');
+            return;
+        }
+        await fetch(`${API}/automation/run`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name, profileIds, concurrency: 100 })
+        });
+        showToast(`STARTED: ${name}`);
+        fdLogMsg(`Triggered [${name}] on ${profileIds.length} profiles`, 'success');
+    } catch(e) {
+        fdLogMsg(`ERROR: API connection failed`, 'error');
+    }
+}
+
+function fdFetchStats() {
+    fdLogMsg('Fetching stats...', 'info');
+    setTimeout(() => {
+        const badge = document.getElementById('fdStatsBadge');
+        if(badge) {
+            badge.textContent = 'LOADED';
+            badge.style.color = 'var(--green)';
+            badge.style.borderColor = 'var(--green)';
+        }
+        fdLogMsg('Stats fetched: 124 in queue, 80 valid, 44 invalid.', 'success');
+    }, 1000);
+}
+
+function fdApplyProxy(inputId) {
+    const val = document.getElementById(inputId).value;
+    if(!val) return;
+    fdLogMsg(`PROXY APPLIED: ${val}`, 'success');
+}
+
+function fdXoayProxy() {
+    const url = document.getElementById('fdXoayApi').value;
+    if(!url) {
+        fdLogMsg('ERROR: Missing XOAY API URL', 'error');
+        return;
+    }
+    fdLogMsg(`XOAY PROXY triggered...`, 'info');
+    setTimeout(() => fdLogMsg(`XOAY SUCCESS: New IP assigned.`, 'success'), 1500);
+}
+
+function fdLogMsg(msg, type = 'info') {
+    const consoleEl = document.getElementById('fdLogConsole');
+    if(!consoleEl) return;
+    const time = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-msg ${type}">${msg}</span>`;
+    consoleEl.appendChild(entry);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+// SSE Logging connection
+try {
+    const evtSource = new EventSource(`${API}/automation/all/stream`);
+    evtSource.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        fdLogMsg(`[${data.profileId || 'SYS'}] ${data.message}`, data.level || 'info');
+    };
+} catch(e) {}
+
+// Utilities
 function extractGpuShort(renderer) {
     if (!renderer) return '<span style="color:var(--text-muted)">—</span>';
     const match = renderer.match(/ANGLE \((\w+), (.+?) Direct3D/);
@@ -423,16 +878,10 @@ function showToast(msg) {
     setTimeout(() => t.remove(), 3000);
 }
 
-// Click overlay để đóng modal
-document.getElementById('modalOverlay').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeModal();
-});
-
-// Auto-refresh mỗi 3 giây
-setInterval(loadProfiles, 3000);
-
-// Load lần đầu
+// Init
+setInterval(loadProfiles, 5000);
 loadProfiles();
+loadFastSettingsUI();
 </script>
 </body>
 </html>

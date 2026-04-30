@@ -1,5 +1,6 @@
-const { chromium } = require('playwright');
+const { chromium } = require('patchright');
 const { FingerprintGenerator } = require('fingerprint-generator');
+const { injectFingerprint } = require('./fingerprint-injector');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -25,31 +26,112 @@ const GPU_DATABASE = [
     { vendor: 'Google Inc. (AMD)', renderer: 'ANGLE (AMD, AMD Radeon Vega 8 Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)' },
 ];
 
+// Database resolution phổ biến
+const SCREEN_DATABASE = [
+    { width: 1920, height: 1080 }, { width: 1366, height: 768 },
+    { width: 1536, height: 864  }, { width: 1440, height: 900 },
+    { width: 1920, height: 1200 }, { width: 2560, height: 1440 },
+    { width: 1680, height: 1050 }, { width: 1600, height: 900 },
+];
+const HARDWARE_CONCURRENCY = [2, 4, 6, 8, 12, 16];
+const DEVICE_MEMORY = [2, 4, 8];
+const TIMEZONES = [
+    'Asia/Ho_Chi_Minh', 'America/New_York', 'America/Chicago',
+    'America/Los_Angeles', 'Europe/London', 'Europe/Berlin',
+    'Asia/Tokyo', 'Asia/Singapore', 'Asia/Bangkok',
+];
+const LOCALES = ['vi-VN', 'en-US', 'en-GB', 'en-AU', 'ja-JP', 'de-DE'];
+
 class ProfileManager {
     constructor(options = {}) {
-        // Đường dẫn data — dùng đường dẫn tương đối từ thư mục Xsurau
-        const baseDir = options.baseDir || __dirname;
+        // Thay đổi thư mục lưu trữ Data sang ổ G: theo yêu cầu
+        const baseDir = options.baseDir || 'G:\\XsurauData';
         this.profilesDataPath = path.join(baseDir, 'profiles_data');  // Lưu cookie, cache trình duyệt
         this.profilesMetaPath = path.join(baseDir, 'profiles_meta');  // Lưu cấu hình profile (JSON)
         this.extensionsPath = path.join(baseDir, 'extensions');       // Kho extension dùng chung
+        this.settingsFile = path.join(baseDir, 'settings.json');      // Cấu hình toàn cục
         this.customChromePath = options.chromePath || 'K:\\chromium_src\\src\\out\\Xsurau\\chrome.exe';
 
         // Theo dõi profile đang chạy (RAM only — không cần lưu file)
         this.runningProfiles = new Map(); // profileId -> { context, pages[], pid }
+        // Khóa tránh mở 2 lần cùng lúc (race condition giữa thời gian launch và runningProfiles.set)
+        this.launchingProfiles = new Set(); // profileId đang trong quá trình khởi động
+        // Lưu vị trí grid layout cuối cùng (dùng lại khi automation mở profile)
+        this.savedLayout = {}; // profileId -> { windowSize, windowPosition }
 
         // Bộ sinh vân tay
         this.fingerprintGenerator = new FingerprintGenerator({
             browsers: ['chrome'],
-            operatingSystems: ['windows'],
+            operatingSystems: ['windows', 'macos'],
         });
 
         this._initDirectories();
+        this._initSettings();
     }
 
     _initDirectories() {
         [this.profilesDataPath, this.profilesMetaPath, this.extensionsPath].forEach(dir => {
             if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         });
+    }
+
+    _initSettings() {
+        if (!fs.existsSync(this.settingsFile)) {
+            fs.writeFileSync(this.settingsFile, JSON.stringify({
+                globalExtensions: []  // Đường dẫn extension mặc định cho mọi profile
+            }, null, 2));
+        }
+    }
+
+    // ========================================================================
+    // LAYOUT (Lưu vị trí grid để tái sử dụng khi automation mở lại)
+    // ========================================================================
+
+    /** Lưu layout grid: [{ profileId, windowSize, windowPosition, scaleFactor }] */
+    saveLayout(entries) {
+        for (const { profileId, windowSize, windowPosition, scaleFactor } of entries) {
+            this.savedLayout[profileId] = { windowSize, windowPosition, scaleFactor };
+        }
+    }
+
+    /** Lấy layout đã lưu cho 1 profile */
+    getLayoutFor(profileId) {
+        return this.savedLayout[profileId] || null;
+    }
+
+    // ========================================================================
+    // EXTENSION TOÀN CỤC (Cài 1 lần, mọi profile tự có)
+    // ========================================================================
+
+    /** Lấy danh sách extension toàn cục */
+    getGlobalExtensions() {
+        const settings = JSON.parse(fs.readFileSync(this.settingsFile, 'utf8'));
+        return settings.globalExtensions || [];
+    }
+
+    /** Cập nhật danh sách extension toàn cục */
+    setGlobalExtensions(extensionPaths) {
+        const settings = JSON.parse(fs.readFileSync(this.settingsFile, 'utf8'));
+        settings.globalExtensions = extensionPaths;
+        fs.writeFileSync(this.settingsFile, JSON.stringify(settings, null, 2));
+        return settings.globalExtensions;
+    }
+
+    /** Thêm 1 extension vào danh sách toàn cục */
+    addGlobalExtension(extPath) {
+        const exts = this.getGlobalExtensions();
+        if (!exts.includes(extPath)) {
+            exts.push(extPath);
+            this.setGlobalExtensions(exts);
+        }
+        return exts;
+    }
+
+    /** Xóa 1 extension khỏi danh sách toàn cục */
+    removeGlobalExtension(extPath) {
+        const exts = this.getGlobalExtensions().filter(e => e !== extPath);
+        this.setGlobalExtensions(exts);
+        return exts;
     }
 
     // ========================================================================
@@ -60,25 +142,46 @@ class ProfileManager {
     createProfile(name, proxy = null, extensions = []) {
         const id = 'profile_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex');
         const noiseSeed = crypto.randomBytes(16).toString('hex');
+        const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-        // Random GPU từ database
-        const gpu = GPU_DATABASE[Math.floor(Math.random() * GPU_DATABASE.length)];
+        // Sinh vân tay mới để lấy User-Agent ngẫu nhiên (Windows hoặc Mac)
+        const fp = this.fingerprintGenerator.getFingerprint();
+        const userAgent = fp.fingerprint.navigator.userAgent;
 
         const profileData = {
             id,
             name: name || id,
             createdAt: new Date().toISOString(),
-            proxy,            // "http://user:pass@ip:port" hoặc "socks5://ip:port"
-            extensions,       // ["C:\\path\\to\\ext1", "C:\\path\\to\\ext2"]
-            noiseSeed,        // Seed cho Canvas/Audio/ClientRects noise (C++ level)
-            gpu,              // { vendor, renderer } cho WebGL fake (C++ level)
-            notes: ''         // Ghi chú tùy ý
+            proxy,
+            extensions,
+            noiseSeed,
+            userAgent,
+            gpu: pick(GPU_DATABASE),
+            screen: pick(SCREEN_DATABASE),
+            hardwareConcurrency: pick(HARDWARE_CONCURRENCY),
+            deviceMemory: pick(DEVICE_MEMORY),
+            timezone: pick(TIMEZONES),
+            locale: pick(LOCALES),
+            notes: ''
         };
 
         const metaFile = path.join(this.profilesMetaPath, `${id}.json`);
         fs.writeFileSync(metaFile, JSON.stringify(profileData, null, 2));
-        console.log(`[Manager] ✅ Đã tạo profile: ${profileData.name} (${id})`);
+        console.log(`[Manager] ✅ Profile: ${profileData.name} | GPU: ${profileData.gpu.renderer.substring(0, 40)}... | Screen: ${profileData.screen.width}x${profileData.screen.height} | Cores: ${profileData.hardwareConcurrency}`);
         return profileData;
+    }
+
+    /** Tạo hàng loạt profile */
+    bulkCreateProfiles(count, namePrefix = 'Profile', proxies = []) {
+        const created = [];
+        for (let i = 0; i < count; i++) {
+            const num = String(i + 1).padStart(3, '0');
+            const proxy = proxies[i] || null;
+            const profile = this.createProfile(`${namePrefix} ${num}`, proxy);
+            created.push(profile);
+        }
+        console.log(`[Manager] ✅ Đã tạo ${count} profile hàng loạt!`);
+        return created;
     }
 
     /** Lấy thông tin 1 profile */
@@ -127,6 +230,25 @@ class ProfileManager {
         console.log(`[Manager] 🗑️ Đã xóa profile: ${profileId}`);
     }
 
+    /** Xóa tất cả profile */
+    deleteAllProfiles() {
+        if (this.runningProfiles.size > 0) {
+            throw new Error('Đang có profile chạy, vui lòng đóng tất cả trước khi xóa toàn bộ!');
+        }
+        const files = fs.readdirSync(this.profilesMetaPath).filter(f => f.endsWith('.json'));
+        let deletedCount = 0;
+        for (const file of files) {
+            const profileId = file.replace('.json', '');
+            const metaFile = path.join(this.profilesMetaPath, file);
+            const dataDir = path.join(this.profilesDataPath, profileId);
+            if (fs.existsSync(metaFile)) fs.unlinkSync(metaFile);
+            if (fs.existsSync(dataDir)) fs.rmSync(dataDir, { recursive: true, force: true });
+            deletedCount++;
+        }
+        console.log(`[Manager] 🗑️ Đã xóa ${deletedCount} profile.`);
+        return deletedCount;
+    }
+
     // ========================================================================
     // KHỞI CHẠY / ĐÓNG TRÌNH DUYỆT
     // ========================================================================
@@ -135,61 +257,173 @@ class ProfileManager {
     async launchProfile(profileId, options = {}) {
         const { blockImages = false, headless = false, startUrl = 'about:blank' } = options;
 
+        // Nếu profile đang chạy sẵn, trả về context hiện tại — không mở lại
         if (this.runningProfiles.has(profileId)) {
-            throw new Error(`Profile ${profileId} đang chạy rồi!`);
+            const existing = this.runningProfiles.get(profileId);
+            const pages = existing.context.pages();
+            const page = pages[pages.length - 1] || await existing.context.newPage();
+            console.log(`[Manager] ♻️  Profile [${profileId}] đang chạy sẵn — tái sử dụng.`);
+            return { context: existing.context, page, profileData: this.getProfile(profileId), wsEndpoint: null, debugPort: null };
         }
+
+        // Nếu profile đang trong quá trình khởi động (chưa vào runningProfiles nhưng đã bắt đầu)
+        // Chờ đến khi nó khởi động xong rồi tái sử dụng, không mở lại
+        if (this.launchingProfiles.has(profileId)) {
+            console.log(`[Manager] ⏳ Profile [${profileId}] đang khởi động... chờ.`);
+            await new Promise(resolve => {
+                const check = setInterval(() => {
+                    if (!this.launchingProfiles.has(profileId)) {
+                        clearInterval(check);
+                        resolve();
+                    }
+                }, 200);
+                setTimeout(() => { clearInterval(check); resolve(); }, 30000);
+            });
+            // Sau khi chờ xong, tái sử dụng context đã sẵn
+            if (this.runningProfiles.has(profileId)) {
+                const existing = this.runningProfiles.get(profileId);
+                const pages = existing.context.pages();
+                const page = pages[pages.length - 1] || await existing.context.newPage();
+                return { context: existing.context, page, profileData: this.getProfile(profileId), wsEndpoint: null, debugPort: null };
+            }
+        }
+
+        // Đặt khóa TRƯỚC KHI bắt đầu launch (block mọi request mở trùng profile này)
+        this.launchingProfiles.add(profileId);
+        try {
 
         const profileData = this.getProfile(profileId);
         if (!profileData) throw new Error(`Profile ${profileId} không tồn tại!`);
         const profileDir = path.join(this.profilesDataPath, profileId);
 
-        // ---- BỘ TỐI ƯU HIỆU NĂNG CHO CHẠY HÀNG CHỤC PROFILE ----
+        // Đảm bảo profile cũ có đủ fingerprint data (backward compat)
+        const screen = profileData.screen || { width: 1920, height: 1080 };
+        const hwConcurrency = profileData.hardwareConcurrency || 8;
+        const devMemory = profileData.deviceMemory || 8;
+        const timezone = profileData.timezone || 'Asia/Ho_Chi_Minh';
+        const locale = profileData.locale || 'vi-VN';
+
+        // Generate a fake local IP from noiseSeed for WebRTC spoofing
+        const seedInt = profileData.noiseSeed || 12345;
+        const ip3 = (seedInt % 254) + 1;
+        const ip4 = ((seedInt >> 8) % 254) + 1;
+        const fakeLocalIp = `192.168.${ip3}.${ip4}`;
+
+        // Resolve proxy OUTGOING IP for WebRTC spoofing
+        // (DNS chỉ cho IP server, cần HTTP request qua proxy để lấy IP outgoing thực tế)
+        let webrtcIp = fakeLocalIp; // fallback khi không có proxy
+        if (profileData.proxy) {
+            try {
+                const http = require('http');
+                const https = require('https');
+                const { URL } = require('url');
+                const proxyUrl = new URL(profileData.proxy.startsWith('http') ? profileData.proxy : `http://${profileData.proxy}`);
+
+                // Dùng fetch qua proxy để lấy IP outgoing thực tế
+                const outgoingIp = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
+                    const options = {
+                        hostname: proxyUrl.hostname,
+                        port: proxyUrl.port,
+                        path: 'http://api.ipify.org',
+                        method: 'GET',
+                        headers: { 'Host': 'api.ipify.org' },
+                    };
+                    if (proxyUrl.username) {
+                        options.headers['Proxy-Authorization'] = 'Basic ' + Buffer.from(`${decodeURIComponent(proxyUrl.username)}:${decodeURIComponent(proxyUrl.password || '')}`).toString('base64');
+                    }
+                    const req = http.request(options, (res) => {
+                        let data = '';
+                        res.on('data', chunk => data += chunk);
+                        res.on('end', () => {
+                            clearTimeout(timeout);
+                            const ip = data.trim();
+                            if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+                                resolve(ip);
+                            } else {
+                                reject(new Error(`Invalid IP: ${ip}`));
+                            }
+                        });
+                    });
+                    req.on('error', (e) => { clearTimeout(timeout); reject(e); });
+                    req.end();
+                });
+
+                webrtcIp = outgoingIp;
+                console.log(`[Manager] 🌐 WebRTC IP = ${webrtcIp} (detected via proxy)`);
+            } catch (e) {
+                console.log(`[Manager] ⚠️ Không detect được proxy outgoing IP: ${e.message}, dùng fake: ${fakeLocalIp}`);
+            }
+        }
+
+        // ---- SỬA LỖI BONG BÓNG RESTORE PAGES KHI BỊ FORCE KILL ----
+        try {
+            const prefPath = path.join(profileDir, 'Default', 'Preferences');
+            if (fs.existsSync(prefPath)) {
+                let prefs = JSON.parse(fs.readFileSync(prefPath, 'utf8'));
+                if (prefs.profile) {
+                    prefs.profile.exit_type = 'Normal';
+                    prefs.profile.exited_cleanly = true;
+                }
+                fs.writeFileSync(prefPath, JSON.stringify(prefs));
+            }
+        } catch (e) { /* ignore */ }
+
+        // ---- CHROME FLAGS ----
         const args = [
-            '--start-maximized',
-            // --- CHỐNG PHÁT HIỆN ---
+            '--test-type',
+            '--restore-last-session',
             '--disable-blink-features=AutomationControlled',
-            // --- TIẾT KIỆM RAM (ƯU TIÊN CAO NHẤT) ---
-            '--disable-site-isolation-trials',      // Gộp process → tiết kiệm ~100MB/profile
-            '--renderer-process-limit=2',            // Giới hạn tối đa 2 renderer process/profile
-            '--js-flags=--max-old-space-size=128',   // Giới hạn V8 heap mỗi tab chỉ 128MB
             '--disable-dev-shm-usage',
-            // --- TẮT DỊCH VỤ NỀN THỪA ---
-            '--disable-background-networking',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-breakpad',
-            '--disable-client-side-phishing-detection',
-            '--disable-component-extensions-with-background-pages',
-            '--disable-component-update',
-            '--disable-default-apps',
-            '--disable-domain-reliability',
-            '--disable-extensions',                  // Sẽ bật lại nếu profile có extension
-            '--disable-features=Translate,OptimizationHints,MediaRouter,CalculateNativeWinOcclusion,InterestGroupStorage,AggregationService,PrivacySandboxSettings4,AutofillServerCommunication',
-            '--disable-hang-monitor',
-            '--disable-ipc-flooding-protection',
-            '--disable-popup-blocking',
-            '--disable-prompt-on-repost',
-            '--disable-renderer-backgrounding',
-            '--disable-sync',
-            '--metrics-recording-only',
-            '--mute-audio',
+            '--renderer-process-limit=4',
             '--no-default-browser-check',
             '--no-first-run',
             '--password-store=basic',
             '--use-mock-keychain',
-            // --- VÂN TAY PHẦN CỨNG (TRUYỀN VÀO LÕI C++) ---
+            '--remote-debugging-port=0',
+
+            // --- C++ FINGERPRINT FLAGS ---
             `--canvas-noise-seed=${profileData.noiseSeed}`,
+            `--webgl-noise-seed=${profileData.noiseSeed}`,
             `--audio-noise-seed=${profileData.noiseSeed}`,
-            `--rect-noise-seed=${profileData.noiseSeed}`,
-            `--webgl-vendor=${profileData.gpu.vendor}`,
-            `--webgl-renderer=${profileData.gpu.renderer}`,
+            `--clientrects-noise-seed=${profileData.noiseSeed}`,
+            `--webgl-vendor=${profileData.gpu.vendor.replace(/ /g, '\x1F')}`,
+            `--webgl-renderer=${profileData.gpu.renderer.replace(/ /g, '\x1F')}`,
+
+            // --- NATIVE C++ SPOOFING ---
+            `--spoof-timezone=${timezone}`,
+            `--spoof-locale=${locale}`,
+            `--spoof-webrtc-ip=${webrtcIp}`,
+            `--spoof-cpu-cores=${hwConcurrency}`,
+            `--spoof-device-memory=${devMemory}`,
         ];
 
-        // Load extension nếu có
-        if (profileData.extensions && profileData.extensions.length > 0) {
-            const idx = args.indexOf('--disable-extensions');
-            if (idx > -1) args.splice(idx, 1);
-            const extPaths = profileData.extensions.join(',');
+        if (profileData.userAgent) {
+            args.push(`--user-agent=${profileData.userAgent}`);
+        }
+
+        if (options.windowSize) {
+            args.push(`--window-size=${options.windowSize.width},${options.windowSize.height}`);
+        }
+        if (options.windowPosition) {
+            args.push(`--window-position=${options.windowPosition.x},${options.windowPosition.y}`);
+        }
+        if (!options.windowSize && !options.windowPosition) {
+            // Nếu mở đơn lẻ, thử maximized
+            args.push('--start-maximized');
+        }
+
+        // Gộp Extensions
+        const globalExts = this.getGlobalExtensions();
+        const profileExts = profileData.extensions || [];
+        const allExtensions = [...new Set([...globalExts, ...profileExts])]
+            .filter(e => {
+                if (!fs.existsSync(e)) return false;
+                if (e.toLowerCase().endsWith('.zip') || e.toLowerCase().endsWith('.crx')) return false;
+                return true;
+            });
+        if (allExtensions.length > 0) {
+            const extPaths = allExtensions.join(',');
             args.push(`--disable-extensions-except=${extPaths}`);
             args.push(`--load-extension=${extPaths}`);
         }
@@ -200,6 +434,7 @@ class ProfileManager {
             args,
             ignoreDefaultArgs: ['--enable-automation'],
             viewport: null,
+            // timezoneId/locale gây fail Turnstile (Cloudflare detect CDP override)
         };
 
         if (profileData.proxy) {
@@ -207,7 +442,58 @@ class ProfileManager {
         }
 
         console.log(`[Manager] 🚀 Đang mở profile [${profileData.name}]...`);
-        const context = await chromium.launchPersistentContext(profileDir, launchConfig);
+
+        // Xử lý Zoom (chỉ zoom nội dung web, giữ nguyên kích thước UI trình duyệt)
+        if (options.scaleFactor && options.scaleFactor !== 1) {
+            try {
+                const defaultDir = path.join(profileDir, 'Default');
+                if (!fs.existsSync(defaultDir)) fs.mkdirSync(defaultDir, { recursive: true });
+                
+                const prefsPath = path.join(defaultDir, 'Preferences');
+                let prefsData = {};
+                if (fs.existsSync(prefsPath)) {
+                    prefsData = JSON.parse(fs.readFileSync(prefsPath, 'utf8'));
+                }
+                
+                if (!prefsData.partition) prefsData.partition = {};
+                
+                // Công thức tính zoom level của Chromium: level = ln(zoom_percent / 100) / ln(1.2)
+                const zoomLevel = Math.log(options.scaleFactor) / Math.log(1.2);
+                prefsData.partition.default_zoom_level = { 'x': zoomLevel };
+                
+                fs.writeFileSync(prefsPath, JSON.stringify(prefsData));
+            } catch (e) {
+                console.log(`[Manager] ⚠️ Không thể thiết lập zoom: ${e.message}`);
+            }
+        }
+        let context;
+        try {
+            context = await chromium.launchPersistentContext(profileDir, launchConfig);
+        } catch (err) {
+            // Xử lý lỗi "Opening in existing browser session": Chrome cũ vẫn chiếm lock sau khi restart server
+            if (err.message && err.message.includes('Opening in existing browser session')) {
+                console.log(`[Manager] ⚠️ Profile [${profileData.name}] có Chrome cũ — đang diệt và thử lại...`);
+                await new Promise((resolve) => {
+                    const { exec } = require('child_process');
+                    exec(
+                        `powershell -Command "Get-WmiObject Win32_Process -Filter 'Name=''chrome.exe''' | Where-Object { $_.CommandLine -match '${profileId}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`,
+                        () => resolve()
+                    );
+                    setTimeout(resolve, 3000);
+                });
+                context = await chromium.launchPersistentContext(profileDir, launchConfig);
+            } else {
+                throw err;
+            }
+        }
+
+        // ❌ KHÔNG dùng addInitScript — Cloudflare detect MỌI Object.defineProperty
+        // Screen/Timezone/Locale đã được xử lý native bởi patchright
+        // hardwareConcurrency/deviceMemory cần C++ patch trong tương lai
+        console.log(`[Manager] 🎭 GPU: ${profileData.gpu.renderer.substring(0, 50)}`);
+        console.log(`[Manager] 🖥️  Screen: ${screen.width}x${screen.height}`);
+        console.log(`[Manager] 🌍 TZ: ${timezone} | Locale: ${locale}`);
+        console.log(`[Manager] 🔒 WebRTC: disabled non-proxied UDP`);
 
         // Chặn tài nguyên nặng nếu bật blockImages
         if (blockImages) {
@@ -220,9 +506,13 @@ class ProfileManager {
             });
         }
 
-        const page = context.pages()[0] || await context.newPage();
-        if (startUrl !== 'about:blank') {
-            await page.goto(startUrl, { waitUntil: 'domcontentloaded' });
+        let page;
+        if (options.startUrl && options.startUrl !== 'about:blank') {
+            page = context.pages()[0] || await context.newPage();
+            await page.goto(options.startUrl, { waitUntil: 'domcontentloaded' });
+        } else {
+            // Lấy page đầu tiên chỉ để tracking, không đổi URL để giữ lại các tab đã mở từ lần trước
+            page = context.pages()[0] || await context.newPage();
         }
 
         // Lưu vào bộ theo dõi
@@ -234,24 +524,71 @@ class ProfileManager {
             console.log(`[Manager] ⏹️ Profile [${profileData.name}] đã đóng.`);
         });
 
+        // Đọc wsEndpoint từ file DevToolsActivePort (chứa port ngẫu nhiên thực sự)
+        let wsEndpoint = null;
+        let debugPort = null;
+        try {
+            const devToolsFile = path.join(profileDir, 'DevToolsActivePort');
+            // Đợi tối đa 3s cho Chrome ghi file
+            for (let i = 0; i < 30; i++) {
+                if (fs.existsSync(devToolsFile)) break;
+                await new Promise(r => setTimeout(r, 100));
+            }
+            if (fs.existsSync(devToolsFile)) {
+                const content = fs.readFileSync(devToolsFile, 'utf8').trim();
+                debugPort = content.split('\n')[0].trim();
+                wsEndpoint = `ws://127.0.0.1:${debugPort}/json/version`;
+                console.log(`[Manager] 🔌 Profile [${profileData.name}] CDP tại port ${debugPort}`);
+            }
+        } catch (e) {
+            console.warn(`[Manager] ⚠️ Không đọc được DevToolsActivePort: ${e.message}`);
+        }
+
         console.log(`[Manager] ✅ Profile [${profileData.name}] đang chạy.`);
-        return { context, page, profileData };
+        return { context, page, profileData, wsEndpoint, debugPort };
+        } finally {
+            // Luôn giải phóng khóa dù thành công hay thất bại
+            this.launchingProfiles.delete(profileId);
+        }
     }
 
-    /** Đóng 1 profile */
-    async closeProfile(profileId) {
+
+    /** Đóng 1 profile mạnh mẽ */
+    async closeProfile(profileId, skipWmic = false) {
         const running = this.runningProfiles.get(profileId);
-        if (!running) throw new Error(`Profile ${profileId} không đang chạy.`);
-        await running.context.close();
-        // Event 'close' ở trên sẽ tự dọn
+        
+        // 1. Dọn khỏi RAM ngay lập tức để UI nhận phản hồi
+        if (running) {
+            this.runningProfiles.delete(profileId);
+            try {
+                await Promise.race([
+                    running.context.close(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Close Timeout')), 2000))
+                ]);
+            } catch (e) {
+                console.warn(`[Manager] ⚠️ Đóng profile ${profileId} chậm, bỏ qua chờ...`);
+            }
+        }
+        
+        // 2. BULLETPROOF: Nếu không skip, bắn bỏ process mồ côi bằng powershell
+        if (!skipWmic) {
+            const { exec } = require('child_process');
+            exec(`powershell -Command "Get-WmiObject Win32_Process -Filter 'Name=''chrome.exe''' | Where-Object { $_.CommandLine -match '${profileId}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`, () => {});
+        }
     }
 
-    /** Đóng tất cả */
+    /** Đóng tất cả đồng thời và mạnh mẽ */
     async closeAll() {
         const ids = [...this.runningProfiles.keys()];
-        for (const id of ids) {
-            await this.closeProfile(id);
-        }
+        
+        // Gọi closeProfile nhưng BỎ QUA kill lẻ để dồn vào 1 lệnh cuối
+        await Promise.allSettled(ids.map(id => this.closeProfile(id, true)));
+
+        // Dùng powershell quét và Force Kill toàn bộ cực mạnh. Không dùng wmic call terminate vì nó hay bị lỗi dừng ngang.
+        const { exec } = require('child_process');
+        exec(`powershell -Command "Get-WmiObject Win32_Process -Filter 'Name=''chrome.exe''' | Where-Object { $_.CommandLine -match 'profiles_data' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`, () => {
+            console.log(`[Manager] 🧹 Đã dọn dẹp toàn bộ tiến trình Chrome rác.`);
+        });
     }
 
     /** Lấy danh sách profile đang chạy */

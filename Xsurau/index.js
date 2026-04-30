@@ -29,11 +29,27 @@ async function launchProfile(profileId, proxyUrl = null) {
         if (!fs.existsSync('./profiles_data')) {
             fs.mkdirSync('./profiles_data', { recursive: true });
         }
+        
+        // Tạo cấu hình phần cứng ngẫu nhiên cho C++ Native Spoofing
+        browserProfile.xsurauHardware = {
+            cores: [2, 4, 8, 12, 16][Math.floor(Math.random() * 5)],
+            memory: [4.0, 8.0, 16.0, 32.0][Math.floor(Math.random() * 4)]
+        };
+        
         fs.writeFileSync(metaPath, JSON.stringify(browserProfile, null, 2));
     } else {
         // Đã có profile -> Tải lại vân tay cũ để giữ tính nhất quán
         console.log(`[+] Đang tải profile có sẵn: ${profileId}`);
         browserProfile = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        
+        // Cập nhật cấu hình phần cứng cho các profile cũ chưa có
+        if (!browserProfile.xsurauHardware) {
+            browserProfile.xsurauHardware = {
+                cores: [2, 4, 8, 12, 16][Math.floor(Math.random() * 5)],
+                memory: [4.0, 8.0, 16.0, 32.0][Math.floor(Math.random() * 4)]
+            };
+            fs.writeFileSync(metaPath, JSON.stringify(browserProfile, null, 2));
+        }
     }
 
     // Tạo seed ngẫu nhiên từ profileId để mỗi profile có vân tay phần cứng riêng
@@ -49,8 +65,13 @@ async function launchProfile(profileId, proxyUrl = null) {
             '--disable-blink-features=AutomationControlled',
             // Truyền seed vân tay phần cứng vào lõi C++ (các file đã được vá)
             `--canvas-noise-seed=${noiseSeed}`,
+            `--webgl-noise-seed=${noiseSeed}`,
             `--audio-noise-seed=${noiseSeed}`,
             `--rect-noise-seed=${noiseSeed}`,
+            `--clientrects-noise-seed=${noiseSeed}`,
+            // Giả mạo CPU và RAM Native C++
+            `--spoof-cpu-cores=${browserProfile.xsurauHardware.cores}`,
+            `--spoof-device-memory=${browserProfile.xsurauHardware.memory}`,
             // Fake thông số WebGL (Card đồ họa) - thay đổi theo từng profile nếu muốn
             '--webgl-vendor=Google Inc. (Intel)',
             '--webgl-renderer=ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0, D3D11)',
