@@ -220,21 +220,19 @@
                 </div>
             </div>
 
-            <!-- BROWSER STATUS & UTILS -->
+            <!-- SYSTEM MONITORING -->
             <div class="fd-panel">
                 <div class="fd-panel-header">
-                    <div class="fd-panel-title">STATUS & UTILS</div>
+                    <div class="fd-panel-title">SYSTEM MONITORING</div>
                     <div style="display: flex; gap: 10px;">
                         <div class="fd-status-badge" id="fdBrowserStatus">INACTIVE</div>
                         <div class="fd-status-badge" id="fdDataStatus">NO DATA</div>
+                        <div class="fd-status-badge" id="fdStatsBadge">EMPTY</div>
                     </div>
                 </div>
-                <div class="fd-row">
+                <div class="fd-row" style="gap: 10px;">
                     <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="syncSheetData()">SYNC SHEET</button>
-                    <button class="btn btn-yellow" onclick="runAutomationFast('test-simple')">RC2: CLICK</button>
-                    <button class="btn btn-yellow" onclick="runAutomationFast('test-simple')">RCE: CLICK</button>
-                    <button class="btn btn-run">ON</button>
-                    <button class="btn" style="border-color: var(--purple); color: var(--purple);" onclick="fdLogMsg('RAM PURGE executed', 'success')">RAM PURGE</button>
+                    <button class="btn btn-run" onclick="runAutomationFast('check-phone-verify')">CHECK PHONE VERIFY</button>
                 </div>
             </div>
 
@@ -245,7 +243,6 @@
                 </div>
                 <div class="fd-row">
                     <button class="btn btn-danger" onclick="runAutomationFast('login-google')">LOGIN GOOGLE</button>
-                    <button class="btn btn-run" onclick="runAutomationFast('login-captcha-retry')">LOGIN + CAPTCHA</button>
                     <button class="btn btn-danger" onclick="runAutomationFast('login-google')">PASSWORD GOOGLE</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('verify-phone-sheet')">VERIFY PHONE</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('verify-phone-sheet-check')">DOUBLE VERIFY</button>
@@ -254,22 +251,11 @@
                 <div class="fd-row">
                     <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="runAutomationFast('setup-2fa')">SETUP 2FA</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('solve-captcha-continuous')">SOLVE CAPTCHA</button>
-                    <button class="btn btn-run" onclick="runAutomationFast('test-simple')">TEST SIMPLE</button>
                     <button class="btn btn-danger" onclick="runAutomationFast('logout-google')">LOGOUT GOOGLE</button>
                 </div>
             </div>
 
-            <!-- VALIDATION QUEUE -->
-            <div class="fd-panel">
-                <div class="fd-panel-header">
-                    <div class="fd-panel-title">VALIDATION QUEUE</div>
-                    <div class="fd-status-badge" id="fdStatsBadge">EMPTY</div>
-                </div>
-                <div class="fd-row">
-                    <button class="btn btn-run" onclick="runAutomationFast('check-phone-verify')">CHECK PHONE VERIFY</button>
-                    <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="fdFetchStats()">STATS</button>
-                </div>
-            </div>
+
 
             <!-- PROXY MANAGEMENT -->
             <div class="fd-panel">
@@ -286,10 +272,6 @@
                     <label>PROXY 2:</label>
                     <input type="text" id="fdProxy2" placeholder="51.91.67.218:3131:user:pass">
                     <button class="btn btn-yellow" onclick="fdApplyProxy('fdProxy2')">USE P2</button>
-                </div>
-                <div class="fd-proxy-row">
-                    <label>CAPTCHA PXY:</label>
-                    <input type="text" id="fdProxyCaptcha" placeholder="Captcha Proxy">
                 </div>
                 <div class="fd-proxy-row">
                     <label>XOAY URL:</label>
@@ -774,7 +756,6 @@ function saveFastSettings() {
         gridScale: document.getElementById('fdGridScale').value,
         proxy1: document.getElementById('fdProxy1').value,
         proxy2: document.getElementById('fdProxy2').value,
-        proxyCaptcha: document.getElementById('fdProxyCaptcha').value,
         xoayApi: document.getElementById('fdXoayApi').value,
         fdBulkCount: document.getElementById('fdBulkCount') ? document.getElementById('fdBulkCount').value : '5'
     };
@@ -784,7 +765,7 @@ function saveFastSettings() {
 function getFastSettings() {
     const saved = localStorage.getItem('xsurau_fast_settings');
     if (saved) return JSON.parse(saved);
-    return { proxyMode: 'individual', defProxy: '', gridCols: '5', gridRows: '3', gridScale: '80', proxy1: '', proxy2: '', proxyCaptcha: '', xoayApi: '', fdBulkCount: '5' };
+    return { proxyMode: 'individual', defProxy: '', gridCols: '5', gridRows: '3', gridScale: '80', proxy1: '', proxy2: '', xoayApi: '', fdBulkCount: '5' };
 }
 
 function loadFastSettingsUI() {
@@ -797,7 +778,6 @@ function loadFastSettingsUI() {
     document.getElementById('fdGridScale').value = s.gridScale || '80';
     document.getElementById('fdProxy1').value = s.proxy1 || '';
     document.getElementById('fdProxy2').value = s.proxy2 || '';
-    document.getElementById('fdProxyCaptcha').value = s.proxyCaptcha || '';
     document.getElementById('fdXoayApi').value = s.xoayApi || '';
     if(document.getElementById('fdBulkCount')) document.getElementById('fdBulkCount').value = s.fdBulkCount || '5';
 
@@ -1010,18 +990,7 @@ async function runAutomationFast(name) {
     }
 }
 
-function fdFetchStats() {
-    fdLogMsg('Fetching stats...', 'info');
-    setTimeout(() => {
-        const badge = document.getElementById('fdStatsBadge');
-        if(badge) {
-            badge.textContent = 'LOADED';
-            badge.style.color = 'var(--green)';
-            badge.style.borderColor = 'var(--green)';
-        }
-        fdLogMsg('Stats fetched: 124 in queue, 80 valid, 44 invalid.', 'success');
-    }, 1000);
-}
+
 
 async function fdApplyProxy(inputId) {
     const val = document.getElementById(inputId).value;

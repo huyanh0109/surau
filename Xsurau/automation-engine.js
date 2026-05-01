@@ -14,7 +14,6 @@ const { EventEmitter } = require('events');
 // ============================================================
 const automationRegistry = {
     'login-google':                require('./automations/login-google'),
-    'login-captcha-retry':         require('./automations/login-captcha-retry'),
     'logout-google':               require('./automations/logout-google'),
     'appeal-google':               require('./automations/appeal-google'),
     'solve-captcha-continuous':    require('./automations/solve-captcha-continuous'),
@@ -22,7 +21,6 @@ const automationRegistry = {
     'check-phone-verify':          require('./automations/check-phone-verify'),
     'verify-phone-sheet':          require('./automations/verify-phone-sheet'),
     'verify-phone-sheet-check':    require('./automations/verify-phone-sheet-check'),
-    'test-simple':                 require('./automations/test-simple'),
 };
 
 class AutomationEngine extends EventEmitter {
