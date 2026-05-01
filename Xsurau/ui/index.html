@@ -70,6 +70,35 @@
         .actions { display: flex; gap: 6px; }
 
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
+        /* TOAST */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; }
+        .toast {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 20px; margin-bottom: 8px;
+            font-size: 13px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* NEW SETTINGS TAB CSS */
+        .settings-container { max-width: 850px; margin: 0 auto; padding: 20px 0; display: flex; flex-direction: column; gap: 30px; }
+        .settings-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .settings-header { background: var(--bg-secondary); padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .settings-title { font-size: 14px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+        .settings-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+        .settings-row { display: flex; align-items: center; gap: 20px; }
+        .settings-label { min-width: 130px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+        .settings-input { flex: 1; padding: 12px 16px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none; transition: all 0.2s; }
+        .settings-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        
+        .settings-group { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .settings-sublabel { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+        
+        .ext-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+        .ext-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); transition: all 0.2s; }
+        .ext-item:hover { border-color: var(--text-muted); }
+        .ext-path { font-family: monospace; font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; }
+        .ext-add-box { display: flex; gap: 10px; margin-top: 10px; }
         .modal-overlay.active { display: flex; }
         .modal { background: var(--bg-card); border: 1px solid var(--border); padding: 28px; width: 520px; max-height: 90vh; overflow-y: auto; position: relative; }
         .modal::before, .modal::after { content: ''; position: absolute; width: 12px; height: 12px; border: 2px solid var(--accent); }
@@ -164,6 +193,7 @@
     <button class="tab-btn active" onclick="switchTab('fastdashboard')">FAST DASHBOARD</button>
     <button class="tab-btn" onclick="switchTab('profiles')">PROFILE MANAGER</button>
     <button class="tab-btn" onclick="switchTab('automation')">AUTOMATION</button>
+    <button class="tab-btn" onclick="switchTab('settings')">SETTINGS</button>
 </div>
 
 <!-- ========================================== -->
@@ -179,29 +209,31 @@
                 </div>
                 <div class="fd-row">
                     <div class="fd-label">QUANTITY:</div>
-                    <input type="number" id="fdBulkCount" value="5" min="1" max="500" style="width: 80px; padding: 8px; background: #000; border: 1px solid var(--border); color: var(--text-primary);">
+                    <input type="number" id="fdBulkCount" value="5" min="1" max="500" style="width: 80px; padding: 8px; background: #000; border: 1px solid var(--border); color: var(--text-primary);" onchange="saveFastSettings()">
                     <button class="btn btn-yellow" onclick="fdBulkCreate()">CREATE</button>
                     <button class="btn btn-danger" onclick="deleteAllProfilesUI()">PURGE ALL</button>
                 </div>
+                <div class="fd-row" style="gap: 10px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
+                    <button class="btn btn-run" style="flex: 1;" onclick="launchAllProfiles()">LAUNCH</button>
+                    <button class="btn btn-yellow" style="flex: 1;" onclick="closeAllProfiles()">CEASE</button>
+                    <button class="btn btn-danger" style="flex: 1;" onclick="pauseAllProfiles()">PAUSE</button>
+                </div>
             </div>
 
-            <!-- BROWSER CONTROL -->
+            <!-- BROWSER STATUS & UTILS -->
             <div class="fd-panel">
                 <div class="fd-panel-header">
-                    <div class="fd-panel-title">BROWSER CONTROL</div>
+                    <div class="fd-panel-title">STATUS & UTILS</div>
                     <div style="display: flex; gap: 10px;">
                         <div class="fd-status-badge" id="fdBrowserStatus">INACTIVE</div>
                         <div class="fd-status-badge" id="fdDataStatus">NO DATA</div>
                     </div>
                 </div>
                 <div class="fd-row">
-                    <button class="btn btn-run" onclick="launchAllProfiles()">LAUNCH</button>
-                    <button class="btn btn-yellow" onclick="closeAllProfiles()">CEASE</button>
                     <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="syncSheetData()">SYNC SHEET</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('test-simple')">RC2: CLICK</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('test-simple')">RCE: CLICK</button>
                     <button class="btn btn-run">ON</button>
-                    <button class="btn btn-danger">PAUSE</button>
                     <button class="btn" style="border-color: var(--purple); color: var(--purple);" onclick="fdLogMsg('RAM PURGE executed', 'success')">RAM PURGE</button>
                 </div>
             </div>
@@ -221,8 +253,8 @@
                 </div>
                 <div class="fd-row">
                     <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="runAutomationFast('setup-2fa')">SETUP 2FA</button>
-                    <button class="btn btn-yellow" onclick="runAutomationFast('test-simple')">SOLVE CAPTCHA SOLO</button>
-                    <button class="btn btn-run" onclick="runAutomationFast('solve-captcha-continuous')">CONT. CAPTCHA</button>
+                    <button class="btn btn-yellow" onclick="runAutomationFast('solve-captcha-continuous')">SOLVE CAPTCHA</button>
+                    <button class="btn btn-run" onclick="runAutomationFast('test-simple')">TEST SIMPLE</button>
                     <button class="btn btn-danger" onclick="runAutomationFast('logout-google')">LOGOUT GOOGLE</button>
                 </div>
             </div>
@@ -265,27 +297,6 @@
                     <button class="btn" style="border-color: var(--blue); color: var(--blue);" onclick="fdXoayProxy()">XOAY PROXY</button>
                 </div>
             </div>
-
-            <!-- FAST SETTINGS -->
-            <div class="fd-panel">
-                <div class="fd-panel-header">
-                    <div class="fd-panel-title">FAST SETTINGS</div>
-                    <button class="btn btn-run btn-sm" onclick="saveFastSettings()">SAVE SETTINGS</button>
-                </div>
-                <div class="fd-row">
-                    <div class="fd-label">DEF PROXY:</div>
-                    <input type="text" id="fdDefProxy" placeholder="http://user:pass@ip:port" style="flex: 1;">
-                </div>
-                <div class="fd-row">
-                    <div class="fd-label">GRID COLS:</div>
-                    <input type="number" id="fdGridCols" value="5" min="1" max="10" style="width: 60px;">
-                    <div class="fd-label" style="min-width: 60px;">ROWS:</div>
-                    <input type="number" id="fdGridRows" value="3" min="1" max="10" style="width: 60px;">
-                    <div class="fd-label" style="min-width: 60px;">SCALE:</div>
-                    <input type="number" id="fdGridScale" value="80" min="30" max="150" style="width: 60px;">
-                    <span style="font-size: 11px; color: var(--text-muted);">%</span>
-                </div>
-            </div>
         </div>
 
         <div class="fd-col-side">
@@ -304,21 +315,9 @@
 <!-- ========================================== -->
 <!-- TAB: PROFILES -->
 <!-- ========================================== -->
+<!-- TAB: PROFILES -->
+<!-- ========================================== -->
 <div class="tab-content" id="tab-profiles">
-<!-- EXTENSION TOÀN CỤC -->
-<div class="ext-panel" id="extPanel">
-    <div class="ext-panel-header" onclick="toggleExtPanel()">
-        <h3>GLOBAL EXTENSIONS</h3>
-        <span id="extToggle">EXPAND</span>
-    </div>
-    <div id="extPanelBody" style="display:none;">
-        <ul class="ext-list" id="globalExtList"></ul>
-        <div class="ext-add-row">
-            <input type="text" id="newExtPath" placeholder="Extension path...">
-            <button class="btn btn-yellow btn-sm" onclick="addGlobalExt()">ADD</button>
-        </div>
-    </div>
-</div>
 
 <div class="toolbar">
     <div class="toolbar-left">
@@ -486,6 +485,65 @@
 </div>
 </div> <!-- end tab-automation -->
 
+<!-- ========================================== -->
+<!-- TAB: SETTINGS -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-settings">
+    <div class="settings-container">
+        
+        <!-- FAST SETTINGS -->
+        <div class="settings-section">
+            <div class="settings-header">
+                <div class="settings-title"><span style="color:var(--accent);">⚡</span> DEFAULT & GRID SETTINGS</div>
+                <button class="btn btn-run btn-sm" onclick="saveFastSettings()">SAVE SETTINGS</button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-row">
+                    <div class="settings-label">PROXY MODE</div>
+                    <select id="fdProxyMode" class="settings-input" onchange="handleProxyModeChange()">
+                        <option value="individual">Mỗi Profile 1 Proxy (Độc lập & Cố định)</option>
+                        <option value="global">Dùng Chung Cổng 8888 (Cho phép đổi IP nóng)</option>
+                    </select>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">DEFAULT PROXY</div>
+                    <input type="text" id="fdDefProxy" class="settings-input" placeholder="http://user:pass@ip:port">
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">GRID LAYOUT</div>
+                    <div class="settings-group">
+                        <span class="settings-sublabel">COLUMNS</span>
+                        <input type="number" id="fdGridCols" class="settings-input" value="5" min="1" max="10" style="text-align: center;">
+                        
+                        <span class="settings-sublabel">ROWS</span>
+                        <input type="number" id="fdGridRows" class="settings-input" value="3" min="1" max="10" style="text-align: center;">
+                        
+                        <span class="settings-sublabel">SCALE (%)</span>
+                        <input type="number" id="fdGridScale" class="settings-input" value="80" min="30" max="150" style="text-align: center;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GLOBAL EXTENSIONS -->
+        <div class="settings-section">
+            <div class="settings-header">
+                <div class="settings-title"><span style="color:var(--yellow);">🧩</span> GLOBAL EXTENSIONS</div>
+            </div>
+            <div class="settings-body">
+                <ul class="ext-list" id="globalExtList">
+                    <!-- Extensions will load here -->
+                </ul>
+                <div class="ext-add-box">
+                    <input type="text" id="newExtPath" class="settings-input" placeholder="D:\extensions\captcha-solver">
+                    <button class="btn btn-yellow" onclick="addGlobalExt()">ADD EXTENSION</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div> <!-- end tab-settings -->
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
@@ -498,6 +556,52 @@ function switchTab(tabId) {
     
     event.currentTarget.classList.add('active');
     document.getElementById('tab-' + tabId).classList.add('active');
+}
+
+// =======================
+// GLOBAL EXTENSIONS
+// =======================
+async function loadGlobalExts() {
+    try {
+        const res = await fetch(`${API}/extensions`);
+        const exts = await res.json();
+        const list = document.getElementById('globalExtList');
+        if (exts.length === 0) {
+            list.innerHTML = '<li class="ext-item" style="justify-content: center;"><span style="color:var(--text-muted)">NO GLOBAL EXTENSIONS FOUND</span></li>';
+        } else {
+            list.innerHTML = exts.map(ext => `
+                <li class="ext-item">
+                    <span class="ext-path" title="${escHtml(ext)}">${escHtml(ext)}</span>
+                    <button class="btn btn-ghost btn-sm" onclick="removeGlobalExt('${ext.replace(/\\/g, '\\\\')}')" style="color: var(--red); border-color: var(--red);">DEL</button>
+                </li>
+            `).join('');
+        }
+    } catch(e) {}
+}
+
+async function addGlobalExt() {
+    const extPath = document.getElementById('newExtPath').value.trim();
+    if (!extPath) return showToast('Please enter an extension path');
+    
+    await fetch(`${API}/extensions`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ path: extPath })
+    });
+    document.getElementById('newExtPath').value = '';
+    showToast('EXTENSION ADDED');
+    loadGlobalExts();
+}
+
+async function removeGlobalExt(extPath) {
+    if (!confirm('Remove this global extension?')) return;
+    await fetch(`${API}/extensions`, {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ path: extPath })
+    });
+    showToast('EXTENSION REMOVED');
+    loadGlobalExts();
 }
 
 // =======================
@@ -532,7 +636,15 @@ async function loadProfiles() {
         }
         empty.style.display = 'none';
 
-        table.innerHTML = profiles.map(p => `
+        const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
+
+        table.innerHTML = profiles.map(p => {
+            let displayProxy = p.proxy || '<span style="color:var(--text-muted)">NONE</span>';
+            if (proxyMode === 'global' && p.status === 'running') {
+                displayProxy = '<span style="color:var(--green)">127.0.0.1:8888 (Global)</span>';
+            }
+            
+            return `
             <tr>
                 <td>
                     <div class="profile-name">${escHtml(p.name)}</div>
@@ -543,7 +655,7 @@ async function loadProfiles() {
                         ${p.status === 'running' ? 'RUNNING' : 'STOPPED'}
                     </span>
                 </td>
-                <td class="proxy-cell" title="${escHtml(p.proxy || '')}">${p.proxy || '<span style="color:var(--text-muted)">NONE</span>'}</td>
+                <td class="proxy-cell" title="${escHtml(p.proxy || '')}">${displayProxy}</td>
                 <td class="gpu-cell" title="${escHtml(p.gpu?.renderer || '')}">${extractGpuShort(p.gpu?.renderer)}</td>
                 <td><span class="ext-count">${(p.extensions || []).length > 0 ? p.extensions.length + ' ext' : '<span style="color:var(--text-muted)">0</span>'}</span></td>
                 <td class="actions">
@@ -555,13 +667,19 @@ async function loadProfiles() {
                     <button class="btn btn-ghost btn-sm" onclick="deleteProfile('${p.id}')" ${p.status === 'running' ? 'disabled style="opacity:0.3"' : ''}>DEL</button>
                 </td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
     } catch(e) {}
 }
 
 async function launchProfile(id) {
     showToast('LAUNCHING...');
-    const res = await fetch(`${API}/profiles/${id}/launch`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
+    const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
+    const res = await fetch(`${API}/profiles/${id}/launch`, { 
+        method: 'POST', 
+        headers: {'Content-Type':'application/json'}, 
+        body: JSON.stringify({ proxyMode }) 
+    });
     const data = await res.json();
     if (data.error) showToast('ERROR: ' + data.error);
     else showToast('LAUNCHED!');
@@ -600,27 +718,28 @@ async function launchAllProfiles() {
     const winW = Math.floor(screenW / cols);
     const winH = Math.floor(screenH / rows);
 
-    for (let i = 0; i < toLaunch.length; i++) {
-        const p = toLaunch[i];
+    const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
+
+    const promises = toLaunch.map((p, i) => {
         const col = i % cols;
         const row = Math.floor(i / cols) % rows;
         
         const windowSize = { width: winW, height: winH };
         const windowPosition = { x: col * winW, y: row * winH };
 
-        await fetch(`${API}/profiles/${p.id}/launch`, { 
+        return fetch(`${API}/profiles/${p.id}/launch`, { 
             method: 'POST', 
             headers: {'Content-Type':'application/json'}, 
             body: JSON.stringify({ 
                 windowSize, 
                 windowPosition, 
-                scaleFactor: scale 
+                scaleFactor: scale,
+                proxyMode
             }) 
         });
-        
-        // Nghỉ một chút để tránh quá tải khi mở hàng loạt
-        if (i < toLaunch.length - 1) await new Promise(r => setTimeout(r, 300));
-    }
+    });
+
+    await Promise.all(promises);
     
     showToast('ALL LAUNCHED!');
     loadProfiles();
@@ -648,28 +767,79 @@ async function deleteAllProfilesUI() {
 // =======================
 function saveFastSettings() {
     const settings = {
+        proxyMode: document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual',
         defProxy: document.getElementById('fdDefProxy').value,
         gridCols: document.getElementById('fdGridCols').value,
         gridRows: document.getElementById('fdGridRows').value,
-        gridScale: document.getElementById('fdGridScale').value
+        gridScale: document.getElementById('fdGridScale').value,
+        proxy1: document.getElementById('fdProxy1').value,
+        proxy2: document.getElementById('fdProxy2').value,
+        proxyCaptcha: document.getElementById('fdProxyCaptcha').value,
+        xoayApi: document.getElementById('fdXoayApi').value,
+        fdBulkCount: document.getElementById('fdBulkCount') ? document.getElementById('fdBulkCount').value : '5'
     };
     localStorage.setItem('xsurau_fast_settings', JSON.stringify(settings));
-    showToast('SETTINGS SAVED');
-    fdLogMsg('Fast Settings updated and saved to local storage.', 'success');
 }
 
 function getFastSettings() {
     const saved = localStorage.getItem('xsurau_fast_settings');
     if (saved) return JSON.parse(saved);
-    return { defProxy: '', gridCols: '5', gridRows: '3', gridScale: '80' };
+    return { proxyMode: 'individual', defProxy: '', gridCols: '5', gridRows: '3', gridScale: '80', proxy1: '', proxy2: '', proxyCaptcha: '', xoayApi: '', fdBulkCount: '5' };
 }
 
 function loadFastSettingsUI() {
     const s = getFastSettings();
+    if(document.getElementById('fdProxyMode')) document.getElementById('fdProxyMode').value = s.proxyMode || 'individual';
+    
     document.getElementById('fdDefProxy').value = s.defProxy || '';
     document.getElementById('fdGridCols').value = s.gridCols || '5';
     document.getElementById('fdGridRows').value = s.gridRows || '3';
     document.getElementById('fdGridScale').value = s.gridScale || '80';
+    document.getElementById('fdProxy1').value = s.proxy1 || '';
+    document.getElementById('fdProxy2').value = s.proxy2 || '';
+    document.getElementById('fdProxyCaptcha').value = s.proxyCaptcha || '';
+    document.getElementById('fdXoayApi').value = s.xoayApi || '';
+    if(document.getElementById('fdBulkCount')) document.getElementById('fdBulkCount').value = s.fdBulkCount || '5';
+
+    // Init UI state based on proxy mode
+    handleProxyModeChange(true);
+}
+
+async function handleProxyModeChange(isInitialLoad = false) {
+    const mode = document.getElementById('fdProxyMode').value;
+    const defProxyInput = document.getElementById('fdDefProxy');
+    const p1Value = document.getElementById('fdProxy1') ? document.getElementById('fdProxy1').value : '';
+
+    if (mode === 'global') {
+        defProxyInput.value = 'http://127.0.0.1:8888';
+        defProxyInput.disabled = true;
+        defProxyInput.style.opacity = '0.6';
+        defProxyInput.style.color = 'var(--green)';
+        
+        // Auto-sync P1 to backend gateway if P1 exists
+        if (p1Value) {
+            try {
+                await fetch(`${API}/proxy/switch`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxyUrl: p1Value })
+                });
+                if (!isInitialLoad) {
+                    fdLogMsg(`PROXY MODE: GLOBAL. Gateway initialized with P1: ${p1Value}`, 'success');
+                }
+            } catch(e) { }
+        } else {
+            if (!isInitialLoad) fdLogMsg('PROXY MODE: GLOBAL. No P1 set. Gateway is empty.', 'warning');
+        }
+    } else {
+        const s = getFastSettings();
+        defProxyInput.value = s.defProxy || '';
+        defProxyInput.disabled = false;
+        defProxyInput.style.opacity = '1';
+        defProxyInput.style.color = 'var(--text-primary)';
+        if (!isInitialLoad) fdLogMsg('PROXY MODE: INDIVIDUAL', 'info');
+    }
+    
+    if (!isInitialLoad) saveFastSettings();
+    loadProfiles(); // Refresh table to show correct proxy format
 }
 
 // =======================
@@ -767,7 +937,9 @@ async function fdBulkCreate() {
     loadProfiles();
 }
 
-function syncSheetData() {
+window.globalSheetData = [];
+
+async function syncSheetData() {
     fdLogMsg('SYNC SHEET requested...', 'info');
     const badge = document.getElementById('fdDataStatus');
     if(badge) {
@@ -775,14 +947,35 @@ function syncSheetData() {
         badge.style.color = 'var(--cyan)';
         badge.style.borderColor = 'var(--cyan)';
     }
-    setTimeout(() => {
-        fdLogMsg('SYNC COMPLETE.', 'success');
+    
+    try {
+        const noteFilter = document.getElementById('syncStatus') ? document.getElementById('syncStatus').value : '';
+        const res = await fetch(`${API}/sheet/rows?note=${encodeURIComponent(noteFilter)}`);
+        const data = await res.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        window.globalSheetData = data.rows || [];
+        const count = window.globalSheetData.length;
+        
+        // Update the textarea if it exists (in AUTOMATION tab)
+        const textarea = document.getElementById('autoSheetData');
+        if (textarea) textarea.value = JSON.stringify(window.globalSheetData, null, 2);
+        
+        fdLogMsg(`SYNC COMPLETE. Fetched ${count} rows.`, 'success');
         if(badge) {
-            badge.textContent = 'SYNCED';
+            badge.textContent = `SYNCED (${count})`;
             badge.style.color = 'var(--green)';
             badge.style.borderColor = 'var(--green)';
         }
-    }, 1500);
+    } catch(e) {
+        fdLogMsg(`SYNC ERROR: ${e.message}`, 'error');
+        if(badge) {
+            badge.textContent = 'ERROR';
+            badge.style.color = 'var(--red)';
+            badge.style.borderColor = 'var(--red)';
+        }
+    }
 }
 
 async function runAutomationFast(name) {
@@ -795,11 +988,21 @@ async function runAutomationFast(name) {
             fdLogMsg(`ERROR: No profiles available`, 'error');
             return;
         }
-        await fetch(`${API}/automation/run`, {
+        const reqResult = await fetch(`${API}/automation/run`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ name, profileIds, concurrency: 100 })
+            body: JSON.stringify({ 
+                automation: name, 
+                profileIds, 
+                concurrency: 100,
+                sheetData: window.globalSheetData || []
+            })
         });
+        const reqData = await reqResult.json();
+        if (reqData.error) {
+             fdLogMsg(`ERROR: ${reqData.error}`, 'error');
+             return;
+        }
         showToast(`STARTED: ${name}`);
         fdLogMsg(`Triggered [${name}] on ${profileIds.length} profiles`, 'success');
     } catch(e) {
@@ -820,20 +1023,72 @@ function fdFetchStats() {
     }, 1000);
 }
 
-function fdApplyProxy(inputId) {
+async function fdApplyProxy(inputId) {
     const val = document.getElementById(inputId).value;
-    if(!val) return;
-    fdLogMsg(`PROXY APPLIED: ${val}`, 'success');
+    if(!val) {
+        fdLogMsg(`ERROR: ${inputId} is empty`, 'error');
+        return;
+    }
+    
+    document.getElementById('fdDefProxy').value = val;
+    saveFastSettings();
+
+    const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
+    if (proxyMode === 'global') {
+        fdLogMsg(`SWITCHING GLOBAL PROXY TO: ${val}...`, 'info');
+        try {
+            const res = await fetch(`${API}/proxy/switch`, {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxyUrl: val })
+            });
+            const data = await res.json();
+            if(data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
+            else fdLogMsg(`GLOBAL PROXY SWITCHED. Browsers reconnected.`, 'success');
+        } catch(e) {
+            fdLogMsg(`ERROR: ${e.message}`, 'error');
+        }
+    } else {
+        fdLogMsg(`PROXY APPLIED TO DEFAULT: ${val}`, 'success');
+    }
 }
 
-function fdXoayProxy() {
+async function fdXoayProxy() {
     const url = document.getElementById('fdXoayApi').value;
     if(!url) {
         fdLogMsg('ERROR: Missing XOAY API URL', 'error');
         return;
     }
-    fdLogMsg(`XOAY PROXY triggered...`, 'info');
-    setTimeout(() => fdLogMsg(`XOAY SUCCESS: New IP assigned.`, 'success'), 1500);
+    
+    saveFastSettings();
+    const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
+
+    if (proxyMode === 'global') {
+        fdLogMsg(`ROTATING GLOBAL PROXY...`, 'info');
+        try {
+            const res = await fetch(`${API}/proxy/rotate`, {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rotateUrl: url })
+            });
+            const data = await res.json();
+            if(data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
+            else fdLogMsg(`ROTATE SUCCESS: ${data.message.substring(0,50)}...`, 'success');
+        } catch(e) {
+            fdLogMsg(`ERROR: ${e.message}`, 'error');
+        }
+    } else {
+        fdLogMsg(`XOAY PROXY triggered... Calling API...`, 'info');
+        try {
+            const res = await fetch(url);
+            const text = await res.text();
+            fdLogMsg(`XOAY SUCCESS: ${text.substring(0, 50)}...`, 'success');
+        } catch(e) {
+            fdLogMsg(`XOAY ERROR: ${e.message}`, 'error');
+        }
+    }
+}
+
+async function pauseAllProfiles() {
+    fdLogMsg('PAUSE ALL requested...', 'warning');
+    // For now, this is a placeholder or we can implement a basic stop
+    showToast('PAUSE ALL TRIGGERED');
 }
 
 function fdLogMsg(msg, type = 'info') {
@@ -852,7 +1107,8 @@ try {
     const evtSource = new EventSource(`${API}/automation/all/stream`);
     evtSource.onmessage = function(e) {
         const data = JSON.parse(e.data);
-        fdLogMsg(`[${data.profileId || 'SYS'}] ${data.message}`, data.level || 'info');
+        const prefix = data.automationName ? `[${data.automationName}]` : '[SYS]';
+        fdLogMsg(`${prefix} ${data.msg || data.message || ''}`, data.level || 'info');
     };
 } catch(e) {}
 
@@ -882,6 +1138,7 @@ function showToast(msg) {
 setInterval(loadProfiles, 5000);
 loadProfiles();
 loadFastSettingsUI();
+loadGlobalExts();
 </script>
 </body>
 </html>

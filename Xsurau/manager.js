@@ -231,19 +231,27 @@ class ProfileManager {
     }
 
     /** Xóa tất cả profile */
-    deleteAllProfiles() {
-        if (this.runningProfiles.size > 0) {
-            throw new Error('Đang có profile chạy, vui lòng đóng tất cả trước khi xóa toàn bộ!');
-        }
+    async deleteAllProfiles() {
+        // 1. Đóng tất cả profile đang chạy và diệt process Chrome
+        await this.closeAll();
+        
+        // 2. Chờ một chút để Windows giải phóng file lock (rất quan trọng)
+        await new Promise(r => setTimeout(r, 2000));
+
         const files = fs.readdirSync(this.profilesMetaPath).filter(f => f.endsWith('.json'));
         let deletedCount = 0;
         for (const file of files) {
             const profileId = file.replace('.json', '');
             const metaFile = path.join(this.profilesMetaPath, file);
             const dataDir = path.join(this.profilesDataPath, profileId);
-            if (fs.existsSync(metaFile)) fs.unlinkSync(metaFile);
-            if (fs.existsSync(dataDir)) fs.rmSync(dataDir, { recursive: true, force: true });
-            deletedCount++;
+            
+            try {
+                if (fs.existsSync(metaFile)) fs.unlinkSync(metaFile);
+                if (fs.existsSync(dataDir)) fs.rmSync(dataDir, { recursive: true, force: true });
+                deletedCount++;
+            } catch (err) {
+                console.error(`[Manager] ⚠️ Không thể xóa data của profile ${profileId}: ${err.message}`);
+            }
         }
         console.log(`[Manager] 🗑️ Đã xóa ${deletedCount} profile.`);
         return deletedCount;
@@ -294,6 +302,12 @@ class ProfileManager {
 
         const profileData = this.getProfile(profileId);
         if (!profileData) throw new Error(`Profile ${profileId} không tồn tại!`);
+        
+        let proxyStr = profileData.proxy;
+        if (options.proxyMode === 'global') {
+            proxyStr = 'http://127.0.0.1:8888';
+        }
+        
         const profileDir = path.join(this.profilesDataPath, profileId);
 
         // Đảm bảo profile cũ có đủ fingerprint data (backward compat)
@@ -584,10 +598,13 @@ class ProfileManager {
         // Gọi closeProfile nhưng BỎ QUA kill lẻ để dồn vào 1 lệnh cuối
         await Promise.allSettled(ids.map(id => this.closeProfile(id, true)));
 
-        // Dùng powershell quét và Force Kill toàn bộ cực mạnh. Không dùng wmic call terminate vì nó hay bị lỗi dừng ngang.
+        // Dùng powershell quét và Force Kill toàn bộ cực mạnh.
         const { exec } = require('child_process');
-        exec(`powershell -Command "Get-WmiObject Win32_Process -Filter 'Name=''chrome.exe''' | Where-Object { $_.CommandLine -match 'profiles_data' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`, () => {
-            console.log(`[Manager] 🧹 Đã dọn dẹp toàn bộ tiến trình Chrome rác.`);
+        return new Promise((resolve) => {
+            exec(`powershell -Command "Get-WmiObject Win32_Process -Filter 'Name=''chrome.exe''' | Where-Object { $_.CommandLine -match 'profiles_data' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`, () => {
+                console.log(`[Manager] 🧹 Đã dọn dẹp toàn bộ tiến trình Chrome rác.`);
+                resolve();
+            });
         });
     }
 

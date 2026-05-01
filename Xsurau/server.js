@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const ProfileManager = require('./manager');
 const AutomationEngine = require('./automation-engine');
+const proxyService = require('./proxy-service');
 const { registerSheetRoutes } = require('./google-sheet');
 const { registerPhoneRoutes } = require('./phone');
 
@@ -14,6 +15,9 @@ const PORT = 1337;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'ui')));
+
+// Khởi động proxy gateway global
+proxyService.startServer().catch(console.error);
 
 // SSE clients cho log streaming real-time
 const sseClients = new Map(); // key: automationName | 'all'
@@ -49,8 +53,8 @@ app.put('/api/profiles/:id', (req, res) => {
     catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-app.delete('/api/profiles/all', (req, res) => {
-    try { res.json({ success: true, count: manager.deleteAllProfiles() }); }
+app.delete('/api/profiles/all', async (req, res) => {
+    try { res.json({ success: true, count: await manager.deleteAllProfiles() }); }
     catch (e) { res.status(400).json({ error: e.message }); }
 });
 
@@ -68,8 +72,8 @@ app.post('/api/profiles/bulk', (req, res) => {
 
 app.post('/api/profiles/:id/launch', async (req, res) => {
     try {
-        const { blockImages, startUrl, windowSize, windowPosition, scaleFactor } = req.body || {};
-        const result = await manager.launchProfile(req.params.id, { blockImages, startUrl, windowSize, windowPosition, scaleFactor });
+        const { blockImages, startUrl, windowSize, windowPosition, scaleFactor, proxyMode } = req.body || {};
+        const result = await manager.launchProfile(req.params.id, { blockImages, startUrl, windowSize, windowPosition, scaleFactor, proxyMode });
         // Lưu layout nếu có windowSize (mở theo grid)
         if (windowSize || windowPosition) {
             manager.saveLayout([{ profileId: req.params.id, windowSize, windowPosition, scaleFactor }]);
@@ -116,6 +120,36 @@ app.delete('/api/extensions', (req, res) => {
     const { path: extPath } = req.body;
     if (!extPath) return res.status(400).json({ error: 'Thiếu đường dẫn extension' });
     res.json(manager.removeGlobalExtension(extPath));
+});
+
+// ============================================================================
+// PROXY GATEWAY API
+// ============================================================================
+
+app.post('/api/proxy/switch', async (req, res) => {
+    const { proxyUrl } = req.body;
+    try {
+        await proxyService.switchProxy(proxyUrl, manager);
+        res.json({ success: true, message: `Switched upstream to ${proxyUrl}` });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/proxy/rotate', async (req, res) => {
+    const { rotateUrl } = req.body;
+    try {
+        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const rotateRes = await fetch(rotateUrl);
+        const text = await rotateRes.text();
+        
+        // Cần reload mạng để Chrome nhận proxy IP mới qua gateway
+        await proxyService.switchProxy(proxyService.activeUpstream, manager);
+        
+        res.json({ success: true, message: text });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // ============================================================================
