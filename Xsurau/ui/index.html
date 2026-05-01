@@ -27,8 +27,29 @@
 
         .header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
         .header-left { display: flex; align-items: center; gap: 12px; }
-        .logo { width: 36px; height: 36px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: #000; }
-        .header h1 { font-size: 20px; font-weight: 700; color: var(--accent); font-family: 'Times New Roman', Times, serif; letter-spacing: 2px; text-transform: uppercase; }
+        .logo { 
+            width: 38px; height: 38px; 
+            background: linear-gradient(135deg, var(--accent), #ff8800); 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: 900; font-size: 20px; color: #000;
+            box-shadow: 0 0 15px var(--accent-glow);
+            position: relative;
+            clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+        }
+        .header h1 { 
+            font-size: 22px; font-weight: 900; color: var(--accent); 
+            font-family: 'Outfit', sans-serif; letter-spacing: 3px; 
+            display: flex; align-items: baseline; gap: 10px;
+        }
+        .version-tag {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--text-muted);
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            padding: 2px 8px;
+            letter-spacing: 1px;
+        }
         .header-stats { display: flex; gap: 24px; font-size: 13px; color: var(--text-secondary); }
         .stat-value { font-weight: bold; color: var(--text-primary); }
 
@@ -173,6 +194,32 @@
         .fd-proxy-row input { flex: 1; padding: 8px 12px; background: #000; border: 1px solid var(--border); color: var(--text-primary); font-size: 12px; outline: none; }
         .fd-proxy-row button { margin-left: 10px; }
         .fd-console-output { flex: 1; background: #000; border: 1px solid var(--border); padding: 15px; overflow-y: auto; font-size: 12px; line-height: 1.6; min-height: 550px; }
+
+        /* Automation Table */
+        #autoProfileTable { border: none; }
+        #autoProfileTable th { background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+        #autoProfileTable td { border-top: 1px solid var(--border); vertical-align: middle; padding: 10px; }
+        #autoProfileTable select { 
+            margin: 0; padding: 8px 12px; 
+            background: var(--bg-primary); 
+            border: 1px solid var(--border); 
+            color: var(--text-primary); 
+            font-size: 11px; font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23ffaa00' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #autoProfileTable select:hover { border-color: var(--accent); background-color: #111; }
+        #autoProfileTable select:focus { border-color: var(--accent); box-shadow: 0 0 5px var(--accent-glow); }
+        #autoProfileTable select option { background: var(--bg-secondary); color: var(--text-primary); padding: 10px; }
     </style>
 </head>
 <body>
@@ -180,12 +227,11 @@
 <div class="header">
     <div class="header-left">
         <div class="logo">X</div>
-        <h1>Xsurau Manager</h1>
+        <h1>Xsurau <span class="version-tag">v2.1.0</span></h1>
     </div>
     <div class="header-stats">
         <span>TOTAL: <span class="stat-value" id="totalCount">0</span></span>
         <span>RUNNING: <span class="stat-value" style="color:var(--green)" id="runningCount">0</span></span>
-        <span>GLOBAL EXT: <span class="stat-value" style="color:var(--yellow)" id="globalExtCount">0</span></span>
     </div>
 </div>
 
@@ -320,7 +366,7 @@
 
 <div class="table-container">
     <table>
-        <thead><tr><th>NAME</th><th>STATUS</th><th>PROXY</th><th>GPU (WebGL)</th><th>EXT</th><th>ACTIONS</th></tr></thead>
+        <thead><tr><th>NAME</th><th>STATUS</th><th>PROXY</th><th style="text-align:right;">ACTIONS</th></tr></thead>
         <tbody id="profileTable"></tbody>
     </table>
     <div class="empty-state" id="emptyState" style="display:none;">
@@ -401,71 +447,72 @@
         </div>
     </div>
 </div>
-</div> <!-- end tab-profiles -->
+<!-- MODAL: PROFILE INFO -->
+<div class="modal-overlay" id="infoModalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">PROFILE FINGERPRINT INFO</div>
+            <button class="modal-close" onclick="closeModal('infoModalOverlay')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="profileInfoContent" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <!-- Dynamic Content -->
+            </div>
+            <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <div class="settings-label">USER AGENT</div>
+                <textarea id="infoUA" readonly style="width: 100%; height: 80px; background: #000; border: 1px solid var(--border); color: var(--accent); font-family: monospace; font-size: 11px; padding: 10px; margin-top: 5px;"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('infoModalOverlay')">CLOSE</button>
+        </div>
+    </div>
+</div>
 
 <!-- ========================================== -->
 <!-- TAB: AUTOMATION -->
 <!-- ========================================== -->
 <div class="tab-content" id="tab-automation">
-<div class="auto-panel">
-    <div class="auto-config">
-        <div class="form-group"><label>AUTOMATION</label><select id="autoName"></select></div>
-        <div class="form-group"><label>CONCURRENCY</label><input type="number" id="autoConcurrency" value="100"></div>
-        <div class="form-group auto-config-full">
-            <label>SHEET SYNC</label>
-            <div style="display:flex;gap:8px;margin-bottom:8px;">
-                <input type="text" id="syncStatus" placeholder="NOTE filter">
-                <input type="number" id="syncLimit" value="100" style="width:80px;">
-                <button class="btn btn-yellow btn-sm" onclick="syncSheetData()">SYNC</button>
+    <div class="auto-panel">
+            <div class="form-group auto-config-full">
+                <label>SHEET DATA SYNC</label>
+                <div style="display:flex;gap:12px;align-items:center;">
+                    <input type="text" id="syncStatus" placeholder="NOTE filter (e.g. Active)" style="flex: 1;">
+                    <button class="btn btn-yellow btn-sm" onclick="syncSheetData()" style="padding: 10px 20px;">SYNC SHEET</button>
+                    <div id="syncResultDisplay" style="background: var(--bg-card); border: 1px solid var(--border); padding: 8px 15px; border-radius: 4px; font-size: 12px; color: var(--accent); font-weight: bold; min-width: 150px; text-align: center;">
+                        NO DATA LOADED
+                    </div>
+                </div>
             </div>
-            <textarea class="sheet-data-input" id="autoSheetData"></textarea>
-        </div>
-    </div>
 
-    <div class="profile-select-panel">
-        <h4>PROFILES <span id="selectedCount" style="color:var(--accent);">(0)</span></h4>
-        <div style="margin-bottom:8px;display:flex;gap:8px;">
-            <button class="btn btn-ghost btn-sm" onclick="selectAllProfiles()">ALL</button>
-            <button class="btn btn-ghost btn-sm" onclick="deselectAllProfiles()">NONE</button>
-            <button class="btn btn-ghost btn-sm" onclick="refreshAutoProfiles()">REFRESH</button>
-        </div>
-        <div class="profile-check-list" id="profileCheckList"></div>
-    </div>
-
-    <div class="auto-actions">
-        <button class="btn btn-run" onclick="startAutomation()">RUN</button>
-        <button class="btn btn-stop" onclick="stopAutomation()">STOP</button>
-        <button class="btn btn-ghost btn-sm" onclick="clearAutoLogs()" style="margin-left:auto;">CLEAR</button>
-    </div>
-
-    <div class="log-console" id="logConsole"></div>
-
-    <div id="phoneQueuePanel" style="margin-top:16px;background:var(--bg-card);border:1px solid var(--border);padding:16px 20px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <h4 style="font-size:13px;color:var(--yellow);">PHONE QUEUE</h4>
-            <span id="queueStatusBadge" style="font-size:11px;color:var(--text-muted);">NOT LOADED</span>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <div style="display:flex;align-items:center;gap:6px;">
-                <input type="number" id="queueDays" value="5" style="width:60px;"> <span style="font-size:12px;color:var(--text-muted);">DAYS</span>
-                <input type="number" id="queueLimit" value="70" style="width:70px;"> <span style="font-size:12px;color:var(--text-muted);">LIMIT</span>
+        <div class="profile-select-panel" style="background: var(--bg-card); border: 1px solid var(--border); padding: 0;">
+            <div style="padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0; color: var(--accent);">PROFILE AUTOMATION CONTROL</h4>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-ghost btn-sm" onclick="refreshAutoProfiles()">REFRESH LIST</button>
+                    <button class="btn btn-run btn-sm" onclick="runAllSelectedAuto()">RUN SELECTED</button>
+                </div>
             </div>
-            <button class="btn btn-yellow btn-sm" onclick="loadPhoneQueue()">LOAD</button>
-            <button class="btn btn-ghost btn-sm" onclick="resetPhoneQueue()">RESET</button>
-            <button class="btn btn-ghost btn-sm" onclick="getQueueStatus()">STATUS</button>
+            
+            <table id="autoProfileTable">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAllAuto" onclick="toggleAllAutoCheck()"></th>
+                        <th>PROFILE</th>
+                        <th>STATUS</th>
+                        <th>AUTOMATION SCRIPT</th>
+                        <th style="text-align: right; padding-right: 20px;">ACTION</th>
+                    </tr>
+                </thead>
+                <tbody id="autoProfileBody">
+                    <!-- Dynamic Rows -->
+                </tbody>
+            </table>
         </div>
-        <div id="queueStatusDetail" style="margin-top:10px;font-size:12px;color:var(--text-secondary);display:none;">
-            <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                <span>TOTAL: <b id="qTotal">-</b></span>
-                <span>AVAIL: <b id="qAvail">-</b></span>
-                <span>ASSIGN: <b id="qAssign">-</b></span>
-                <span>VALID: <b id="qValid">-</b></span>
-                <span>INVALID: <b id="qInvalid">-</b></span>
-            </div>
-        </div>
+
+        <div class="log-console" id="logConsole" style="margin-top: 20px; height: 300px;"></div>
     </div>
 </div>
-</div> <!-- end tab-automation -->
 
 <!-- ========================================== -->
 <!-- TAB: SETTINGS -->
@@ -538,6 +585,10 @@ function switchTab(tabId) {
     
     event.currentTarget.classList.add('active');
     document.getElementById('tab-' + tabId).classList.add('active');
+
+    if (tabId === 'automation') {
+        refreshAutoProfiles();
+    }
 }
 
 // =======================
@@ -638,9 +689,8 @@ async function loadProfiles() {
                     </span>
                 </td>
                 <td class="proxy-cell" title="${escHtml(p.proxy || '')}">${displayProxy}</td>
-                <td class="gpu-cell" title="${escHtml(p.gpu?.renderer || '')}">${extractGpuShort(p.gpu?.renderer)}</td>
-                <td><span class="ext-count">${(p.extensions || []).length > 0 ? p.extensions.length + ' ext' : '<span style="color:var(--text-muted)">0</span>'}</span></td>
                 <td class="actions">
+                    <button class="btn btn-ghost btn-sm" onclick="showProfileInfo('${p.id}')">INFO</button>
                     ${p.status === 'running'
                         ? `<button class="btn btn-stop btn-sm" onclick="closeProfile('${p.id}')">CEASE</button>`
                         : `<button class="btn btn-run btn-sm" onclick="launchProfile('${p.id}')">LAUNCH</button>`
@@ -938,9 +988,8 @@ async function syncSheetData() {
         window.globalSheetData = data.rows || [];
         const count = window.globalSheetData.length;
         
-        // Update the textarea if it exists (in AUTOMATION tab)
-        const textarea = document.getElementById('autoSheetData');
-        if (textarea) textarea.value = JSON.stringify(window.globalSheetData, null, 2);
+        const textarea = document.getElementById('syncResultDisplay');
+        if (textarea) textarea.textContent = `LOADED: ${count} ROWS`;
         
         fdLogMsg(`SYNC COMPLETE. Fetched ${count} rows.`, 'success');
         if(badge) {
@@ -1081,6 +1130,137 @@ try {
     };
 } catch(e) {}
 
+// =======================
+// AUTOMATION TAB LOGIC
+// =======================
+let availableAutomations = [];
+
+async function showProfileInfo(id) {
+    try {
+        const res = await fetch(`${API}/profiles/${id}`);
+        const p = await res.json();
+        
+        const content = document.getElementById('profileInfoContent');
+
+        content.innerHTML = `
+            <div><div class="settings-label">NAME</div><div class="stat-value">${escHtml(p.name)}</div></div>
+            <div><div class="settings-label">PLATFORM</div><div class="stat-value">Windows</div></div>
+            <div><div class="settings-label">RESOLUTION</div><div class="stat-value">${p.screen?.width}x${p.screen?.height}</div></div>
+            <div><div class="settings-label">CORES / RAM</div><div class="stat-value">${p.hardwareConcurrency} Cores / ${p.deviceMemory} GB</div></div>
+            <div><div class="settings-label">TIMEZONE</div><div class="stat-value">${p.timezone || 'UTC'}</div></div>
+            <div><div class="settings-label">LOCALE</div><div class="stat-value">${p.locale || 'en-US'}</div></div>
+            <div style="grid-column: span 2;">
+                <div class="settings-label">GPU RENDERER</div>
+                <div class="stat-value" style="font-size:11px; color:var(--yellow);">${escHtml(p.gpu?.renderer || '—')}</div>
+            </div>
+        `;
+        document.getElementById('infoUA').value = p.userAgent || '—';
+        
+        document.getElementById('infoModalOverlay').classList.add('active');
+    } catch(e) {
+        showToast('Error loading profile info');
+    }
+}
+
+async function refreshAutoProfiles() {
+    try {
+        const [profRes, autoRes] = await Promise.all([
+            fetch(`${API}/profiles`),
+            fetch(`${API}/automation`)
+        ]);
+        const profiles = await profRes.json();
+        const autoData = await autoRes.json();
+        availableAutomations = autoData.automations || [];
+
+        const body = document.getElementById('autoProfileBody');
+        body.innerHTML = profiles.map(p => `
+            <tr>
+                <td><input type="checkbox" class="profile-auto-check" data-id="${p.id}"></td>
+                <td>
+                    <div class="profile-name">${escHtml(p.name)}</div>
+                    <div class="profile-id">${p.id}</div>
+                </td>
+                <td>
+                    <span class="badge badge-${p.status}">${p.status.toUpperCase()}</span>
+                </td>
+                <td>
+                    <select class="form-group" style="margin:0; width: 220px;" id="auto-select-${p.id}">
+                        ${availableAutomations.map(a => `<option value="${a}">${a.toUpperCase()}</option>`).join('')}
+                    </select>
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn btn-run btn-sm" onclick="runSingleAuto('${p.id}')">RUN</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        fdLogMsg('Failed to refresh automation profiles', 'error');
+    }
+}
+
+function toggleAllAutoCheck() {
+    const master = document.getElementById('selectAllAuto').checked;
+    document.querySelectorAll('.profile-auto-check').forEach(c => c.checked = master);
+}
+
+async function runSingleAuto(profileId) {
+    const automation = document.getElementById(`auto-select-${profileId}`).value;
+    fdLogMsg(`Starting [${automation}] for profile ${profileId}...`, 'warning');
+    
+    try {
+        await fetch(`${API}/automation/run`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                automation, 
+                profileIds: [profileId],
+                sheetData: window.globalSheetData || []
+            })
+        });
+        showToast('AUTOMATION STARTED');
+    } catch(e) {
+        fdLogMsg(`Error starting automation: ${e.message}`, 'error');
+    }
+}
+
+async function runAllSelectedAuto() {
+    const selected = Array.from(document.querySelectorAll('.profile-auto-check:checked')).map(c => c.dataset.id);
+    if (selected.length === 0) return showToast('Please select at least one profile');
+
+    fdLogMsg(`Mass automation trigger for ${selected.length} profiles...`, 'warning');
+    
+    // In this mode, we group by automation script to reduce API calls
+    const groups = {};
+    selected.forEach(pid => {
+        const script = document.getElementById(`auto-select-${pid}`).value;
+        if (!groups[script]) groups[script] = [];
+        groups[script].push(pid);
+    });
+
+    for (const [script, pids] of Object.entries(groups)) {
+        try {
+            await fetch(`${API}/automation/run`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    automation: script, 
+                    profileIds: pids,
+                    sheetData: window.globalSheetData || []
+                })
+            });
+            fdLogMsg(`Launched [${script}] on ${pids.length} profiles`, 'success');
+        } catch(e) {
+            fdLogMsg(`Error in group [${script}]: ${e.message}`, 'error');
+        }
+    }
+    showToast('ALL AUTOMATIONS TRIGGERED');
+}
+
+function clearAutoLogs() {
+    const consoleEl = document.getElementById('logConsole');
+    if (consoleEl) consoleEl.innerHTML = '';
+}
+
 // Utilities
 function extractGpuShort(renderer) {
     if (!renderer) return '<span style="color:var(--text-muted)">—</span>';
@@ -1109,5 +1289,27 @@ loadProfiles();
 loadFastSettingsUI();
 loadGlobalExts();
 </script>
+<!-- MODAL: PROFILE INFO -->
+<div class="modal-overlay" id="infoModalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">PROFILE FINGERPRINT INFO</div>
+            <button class="modal-close" onclick="closeModal('infoModalOverlay')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="profileInfoContent" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <!-- Dynamic Content -->
+            </div>
+            <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <div class="settings-label">USER AGENT</div>
+                <textarea id="infoUA" readonly style="width: 100%; height: 80px; background: #000; border: 1px solid var(--border); color: var(--accent); font-family: monospace; font-size: 11px; padding: 10px; margin-top: 5px;"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px;">
+            <button class="btn btn-ghost" onclick="closeModal('infoModalOverlay')">CLOSE</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
