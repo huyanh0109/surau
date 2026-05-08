@@ -1,6 +1,29 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+
+// ============================================================
+// ENV LOADING — Tìm tệp .env ở nhiều nơi
+// ============================================================
+const envPaths = [
+    path.join(process.cwd(), '.env'),             // Bên cạnh file .exe
+    path.join(__dirname, '.env'),                // Trong thư mục app
+    path.join(__dirname, '..', '.env'),          // Thư mục cha (Dev mode)
+    'k:\\Surau\\.env'                            // Đường dẫn tuyệt đối cố định
+];
+
+let envFound = false;
+for (const p of envPaths) {
+    if (fs.existsSync(p)) {
+        require('dotenv').config({ path: p });
+        console.log(`[ENV] Loaded from: ${p}`);
+        envFound = true;
+        break;
+    }
+}
+if (!envFound) console.warn('[ENV] No .env file found in any expected location.');
+
 const ProfileManager = require('./manager');
 const AutomationEngine = require('./automation-engine');
 const proxyService = require('./proxy-service');
@@ -10,252 +33,180 @@ const { registerPhoneRoutes } = require('./phone');
 const app = express();
 const manager = new ProfileManager();
 const automationEngine = new AutomationEngine(manager);
-const PORT = 1337;
+const PORT = 3333;
 
 app.use(cors());
 app.use(express.json());
+
+// Serve Static UI
 app.use(express.static(path.join(__dirname, 'ui')));
 
-// Khởi động proxy gateway global
-proxyService.startServer().catch(console.error);
+// ============================================================
+// API ROUTES
+// ============================================================
 
-// SSE clients cho log streaming real-time
-const sseClients = new Map(); // key: automationName | 'all'
-automationEngine.on('log', ({ automationName, time, msg, level }) => {
-    const clients = sseClients.get(automationName) || [];
-    const data = JSON.stringify({ time, msg, level });
-    clients.forEach(res => { try { res.write(`data: ${data}\n\n`); } catch { } });
-
-    const allClients = sseClients.get('all') || [];
-    const broadcastData = JSON.stringify({ automationName, time, msg, level });
-    allClients.forEach(res => { try { res.write(`data: ${broadcastData}\n\n`); } catch { } });
+// PROFILES
+app.get('/api/profiles', async (req, res) => {
+    const profiles = await manager.listProfiles();
+    res.json(profiles);
 });
 
-// ============================================================================
-// PROFILE API
-// ============================================================================
-
-app.get('/api/profiles', (req, res) => res.json(manager.listProfiles()));
-
-app.get('/api/profiles/:id', (req, res) => {
-    const profile = manager.getProfile(req.params.id);
-    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+app.post('/api/profiles', async (req, res) => {
+    const { name, proxy, extensions } = req.body;
+    const profile = await manager.createProfile(name, { proxy, extensions });
     res.json(profile);
 });
 
-app.post('/api/profiles', (req, res) => {
-    const { name, proxy, extensions } = req.body;
-    res.json(manager.createProfile(name, proxy, extensions));
+app.post('/api/profiles/bulk', async (req, res) => {
+    const { count, prefix, proxies } = req.body;
+    const results = [];
+    for (let i = 1; i <= count; i++) {
+        const name = `${prefix || 'Profile'} ${String(i).padStart(3, '0')}`;
+        const proxy = proxies && proxies[i-1] ? proxies[i-1] : null;
+        results.push(await manager.createProfile(name, { proxy }));
+    }
+    res.json({ success: true, count: results.length });
 });
 
-app.put('/api/profiles/:id', (req, res) => {
-    try { res.json(manager.updateProfile(req.params.id, req.body)); }
-    catch (e) { res.status(400).json({ error: e.message }); }
+app.get('/api/profiles/:id', async (req, res) => {
+    const p = await manager.getProfile(req.params.id);
+    if (!p) return res.status(404).json({ error: 'Not found' });
+    res.json(p);
+});
+
+app.put('/api/profiles/:id', async (req, res) => {
+    const ok = await manager.updateProfile(req.params.id, req.body);
+    res.json({ success: ok });
+});
+
+app.delete('/api/profiles/:id', async (req, res) => {
+    const ok = await manager.deleteProfile(req.params.id);
+    res.json({ success: ok });
 });
 
 app.delete('/api/profiles/all', async (req, res) => {
-    try { res.json({ success: true, count: await manager.deleteAllProfiles() }); }
-    catch (e) { res.status(400).json({ error: e.message }); }
+    const profiles = await manager.listProfiles();
+    for (const p of profiles) {
+        await manager.deleteProfile(p.id);
+    }
+    res.json({ success: true });
 });
 
-app.delete('/api/profiles/:id', (req, res) => {
-    try { manager.deleteProfile(req.params.id); res.json({ success: true }); }
-    catch (e) { res.status(400).json({ error: e.message }); }
-});
-
-app.post('/api/profiles/bulk', (req, res) => {
-    const { count, namePrefix, proxies } = req.body;
-    if (!count || count < 1 || count > 500) return res.status(400).json({ error: 'Số lượng từ 1-500' });
-    const profiles = manager.bulkCreateProfiles(count, namePrefix || 'Profile', proxies || []);
-    res.json({ success: true, count: profiles.length, profiles });
-});
-
+// ACTIONS
 app.post('/api/profiles/:id/launch', async (req, res) => {
     try {
-        const { blockImages, startUrl, windowSize, windowPosition, scaleFactor, proxyMode } = req.body || {};
-        const result = await manager.launchProfile(req.params.id, { blockImages, startUrl, windowSize, windowPosition, scaleFactor, proxyMode });
-        // Lưu layout nếu có windowSize (mở theo grid)
-        if (windowSize || windowPosition) {
-            manager.saveLayout([{ profileId: req.params.id, windowSize, windowPosition, scaleFactor }]);
+        const { windowSize, windowPosition, scaleFactor, proxyMode } = req.body;
+        
+        let launchOptions = {
+            windowSize,
+            windowPosition,
+            scaleFactor
+        };
+
+        // Nếu dùng chế độ Global, ép proxy về 127.0.0.1:8888
+        if (proxyMode === 'global') {
+            launchOptions.proxy = '127.0.0.1:8888';
         }
-        res.json({
-            success: true, status: 'running',
-            profileId: req.params.id, profileName: result.profileData.name,
-            wsEndpoint: result.wsEndpoint, debugPort: result.debugPort,
-            remoteDebugAddress: result.debugPort ? `127.0.0.1:${result.debugPort}` : null,
-        });
-    } catch (e) { res.status(400).json({ error: e.message }); }
-});
 
-// Lưu layout grid (batch: [{profileId, windowSize, windowPosition}])
-app.post('/api/layout/save', (req, res) => {
-    const { entries } = req.body || {};
-    if (Array.isArray(entries)) manager.saveLayout(entries);
-    res.json({ success: true });
-});
-
-app.post('/api/profiles/:id/close', async (req, res) => {
-    try { await manager.closeProfile(req.params.id); res.json({ success: true }); }
-    catch (e) { res.status(400).json({ error: e.message }); }
-});
-
-app.post('/api/close-all', (req, res) => {
-    console.error('[DEBUG] /api/close-all được gọi! Caller:', new Error().stack.split('\n').slice(1, 3).join(' | '));
-    manager.closeAll(); // Không await để trả về ngay lập tức
-    res.json({ success: true });
-});
-
-// ============================================================================
-// EXTENSION API
-// ============================================================================
-
-app.get('/api/extensions', (req, res) => res.json(manager.getGlobalExtensions()));
-app.put('/api/extensions', (req, res) => res.json(manager.setGlobalExtensions(req.body.extensions || [])));
-app.post('/api/extensions', (req, res) => {
-    const { path: extPath } = req.body;
-    if (!extPath) return res.status(400).json({ error: 'Thiếu đường dẫn extension' });
-    res.json(manager.addGlobalExtension(extPath));
-});
-app.delete('/api/extensions', (req, res) => {
-    const { path: extPath } = req.body;
-    if (!extPath) return res.status(400).json({ error: 'Thiếu đường dẫn extension' });
-    res.json(manager.removeGlobalExtension(extPath));
-});
-
-// ============================================================================
-// PROXY GATEWAY API
-// ============================================================================
-
-app.post('/api/proxy/switch', async (req, res) => {
-    const { proxyUrl } = req.body;
-    try {
-        await proxyService.switchProxy(proxyUrl, manager);
-        res.json({ success: true, message: `Switched upstream to ${proxyUrl}` });
+        const browser = await manager.launchProfile(req.params.id, launchOptions);
+        res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+app.post('/api/profiles/:id/close', async (req, res) => {
+    const ok = await manager.closeProfile(req.params.id);
+    res.json({ success: ok });
+});
+
+app.post('/api/close-all', async (req, res) => {
+    await manager.closeAll();
+    res.json({ success: true });
+});
+
+// PROXY
+app.post('/api/proxy/switch', async (req, res) => {
+    const { proxyUrl } = req.body;
+    if (!proxyUrl) return res.status(400).json({ error: 'Missing proxyUrl' });
+    
+    proxyService.setTargetProxy(proxyUrl);
+    res.json({ success: true, proxy: proxyUrl });
 });
 
 app.post('/api/proxy/rotate', async (req, res) => {
     const { rotateUrl } = req.body;
+    if (!rotateUrl) return res.status(400).json({ error: 'Missing rotateUrl' });
+    
     try {
-        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-        const rotateRes = await fetch(rotateUrl);
-        const text = await rotateRes.text();
-        
-        // Cần reload mạng để Chrome nhận proxy IP mới qua gateway
-        await proxyService.switchProxy(proxyService.activeUpstream, manager);
-        
-        let responseData;
-        try {
-            responseData = JSON.parse(text);
-        } catch (e) {
-            responseData = { status: 0, message: text };
-        }
-
-        const isSuccess = responseData.status === 100;
-        const displayIp = isSuccess ? responseData.ip : null;
-        const displayMsg = responseData.message || text;
-
-        console.log(`[Proxy] Status: ${responseData.status}, IP: ${displayIp}, Msg: ${displayMsg}`);
-        
-        res.json({ 
-            success: isSuccess, 
-            message: displayMsg, 
-            ip: displayIp,
-            raw: responseData 
-        });
+        const result = await proxyService.rotateProxy(rotateUrl);
+        res.json({ success: true, ...result });
     } catch (e) {
-        console.error(`[Proxy] Rotation error: ${e.message}`);
         res.status(500).json({ error: e.message });
     }
 });
 
-// ============================================================================
-// AUTOMATION API (In-Process, Zero Latency)
-// ============================================================================
-
+// AUTOMATION
 app.get('/api/automation', (req, res) => {
-    res.json({ automations: automationEngine.getAvailableAutomations(), status: automationEngine.getStatus() });
+    res.json({ automations: automationEngine.getAvailableAutomations() });
 });
 
-app.get('/api/automation/status', (req, res) => res.json(automationEngine.getStatus()));
-
-app.get('/api/automation/:name/logs', (req, res) => {
-    res.json(automationEngine.getLogs(req.params.name, parseInt(req.query.limit) || 200));
+app.post('/api/automation/run', async (req, res) => {
+    const { automation, profileIds, concurrency, sheetData } = req.body;
+    if (!automation || !profileIds) return res.status(400).json({ error: 'Missing params' });
+    
+    automationEngine.runBatch(automation, profileIds, { 
+        concurrency: concurrency || 5,
+        sheetData: sheetData || []
+    });
+    res.json({ success: true });
 });
 
-// SSE: Stream log real-time
-app.get('/api/automation/:name/stream', (req, res) => {
-    const { name } = req.params;
+app.get('/api/automation/all/stream', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    if (!sseClients.has(name)) sseClients.set(name, []);
-    sseClients.get(name).push(res);
+    const onLog = (data) => {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
 
-    // Gửi log cũ ngay khi kết nối
-    automationEngine.getLogs(name).forEach(entry => {
-        res.write(`data: ${JSON.stringify(entry)}\n\n`);
-    });
-
+    automationEngine.on('log', onLog);
     req.on('close', () => {
-        const clients = sseClients.get(name) || [];
-        sseClients.set(name, clients.filter(c => c !== res));
+        automationEngine.off('log', onLog);
     });
 });
 
-/**
- * Chạy automation
- * POST /api/automation/run
- * { automation, profileIds, sheetData, concurrency, blockImages, startUrl }
- */
-app.post('/api/automation/run', async (req, res) => {
-    const { automation, profileIds, sheetData = [], concurrency = 5, blockImages = false, startUrl } = req.body;
-    if (!automation) return res.status(400).json({ error: 'Thiếu tên automation' });
-    if (!profileIds?.length) return res.status(400).json({ error: 'Thiếu profileIds' });
-
-    // Trả về ngay để UI không bị block, chạy ngầm
-    res.json({ success: true, message: `Đã bắt đầu [${automation}] trên ${profileIds.length} profile` });
-
-    automationEngine.run(automation, profileIds, sheetData, { concurrency, blockImages, startUrl })
-        .then(result => {
-            const ok = result.results.filter(r => r.success).length;
-            automationEngine.emit('log', {
-                automationName: automation, time: new Date().toISOString(),
-                msg: `🏁 Kết quả cuối: ${ok}/${result.results.length} thành công`, level: 'success',
-            });
-        })
-        .catch(err => {
-            automationEngine.emit('log', {
-                automationName: automation, time: new Date().toISOString(),
-                msg: `💥 Lỗi nghiêm trọng: ${err.message}`, level: 'error',
-            });
-        });
+// EXTENSIONS
+app.get('/api/extensions', (req, res) => {
+    res.json(manager.getGlobalExtensions());
 });
 
-app.post('/api/automation/stop', (req, res) => {
-    res.json(automationEngine.stop(req.body?.automation || null));
+app.post('/api/extensions', (req, res) => {
+    manager.addGlobalExtension(req.body.path);
+    res.json({ success: true });
 });
 
-// Google Sheet Routes (đọc/ghi trực tiếp Google Sheets API)
+app.delete('/api/extensions', (req, res) => {
+    manager.removeGlobalExtension(req.body.path);
+    res.json({ success: true });
+});
+
+// REGISTER SUB-ROUTES
 registerSheetRoutes(app);
-
-// Phone Routes (RentPhone sheet + in-memory queue)
 registerPhoneRoutes(app);
 
-// ============================================================================
-// UI
-// ============================================================================
-
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'ui', 'index.html')));
-
+// START
 app.listen(PORT, () => {
-    console.log(`\n╔══════════════════════════════════════════════════╗`);
-    console.log(`║   🔥 XSURAU ANTIDETECT MANAGER v2.0             ║`);
-    console.log(`║   Server đang chạy tại: http://localhost:${PORT}   ║`);
-    console.log(`║   Mở trình duyệt để quản lý profile!            ║`);
-    console.log(`╚══════════════════════════════════════════════════╝\n`);
+    console.log(`
+╔══════════════════════════════════════════════════╗
+║   🔥 XSURAU ANTIDETECT MANAGER v2.0             ║
+║   Server đang chạy tại: http://localhost:${PORT}   ║
+║   Mở trình duyệt để quản lý profile!            ║
+╚══════════════════════════════════════════════════╝
+    `);
+    
+    // Start Proxy Service mặc định
+    proxyService.startGateway(8888);
 });

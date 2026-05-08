@@ -50,8 +50,53 @@
             padding: 2px 8px;
             letter-spacing: 1px;
         }
-        .header-stats { display: flex; gap: 24px; font-size: 13px; color: var(--text-secondary); }
-        .stat-value { font-weight: bold; color: var(--text-primary); }
+        .header-stats { display: flex; gap: 16px; align-items: center; }
+        .stat-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            padding: 6px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 100px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .stat-card:hover {
+            border-color: var(--accent);
+            background: rgba(245,176,0,0.05);
+        }
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; width: 100%; height: 2px;
+            background: var(--accent);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        .stat-card:hover::after { transform: scaleX(1); }
+        .stat-card.running::after { background: var(--green); }
+        .stat-card.running:hover { border-color: var(--green); background: rgba(0,170,0,0.05); }
+        .stat-card.synced::after { background: var(--cyan); }
+        .stat-card.synced:hover { border-color: var(--cyan); background: rgba(0,170,170,0.05); }
+
+        .stat-label { 
+            font-size: 8px; 
+            font-weight: 900; 
+            color: var(--text-muted); 
+            text-transform: uppercase; 
+            letter-spacing: 1.2px;
+        }
+        .stat-value { 
+            font-size: 18px; 
+            font-weight: 900; 
+            color: var(--accent); 
+            font-family: 'Outfit', sans-serif;
+            line-height: 1;
+        }
+        .stat-card.running .stat-value { color: var(--green); }
+        .stat-card.synced .stat-value { color: var(--cyan); }
 
         .toolbar { padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
         .toolbar-left { display: flex; gap: 8px; }
@@ -281,8 +326,18 @@
         <h1>Xsurau <span class="version-tag">v2.1.0</span></h1>
     </div>
     <div class="header-stats">
-        <span>TOTAL: <span class="stat-value" id="totalCount">0</span></span>
-        <span>RUNNING: <span class="stat-value" style="color:var(--green)" id="runningCount">0</span></span>
+        <div class="stat-card">
+            <span class="stat-label">TOTAL</span>
+            <span class="stat-value" id="totalCount">0</span>
+        </div>
+        <div class="stat-card running">
+            <span class="stat-label">RUNNING</span>
+            <span class="stat-value" id="runningCount">0</span>
+        </div>
+        <div class="stat-card synced">
+            <span class="stat-label">SYNCED</span>
+            <span class="stat-value" id="syncedCount">0</span>
+        </div>
     </div>
 </div>
 
@@ -322,9 +377,8 @@
                 <div class="fd-panel-header">
                     <div class="fd-panel-title">SYSTEM MONITORING</div>
                     <div style="display: flex; gap: 10px;">
-                        <div class="fd-status-badge" id="fdBrowserStatus">INACTIVE</div>
-                        <div class="fd-status-badge" id="fdDataStatus">NO DATA</div>
-                        <div class="fd-status-badge" id="fdStatsBadge">EMPTY</div>
+                        <div class="fd-status-badge" id="fdServerStatus" style="color:var(--cyan); border-color:var(--cyan);">SERVER ONLINE</div>
+                        <div class="fd-status-badge" id="fdDataStatus">DATABASE LOCAL</div>
                     </div>
                 </div>
                 <div class="fd-row" style="gap: 10px;">
@@ -629,7 +683,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-const API = 'http://localhost:1337/api';
+const API = 'http://127.0.0.1:3333/api';
 
 // TABS
 function switchTab(tabId) {
@@ -707,13 +761,7 @@ async function loadProfiles() {
         running.textContent = profiles.filter(p => p.status === 'running').length;
         
         // Update Fast Dashboard Badges
-        const fdStatus = document.getElementById('fdBrowserStatus');
-        if(fdStatus) {
-            const isRunning = parseInt(running.textContent) > 0;
-            fdStatus.textContent = isRunning ? 'RUNNING' : 'INACTIVE';
-            fdStatus.style.color = isRunning ? 'var(--green)' : 'var(--text-muted)';
-            fdStatus.style.borderColor = isRunning ? 'var(--green)' : 'var(--border)';
-        }
+        // fdBrowserStatus removed (redundant)
 
         if (profiles.length === 0) {
             table.innerHTML = '';
@@ -1041,8 +1089,12 @@ async function syncSheetData() {
         window.globalSheetData = data.rows || [];
         const count = window.globalSheetData.length;
         
+        // Update both the display and the header card
         const textarea = document.getElementById('syncResultDisplay');
         if (textarea) textarea.textContent = `LOADED: ${count} ROWS`;
+        
+        const syncedCard = document.getElementById('syncedCount');
+        if (syncedCard) syncedCard.textContent = count;
         
         fdLogMsg(`SYNC COMPLETE. Fetched ${count} rows.`, 'success');
         if(badge) {

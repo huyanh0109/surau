@@ -14,7 +14,7 @@
  *   I = DateRestore
  */
 
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+// require('dotenv') removed - loaded in server.js
 const { google } = require('googleapis');
 
 // ============================================================
