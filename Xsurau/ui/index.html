@@ -256,6 +256,9 @@
                 <div class="fd-row">
                     <div class="fd-label">QUANTITY:</div>
                     <input type="number" id="fdBulkCount" value="5" min="1" max="500" style="width: 80px; padding: 8px; background: #000; border: 1px solid var(--border); color: var(--text-primary);" onchange="saveFastSettings()">
+                    <label style="color: var(--accent); font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="checkbox" id="fdIsPixel"> PIXEL 10 PRO XL
+                    </label>
                     <button class="btn btn-yellow" onclick="fdBulkCreate()">CREATE</button>
                     <button class="btn btn-danger" onclick="deleteAllProfilesUI()">PURGE ALL</button>
                 </div>
@@ -297,6 +300,7 @@
                 <div class="fd-row">
                     <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="runAutomationFast('setup-2fa')">SETUP 2FA</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('solve-captcha-continuous')">SOLVE CAPTCHA</button>
+                    <button class="btn" style="border-color: #9c27b0; color: #9c27b0;" onclick="runAutomationFast('register-google-one')">G-ONE 2TB</button>
                     <button class="btn btn-danger" onclick="runAutomationFast('logout-google')">LOGOUT GOOGLE</button>
                 </div>
             </div>
@@ -953,14 +957,15 @@ async function bulkCreate() {
 // =======================
 async function fdBulkCreate() {
     const count = parseInt(document.getElementById('fdBulkCount').value) || 5;
+    const isPixel = document.getElementById('fdIsPixel') ? document.getElementById('fdIsPixel').checked : false;
     const settings = getFastSettings();
     const proxies = settings.defProxy ? Array(count).fill(settings.defProxy) : [];
 
-    fdLogMsg(`BULK CREATE: ${count} profiles (Default Proxy: ${settings.defProxy || 'None'})`, 'info');
+    fdLogMsg(`BULK CREATE: ${count} profiles (Default Proxy: ${settings.defProxy || 'None'}, Pixel: ${isPixel})`, 'info');
     await fetch(`${API}/profiles/bulk`, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ count, prefix: 'Profile', proxies })
+        body: JSON.stringify({ count, prefix: 'Profile', proxies, isPixel })
     });
     showToast(`CREATED ${count} PROFILES`);
     fdLogMsg(`SUCCESS: Created ${count} profiles`, 'success');
@@ -1086,8 +1091,13 @@ async function fdXoayProxy() {
                 method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rotateUrl: url })
             });
             const data = await res.json();
-            if(data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
-            else fdLogMsg(`ROTATE SUCCESS: ${data.message.substring(0,50)}...`, 'success');
+            if(data.error) {
+                fdLogMsg(`ERROR: ${data.error}`, 'error');
+            } else if (data.success) {
+                fdLogMsg(`ROTATE SUCCESS. NEW IP: <span style="color:var(--cyan); font-weight:bold;">${data.ip}</span>`, 'success');
+            } else {
+                fdLogMsg(`ROTATE WAIT: <span style="color:var(--yellow);">${data.message}</span>`, 'warning');
+            }
         } catch(e) {
             fdLogMsg(`ERROR: ${e.message}`, 'error');
         }
@@ -1096,7 +1106,18 @@ async function fdXoayProxy() {
         try {
             const res = await fetch(url);
             const text = await res.text();
-            fdLogMsg(`XOAY SUCCESS: ${text.substring(0, 50)}...`, 'success');
+            try {
+                const data = JSON.parse(text);
+                if (data.status === 100) {
+                    fdLogMsg(`XOAY SUCCESS. NEW IP: <span style="color:var(--cyan); font-weight:bold;">${data.ip}</span>`, 'success');
+                } else {
+                    fdLogMsg(`XOAY WAIT: <span style="color:var(--yellow);">${data.message}</span>`, 'warning');
+                }
+            } catch(e) {
+                // Not JSON, show raw text
+                let display = text.length < 50 ? text : 'DONE';
+                fdLogMsg(`XOAY SUCCESS. Response: ${display}`, 'success');
+            }
         } catch(e) {
             fdLogMsg(`XOAY ERROR: ${e.message}`, 'error');
         }

@@ -44,8 +44,8 @@ app.get('/api/profiles/:id', (req, res) => {
 });
 
 app.post('/api/profiles', (req, res) => {
-    const { name, proxy, extensions } = req.body;
-    res.json(manager.createProfile(name, proxy, extensions));
+    const { name, proxy, extensions, isPixel } = req.body;
+    res.json(manager.createProfile(name, proxy, extensions, isPixel));
 });
 
 app.put('/api/profiles/:id', (req, res) => {
@@ -64,9 +64,9 @@ app.delete('/api/profiles/:id', (req, res) => {
 });
 
 app.post('/api/profiles/bulk', (req, res) => {
-    const { count, namePrefix, proxies } = req.body;
+    const { count, namePrefix, proxies, isPixel } = req.body;
     if (!count || count < 1 || count > 500) return res.status(400).json({ error: 'Số lượng từ 1-500' });
-    const profiles = manager.bulkCreateProfiles(count, namePrefix || 'Profile', proxies || []);
+    const profiles = manager.bulkCreateProfiles(count, namePrefix || 'Profile', proxies || [], isPixel);
     res.json({ success: true, count: profiles.length, profiles });
 });
 
@@ -146,8 +146,27 @@ app.post('/api/proxy/rotate', async (req, res) => {
         // Cần reload mạng để Chrome nhận proxy IP mới qua gateway
         await proxyService.switchProxy(proxyService.activeUpstream, manager);
         
-        res.json({ success: true, message: text });
+        let responseData;
+        try {
+            responseData = JSON.parse(text);
+        } catch (e) {
+            responseData = { status: 0, message: text };
+        }
+
+        const isSuccess = responseData.status === 100;
+        const displayIp = isSuccess ? responseData.ip : null;
+        const displayMsg = responseData.message || text;
+
+        console.log(`[Proxy] Status: ${responseData.status}, IP: ${displayIp}, Msg: ${displayMsg}`);
+        
+        res.json({ 
+            success: isSuccess, 
+            message: displayMsg, 
+            ip: displayIp,
+            raw: responseData 
+        });
     } catch (e) {
+        console.error(`[Proxy] Rotation error: ${e.message}`);
         res.status(500).json({ error: e.message });
     }
 });
