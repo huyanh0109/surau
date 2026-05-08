@@ -29,6 +29,13 @@ export class AutomationRunner {
         let browser;
 
         try {
+            if (!job.remoteDebugAddress) {
+                return {
+                    profileId: job.profileId,
+                    success: false,
+                    error: 'remoteDebugAddress is required for AutomationRunner. Use XsurauRunner for Xsurau profiles.',
+                };
+            }
             browser = await this.chromeService.connect(job.remoteDebugAddress);
             const page = await this.chromeService.getOrCreatePage(browser);
 

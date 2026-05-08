@@ -3,12 +3,58 @@
  */
 
 /**
- * Sinh mã TOTP từ secret (thay otplib)
+ * Sinh mã TOTP từ secret (Dùng authenticator để chuẩn Google 2FA)
+ */
+/**
+ * Tự giải mã Base32 và sinh mã TOTP (Không dùng thư viện ngoài để tránh lỗi)
  */
 function generate2FACode(secret) {
-    const { totp } = require('otplib');
-    const cleanSecret = secret.replace(/\s/g, '').toUpperCase();
-    return totp.generate(cleanSecret);
+    if (!secret || typeof secret !== 'string') return '';
+    
+    try {
+        const crypto = require('crypto');
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        const cleanSecret = secret.replace(/\s/g, '').toUpperCase().replace(/[^A-Z2-7]/g, '');
+        
+        if (cleanSecret.length < 8) return '';
+
+        // 1. Giải mã Base32 sang Buffer
+        let bits = 0;
+        let value = 0;
+        let index = 0;
+        const key = Buffer.alloc((cleanSecret.length * 5 / 8) | 0);
+
+        for (let i = 0; i < cleanSecret.length; i++) {
+            const charValue = alphabet.indexOf(cleanSecret[i]);
+            if (charValue === -1) continue;
+            value = (value << 5) | charValue;
+            bits += 5;
+            if (bits >= 8) {
+                key[index++] = (value >>> (bits - 8)) & 255;
+                bits -= 8;
+            }
+        }
+        const finalKey = key.slice(0, index);
+
+        // 2. Tính toán Time Step (30s mỗi bước)
+        const counter = BigInt(Math.floor(Date.now() / 1000 / 30));
+        const buf = Buffer.alloc(8);
+        buf.writeBigInt64BE(counter);
+
+        // 3. HMAC-SHA1
+        const hmac = crypto.createHmac('sha1', finalKey).update(buf).digest();
+
+        // 4. Dynamic Truncation để lấy mã 6 số
+        const offset = hmac[hmac.length - 1] & 0xf;
+        const code = ((hmac[offset] & 0x7f) << 24 |
+                      (hmac[offset + 1] & 0xff) << 16 |
+                      (hmac[offset + 2] & 0xff) << 8 |
+                      (hmac[offset + 3] & 0xff)) % 1000000;
+
+        return code.toString().padStart(6, '0');
+    } catch (e) {
+        return '';
+    }
 }
 
 /**

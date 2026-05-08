@@ -12,6 +12,33 @@ export class AutomationController {
         return this.automationService.runAutomation(automation, profiles);
     }
 
+    /**
+     * 🆕 Chạy automation với Xsurau Antidetect Browser.
+     * Body: { automation: string, profileIds: string[], sheetData?: any[], concurrency?: number }
+     *
+     * Ví dụ gọi:
+     * POST /automation/xsurau/run
+     * {
+     *   "automation": "login-captcha-retry",
+     *   "profileIds": ["profile_xxx_yyy", "profile_zzz_www"],
+     *   "sheetData": [
+     *     { "Gmail": "a@gmail.com", "PassWord": "pass1", "Recover": "backup@gmail.com" },
+     *     { "Gmail": "b@gmail.com", "PassWord": "pass2", "Recover": "JBSWY3DPEHPK3PXP" }
+     *   ],
+     *   "concurrency": 5
+     * }
+     */
+    @Post('xsurau/run')
+    async runXsurau(@Body() body: {
+        automation: string;
+        profileIds: string[];
+        sheetData?: any[];
+        concurrency?: number;
+    }) {
+        const { automation, profileIds, sheetData = [], concurrency = 5 } = body;
+        return this.automationService.runAutomationXsurau(automation, profileIds, sheetData, concurrency);
+    }
+
     @Post('stop')
     stop(@Body() body: { type?: string }) {
         return this.automationService.stopAutomation(body?.type);

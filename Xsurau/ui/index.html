@@ -1133,12 +1133,23 @@ async function pauseAllProfiles() {
 function fdLogMsg(msg, type = 'info') {
     const consoleEl = document.getElementById('fdLogConsole');
     if(!consoleEl) return;
+    
     const time = new Date().toLocaleTimeString();
     const entry = document.createElement('div');
     entry.className = 'log-entry';
     entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-msg ${type}">${msg}</span>`;
+    
     consoleEl.appendChild(entry);
-    consoleEl.scrollTop = consoleEl.scrollHeight;
+    
+    // Giới hạn 200 dòng để tránh lag khi chạy lâu
+    while (consoleEl.children.length > 200) {
+        consoleEl.removeChild(consoleEl.firstChild);
+    }
+
+    // Cuộn xuống cuối
+    requestAnimationFrame(() => {
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    }, 0);
 }
 
 // SSE Logging connection

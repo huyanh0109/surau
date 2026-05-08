@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { AutomationRunner } from './engines/automation-runner';
+import { XsurauRunner } from './engines/xsurau-runner';
 import { AutomationJob, AutomationResult } from './types/automation-job';
-import { LoginGoogleAutomation } from './automations/login-google/login-google.automation';
+import { LoginGoogleAutomation } from './automations/login-captcha-retry/login-google.automation';
 import { VerifyPhoneSheetAutomation } from './automations/verify-phone-sheet/verify-phone-sheet.automation';
 import { VerifyPhoneSheetCheckAutomation } from './automations/verify-phone-sheet-check/verify-phone-sheet-check.automation';
 import { AppealGoogleAutomation } from './automations/appeal-google/appeal-google.automation';
@@ -39,6 +40,7 @@ export class AutomationService {
 
     constructor(
         private readonly runner: AutomationRunner,
+        private readonly xsurauRunner: XsurauRunner,
         private readonly chromeService: ChromeService,
         private readonly logStream: LogStreamService,
     ) { }
@@ -128,6 +130,69 @@ export class AutomationService {
      */
     getAvailableAutomations(): string[] {
         return Object.keys(automationRegistry);
+    }
+
+    /**
+     * 🆕 Chạy automation qua Xsurau — tự bật/tắt trình duyệt giả mạo vân tay.
+     * Sử dụng khi muốn chạy hàng loạt profile với anti-detect đầy đủ.
+     *
+     * @param automationName - Tên automation (key trong automationRegistry)
+     * @param xsurauProfileIds - Mảng ID profile Xsurau (string, vd: "profile_xxx_yyy")
+     * @param sheetData - (Tùy chọn) Mảng data tương ứng cho từng profile (sheetRow)
+     * @param concurrency - Số profile chạy song song (mặc định 5)
+     */
+    async runAutomationXsurau(
+        automationName: string,
+        xsurauProfileIds: string[],
+        sheetData: any[] = [],
+        concurrency = 5,
+    ): Promise<{ success: boolean; results: AutomationResult[]; stopped?: boolean }> {
+        const engineFactory = automationRegistry[automationName];
+        if (!engineFactory) {
+            throw new Error(`Automation "${automationName}" not found`);
+        }
+
+        if (this.abortControllers.has(automationName)) {
+            this.stopAutomation(automationName);
+        }
+
+        const controller = new AbortController();
+        this.abortControllers.set(automationName, controller);
+        this.runningStatus.set(automationName, true);
+
+        const engine = engineFactory();
+
+        // Build jobs — ghép profileId + sheetRow data tương ứng
+        const jobs: AutomationJob[] = xsurauProfileIds.map((profileId, idx) => ({
+            profileId,
+            sheetRow: sheetData[idx] ?? {},
+        }));
+
+        try {
+            const results = await this.xsurauRunner.runMany(
+                engine,
+                jobs,
+                controller.signal,
+                this.logStream,
+                concurrency,
+            );
+
+            this.runningStatus.set(automationName, false);
+            this.abortControllers.delete(automationName);
+
+            return {
+                success: results.every(r => r.success),
+                results,
+            };
+        } catch (error: any) {
+            this.runningStatus.set(automationName, false);
+            this.abortControllers.delete(automationName);
+
+            if (error.name === 'AbortError' || controller.signal.aborted) {
+                return { success: false, results: [], stopped: true };
+            }
+            throw error;
+        }
     }
 
     /**
