@@ -50,8 +50,18 @@
             padding: 2px 8px;
             letter-spacing: 1px;
         }
-        .header-stats { display: flex; gap: 24px; font-size: 13px; color: var(--text-secondary); }
-        .stat-value { font-weight: bold; color: var(--text-primary); }
+        .header-stats { display: flex; gap: 15px; }
+        .stat-box { 
+            background: rgba(255,255,255,0.03); 
+            border: 1px solid var(--border); 
+            padding: 5px 15px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-width: 90px;
+        }
+        .stat-label { font-size: 9px; font-weight: 900; color: var(--text-muted); letter-spacing: 1px; }
+        .stat-value { font-size: 18px; font-weight: 900; color: var(--text-primary); font-family: 'Outfit', sans-serif; }
 
         .toolbar { padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
         .toolbar-left { display: flex; gap: 8px; }
@@ -194,17 +204,20 @@
         .fd-proxy-row input { flex: 1; padding: 8px 12px; background: #000; border: 1px solid var(--border); color: var(--text-primary); font-size: 12px; outline: none; }
         .fd-proxy-row button { margin-left: 10px; }
         .fd-console-output { 
-            height: 600px; 
-            background: rgba(0, 0, 0, 0.9); 
+            height: 400px; 
+            background: rgba(0, 0, 0, 0.95); 
             border: 1px solid var(--border); 
-            padding: 18px; 
-            overflow-y: auto; 
-            font-size: 11.5px; 
-            line-height: 1.8; 
+            padding: 15px; 
+            overflow-y: scroll; 
+            font-size: 11px; 
+            line-height: 1.6; 
             box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
             position: relative;
             scrollbar-width: thin;
-            scrollbar-color: var(--border) #050505;
+            scrollbar-color: var(--accent) #050505;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
         /* Custom Scrollbar for Chrome/Safari */
@@ -271,6 +284,11 @@
         #autoProfileTable select:hover { border-color: var(--accent); background-color: #111; }
         #autoProfileTable select:focus { border-color: var(--accent); box-shadow: 0 0 5px var(--accent-glow); }
         #autoProfileTable select option { background: var(--bg-secondary); color: var(--text-primary); padding: 10px; }
+
+        /* 2FA STYLES */
+        .twofa-panel { border-color: var(--orange) !important; }
+        .twofa-panel::before, .twofa-panel::after { border-color: var(--orange) !important; }
+        #twofaResults div:hover { transform: translateY(-2px); border-color: var(--accent) !important; box-shadow: 0 5px 15px rgba(245,176,0,0.2); }
     </style>
 </head>
 <body>
@@ -281,8 +299,18 @@
         <h1>Xsurau <span class="version-tag">v2.1.0</span></h1>
     </div>
     <div class="header-stats">
-        <span>TOTAL: <span class="stat-value" id="totalCount">0</span></span>
-        <span>RUNNING: <span class="stat-value" style="color:var(--green)" id="runningCount">0</span></span>
+        <div class="stat-box">
+            <span class="stat-label">TOTAL</span>
+            <span class="stat-value" id="totalCount">0</span>
+        </div>
+        <div class="stat-box" style="border-color: var(--green);">
+            <span class="stat-label" style="color: var(--green);">RUNNING</span>
+            <span class="stat-value" id="runningCount" style="color: var(--green);">0</span>
+        </div>
+        <div class="stat-box" style="border-color: var(--cyan);">
+            <span class="stat-label" style="color: var(--cyan);">SYNCED</span>
+            <span class="stat-value" id="syncedCount" style="color: var(--cyan);">0</span>
+        </div>
     </div>
 </div>
 
@@ -377,14 +405,39 @@
                     <button class="btn" style="border-color: var(--blue); color: var(--blue);" onclick="fdXoayProxy()">XOAY PROXY</button>
                 </div>
             </div>
+
+            <!-- 2FA AUTHENTICATOR (LINE-BY-LINE DESIGN) -->
+            <div class="fd-panel twofa-panel" style="border-color: var(--orange); padding: 0; margin-top: 20px; min-height: 300px;">
+                <div style="background: rgba(255, 102, 0, 0.05); padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <div style="color: var(--orange); font-size: 13px; font-weight: 900; letter-spacing: 2px;">2FA AUTHENTICATOR</div>
+                    <div id="twofaTimerText" style="color: var(--orange); font-weight: 900; font-size: 14px;">30S</div>
+                </div>
+                <div style="padding: 20px; display: flex; gap: 0; align-items: stretch;">
+                    <!-- LEFT: SECRETS INPUT -->
+                    <div style="flex: 3; display: flex; flex-direction: column; border: 1px solid var(--border); border-right: none; background: #000;">
+                        <div style="padding: 8px 15px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); font-size: 9px; color: var(--text-muted); font-weight: 900;">INPUT SECRETS (ONE PER LINE)</div>
+                        <textarea id="twofaInput" style="flex: 1; width: 100%; min-height: 250px; background: transparent; border: none; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 14px; padding: 15px; outline: none; resize: none; line-height: 40px; white-space: pre; overflow-y: hidden;" placeholder="Paste secrets..." oninput="update2FA()"></textarea>
+                    </div>
+                    <!-- RIGHT: CODES OUTPUT -->
+                    <div style="flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border); background: #050505;">
+                        <div style="padding: 8px 15px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); font-size: 9px; color: var(--text-muted); font-weight: 900; text-align: center;">6-DIGIT CODES</div>
+                        <div id="twofaResults" style="flex: 1; display: flex; flex-direction: column; padding: 15px 0;">
+                            <div style="text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 10px; text-transform: uppercase;">Awaiting input...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
-        <div class="fd-col-side">
-            <div class="fd-panel" style="display:flex; flex-direction:column; flex:1;">
+        <div class="fd-col-side" style="position: sticky; top: 20px; align-self: flex-start;">
+            <!-- LIVE RESULTS (FIXED & STICKY) -->
+            <div class="fd-panel" style="display: flex; flex-direction: column; background: rgba(0,0,0,0.6); border-color: var(--border);">
                 <div class="fd-panel-header">
                     <div class="fd-panel-title">LIVE RESULTS</div>
+                    <div class="fd-status-badge" style="border-color: var(--accent); color: var(--accent); font-size: 10px;">LIVE</div>
                 </div>
-                <div class="fd-console-output" id="fdLogConsole">
+                <div class="fd-console-output" id="fdLogConsole" style="height: 650px; overflow-y: auto; scrollbar-width: thin;">
                     <div class="log-entry"><span class="log-info">Awaiting operations...</span></div>
                 </div>
             </div>
@@ -521,6 +574,8 @@
     </div>
 </div>
 
+</div>
+
 <!-- ========================================== -->
 <!-- TAB: AUTOMATION -->
 <!-- ========================================== -->
@@ -628,7 +683,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-const API = 'http://localhost:1337/api';
+const API = 'http://127.0.0.1:3333/api';
 
 // TABS
 function switchTab(tabId) {
@@ -704,6 +759,12 @@ async function loadProfiles() {
 
         total.textContent = profiles.length;
         running.textContent = profiles.filter(p => p.status === 'running').length;
+        
+        // Update Synced Count from global data
+        const synced = document.getElementById('syncedCount');
+        if (synced && window.globalSheetData) {
+            synced.textContent = window.globalSheetData.length;
+        }
         
         // Update Fast Dashboard Badges
         const fdStatus = document.getElementById('fdBrowserStatus');
@@ -839,7 +900,6 @@ async function deleteProfile(id) {
 }
 
 async function deleteAllProfilesUI() {
-    if (!confirm('PURGE ALL PROFILES? THIS CANNOT BE UNDONE!')) return;
     await fetch(`${API}/profiles/all`, { method: 'DELETE' });
     showToast('ALL PURGED.');
     fdLogMsg('PURGE ALL executed', 'error');
@@ -1044,6 +1104,11 @@ async function syncSheetData() {
         if (textarea) textarea.textContent = `LOADED: ${count} ROWS`;
         
         fdLogMsg(`SYNC COMPLETE. Fetched ${count} rows.`, 'success');
+        
+        // Update header synced count
+        const syncedHeader = document.getElementById('syncedCount');
+        if (syncedHeader) syncedHeader.textContent = count;
+
         if(badge) {
             badge.textContent = `SYNCED (${count})`;
             badge.style.color = 'var(--green)';
@@ -1151,6 +1216,7 @@ async function fdXoayProxy() {
     } else {
         fdLogMsg(`XOAY PROXY triggered... Calling API...`, 'info');
         try {
+
             const res = await fetch(url);
             const text = await res.text();
             try {
@@ -1188,15 +1254,21 @@ function fdLogMsg(msg, type = 'info') {
     
     consoleEl.appendChild(entry);
     
-    // Giới hạn 200 dòng để tránh lag khi chạy lâu
-    while (consoleEl.children.length > 200) {
+    // Giới hạn 300 dòng để tránh lag
+    while (consoleEl.children.length > 300) {
         consoleEl.removeChild(consoleEl.firstChild);
     }
 
-    // Cuộn xuống cuối
-    requestAnimationFrame(() => {
-        consoleEl.scrollTop = consoleEl.scrollHeight;
+    // Cuộn xuống cuối (Force scroll)
+    consoleEl.scrollTo({
+        top: consoleEl.scrollHeight,
+        behavior: 'smooth'
     });
+    
+    // Backup scroll for non-smooth support
+    setTimeout(() => {
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    }, 50);
 }
 
 // SSE Logging connection
@@ -1361,6 +1433,57 @@ function showToast(msg) {
     c.appendChild(t);
     setTimeout(() => t.remove(), 3000);
 }
+
+async function update2FA() {
+    const input = document.getElementById('twofaInput').value;
+    const container = document.getElementById('twofaResults');
+    const secrets = input.split('\n').map(s => s.trim()); // Keep empty lines to match vertical alignment
+
+    if (input.trim() === '') {
+        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 10px; text-transform: uppercase;">Awaiting input...</div>';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/2fa/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secrets: secrets.map(s => s.replace(/\s+/g, '')) })
+        });
+        const data = await res.json();
+        
+        container.innerHTML = secrets.map((s, i) => {
+            if (!s) return '<div style="height: 40px;"></div>'; // Empty row for empty input line
+            const code = data.codes[i] || '—';
+            const isInvalid = code === 'INVALID' || code === '—';
+            
+            return `
+                <div style="height: 40px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(255,255,255,0.03); cursor: pointer; transition: all 0.2s;" 
+                     onclick="copyToClipboard('${code}')" onmouseover="this.style.background='rgba(255,176,0,0.05)'" onmouseout="this.style.background='transparent'">
+                    <div style="font-size: 18px; font-weight: 900; color: ${isInvalid ? 'var(--red)' : 'var(--accent)'}; letter-spacing: 4px; font-family: 'Outfit', sans-serif;">${code}</div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {}
+}
+
+function copyToClipboard(text) {
+    if (text === '—' || text === 'INVALID') return;
+    navigator.clipboard.writeText(text);
+    showToast('CODE COPIED');
+}
+
+// Auto-refresh 2FA timer
+setInterval(() => {
+    const now = Math.floor(Date.now() / 1000);
+    const timeLeft = 30 - (now % 30);
+    const t = document.getElementById('twofaTimerText');
+    if (t) t.textContent = `${timeLeft}S`;
+    
+    if (timeLeft === 30 || timeLeft === 1) {
+        update2FA();
+    }
+}, 1000);
 
 // Init
 setInterval(loadProfiles, 5000);

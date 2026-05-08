@@ -233,31 +233,33 @@ class ProfileManager {
         console.log(`[Manager] 🗑️ Đã xóa profile: ${profileId}`);
     }
 
-    /** Xóa tất cả profile */
+    /** Xóa tất cả profile (Xóa cực mạnh - WIPE ALL) */
     async deleteAllProfiles() {
-        // 1. Đóng tất cả profile đang chạy và diệt process Chrome
+        // 1. Đóng tất cả và diệt TẤT CẢ process chrome liên quan đến data folder
         await this.closeAll();
         
-        // 2. Chờ một chút để Windows giải phóng file lock (rất quan trọng)
-        await new Promise(r => setTimeout(r, 2000));
+        // 2. Chờ một chút để giải phóng lock
+        await new Promise(r => setTimeout(r, 1000));
 
-        const files = fs.readdirSync(this.profilesMetaPath).filter(f => f.endsWith('.json'));
-        let deletedCount = 0;
-        for (const file of files) {
-            const profileId = file.replace('.json', '');
-            const metaFile = path.join(this.profilesMetaPath, file);
-            const dataDir = path.join(this.profilesDataPath, profileId);
-            
-            try {
-                if (fs.existsSync(metaFile)) fs.unlinkSync(metaFile);
-                if (fs.existsSync(dataDir)) fs.rmSync(dataDir, { recursive: true, force: true });
-                deletedCount++;
-            } catch (err) {
-                console.error(`[Manager] ⚠️ Không thể xóa data của profile ${profileId}: ${err.message}`);
+        let count = 0;
+        try {
+            // Xóa sạch folder meta
+            if (fs.existsSync(this.profilesMetaPath)) {
+                const files = fs.readdirSync(this.profilesMetaPath);
+                count = files.filter(f => f.endsWith('.json')).length;
+                fs.rmSync(this.profilesMetaPath, { recursive: true, force: true });
+                fs.mkdirSync(this.profilesMetaPath, { recursive: true });
             }
+            // Xóa sạch folder data
+            if (fs.existsSync(this.profilesDataPath)) {
+                fs.rmSync(this.profilesDataPath, { recursive: true, force: true });
+                fs.mkdirSync(this.profilesDataPath, { recursive: true });
+            }
+            console.log(`[Manager] 🔥 ĐÃ XÓA CỰC MẠNH: ${count} profile và toàn bộ dữ liệu trình duyệt.`);
+        } catch (err) {
+            console.error(`[Manager] ❌ Lỗi khi xóa cực mạnh: ${err.message}`);
         }
-        console.log(`[Manager] 🗑️ Đã xóa ${deletedCount} profile.`);
-        return deletedCount;
+        return count;
     }
 
     // ========================================================================

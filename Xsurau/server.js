@@ -1,16 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const crypto = require('crypto');
 const ProfileManager = require('./manager');
 const AutomationEngine = require('./automation-engine');
 const proxyService = require('./proxy-service');
 const { registerSheetRoutes } = require('./google-sheet');
 const { registerPhoneRoutes } = require('./phone');
 
+const { authenticator } = require('otplib');
+
 const app = express();
 const manager = new ProfileManager();
 const automationEngine = new AutomationEngine(manager);
-const PORT = 1337;
+const PORT = 3333;
 
 app.use(cors());
 app.use(express.json());
@@ -54,8 +57,25 @@ app.put('/api/profiles/:id', (req, res) => {
 });
 
 app.delete('/api/profiles/all', async (req, res) => {
-    try { res.json({ success: true, count: await manager.deleteAllProfiles() }); }
+    try { 
+        const count = await manager.deleteAllProfiles();
+        res.json({ success: true, count }); 
+    }
     catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Sinh mã 2FA thời gian thực
+app.post('/api/2fa/generate', (req, res) => {
+    const { secrets } = req.body;
+    if (!secrets || !Array.isArray(secrets)) return res.status(400).json({ error: 'Secrets must be an array' });
+    
+    const codes = secrets.map(s => {
+        if (!s) return '—';
+        try {
+            return authenticator.generate(s.replace(/\s+/g, ''));
+        } catch (e) { return 'INVALID'; }
+    });
+    res.json({ codes });
 });
 
 app.delete('/api/profiles/:id', (req, res) => {
