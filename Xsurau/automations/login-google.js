@@ -76,30 +76,37 @@ async function run(page, job, signal, logger) {
                 if (!isInputVisible) {
                     log('[2FA] Chưa thấy ô nhập mã, đang tìm phương thức xác thực...');
                     try {
-                        // Tìm mục Authenticator chuẩn xác bằng cách kết hợp ID và lọc Text
-                        const clicked = await page.evaluate(() => {
-                            const selectors = '[data-challengeid="2"], [data-challengeid="3"], [data-challengetype="6"], [data-challengeid="6"], li, div[role="link"], div[role="button"]';
-                            const elements = Array.from(document.querySelectorAll(selectors));
-                            
-                            // Tìm mục khớp với Authenticator nhưng không phải Offline/SMS
-                            const target = elements.find(el => {
-                                const text = el.textContent?.toLowerCase() || '';
-                                const isAuth = text.includes('authenticator') || text.includes('app');
-                                const isNotWrongType = !text.includes('offline') && !text.includes('security code') && !text.includes('sms');
-                                return isAuth && isNotWrongType;
-                            });
+                        const selectionResult = await page.evaluate(() => {
+                            const findAndClick = (selector) => {
+                                const elements = Array.from(document.querySelectorAll(selector));
+                                for (const el of elements) {
+                                    const text = el.textContent?.toLowerCase() || '';
+                                    const isAuth = text.includes('authenticator') || text.includes('app');
+                                    const isWrong = text.includes('offline') || text.includes('security code') || text.includes('sms');
+                                    if (isAuth && !isWrong) {
+                                        el.scrollIntoView({ block: 'center' });
+                                        el.click();
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            };
 
-                            if (target) {
-                                target.scrollIntoView({ block: 'center' });
-                                target.click();
-                                return true;
-                            }
-                            return false;
+                            // Ưu tiên 1: challengetype="6"
+                            if (findAndClick('[data-challengetype="6"]')) return 'type6';
+                            // Ưu tiên 2: challengeid="2"
+                            if (findAndClick('[data-challengeid="2"]')) return 'id2';
+                            // Ưu tiên 3: challengeid="3"
+                            if (findAndClick('[data-challengeid="3"]')) return 'id3';
+                            // Cuối cùng: tìm bất kỳ mục nào có text khớp
+                            if (findAndClick('li, div[role="link"], div[role="button"]')) return 'text_fallback';
+                            
+                            return null;
                         });
 
-                        if (clicked) {
-                            log('[2FA] Đã chọn mục Authenticator App, đợi chuyển trang...');
-                            await sleep(2000);
+                        if (selectionResult) {
+                            log(`[2FA] Đã chọn phương thức (${selectionResult}), đợi chuyển trang...`);
+                            await sleep(2500);
                         }
                     } catch (e) {
                         log('[2FA] Lỗi khi chọn phương thức: ' + e.message);
