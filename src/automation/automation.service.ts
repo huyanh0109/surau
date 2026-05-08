@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AutomationRunner } from './engines/automation-runner';
 import { XsurauRunner } from './engines/xsurau-runner';
 import { AutomationJob, AutomationResult } from './types/automation-job';
-import { LoginGoogleAutomation } from './automations/login-captcha-retry/login-google.automation';
+import { LoginGoogleAutomation } from './automations/login-google/login-google.automation';
 import { VerifyPhoneSheetAutomation } from './automations/verify-phone-sheet/verify-phone-sheet.automation';
 import { VerifyPhoneSheetCheckAutomation } from './automations/verify-phone-sheet-check/verify-phone-sheet-check.automation';
 import { AppealGoogleAutomation } from './automations/appeal-google/appeal-google.automation';

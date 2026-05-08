@@ -2,16 +2,18 @@
  * Thông tin một job automation
  */
 export interface AutomationJob {
-    profileId: number;
-    remoteDebugAddress: string;
+    profileId: string | number;
+    remoteDebugAddress?: string;
     sheetRow?: any;
+    blockImages?: boolean;
+    startUrl?: string;
 }
 
 /**
  * Kết quả sau khi chạy automation
  */
 export interface AutomationResult {
-    profileId: number;
+    profileId: string | number;
     success: boolean;
     error?: string;
     data?: any;
