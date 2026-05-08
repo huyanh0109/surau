@@ -21,7 +21,7 @@ const automationRegistry = {
     'check-phone-verify':          require('./automations/check-phone-verify'),
     'verify-phone-sheet':          require('./automations/verify-phone-sheet'),
     'verify-phone-sheet-check':    require('./automations/verify-phone-sheet-check'),
-    'register-google-one':         require('./automations/register-google-one'),
+    'solve-2fa':                   require('./automations/solve-2fa'),
 };
 
 class AutomationEngine extends EventEmitter {
