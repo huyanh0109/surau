@@ -66,32 +66,53 @@ async function run(page, job, signal, logger) {
                 await sleep(500);
                 await clickNextButton(page);
             } else {
-                // ===== LUỒNG 2FA =====
-                log(`[2FA] Đang xử lý mã 2FA cho Secret: ${sheetRow.Recover?.substring(0, 5)}***`);
-                
-                // 1. Kiểm tra xem có đang ở trang chọn phương thức không
-                try {
-                    const twoFAOption = page.locator('[data-challengeid="3"]').first();
-                    const inputExist = await page.locator('input[type="tel"], input#totpPin').first().isVisible({ timeout: 2000 }).catch(() => false);
-                    
-                    if (!inputExist && await twoFAOption.isVisible({ timeout: 3000 })) {
-                        log('[2FA] Nhấn chọn phương thức Authenticator app...');
-                        await twoFAOption.scrollIntoViewIfNeeded();
-                        await sleep(500);
-                        await twoFAOption.click();
-                        await sleep(2000);
-                    }
-                } catch (e) { }
+                // ===== LUỒNG 2FA (Authenticator) =====
+                log('[2FA] Đang xử lý mã 2FA...');
 
-                // 2. Chờ ô nhập mã xuất hiện (thử nhiều selector)
-                log('[2FA] Đợi ô nhập mã...');
+                // 1. Kiểm tra xem ô nhập mã đã hiện sẵn chưa để bỏ qua bước chọn phương thức
                 const inputSelector = 'input[type="tel"], input#totpPin, input[autocomplete="one-time-code"]';
+                const isInputVisible = await page.locator(inputSelector).first().isVisible({ timeout: 5000 }).catch(() => false);
+
+                if (!isInputVisible) {
+                    log('[2FA] Chưa thấy ô nhập mã, đang tìm phương thức xác thực...');
+                    try {
+                        // Tìm mục Authenticator chuẩn xác bằng cách kết hợp ID và lọc Text
+                        const clicked = await page.evaluate(() => {
+                            const selectors = '[data-challengeid="2"], [data-challengeid="3"], [data-challengetype="6"], [data-challengeid="6"], li, div[role="link"], div[role="button"]';
+                            const elements = Array.from(document.querySelectorAll(selectors));
+                            
+                            // Tìm mục khớp với Authenticator nhưng không phải Offline/SMS
+                            const target = elements.find(el => {
+                                const text = el.textContent?.toLowerCase() || '';
+                                const isAuth = text.includes('authenticator') || text.includes('app');
+                                const isNotWrongType = !text.includes('offline') && !text.includes('security code') && !text.includes('sms');
+                                return isAuth && isNotWrongType;
+                            });
+
+                            if (target) {
+                                target.scrollIntoView({ block: 'center' });
+                                target.click();
+                                return true;
+                            }
+                            return false;
+                        });
+
+                        if (clicked) {
+                            log('[2FA] Đã chọn mục Authenticator App, đợi chuyển trang...');
+                            await sleep(2000);
+                        }
+                    } catch (e) {
+                        log('[2FA] Lỗi khi chọn phương thức: ' + e.message);
+                    }
+                }
+
+                // 2. Đợi ô nhập mã (type="tel" là chuẩn nhất)
                 await page.waitForSelector(inputSelector, { state: 'visible', timeout: 15000 });
                 
                 // 3. Sinh mã và nhập
                 const code = generate2FACode(sheetRow.Recover);
                 log(`[2FA] Mã sinh ra: ${code}`);
-                
+            
                 if (code && code.length === 6) {
                     const inputField = page.locator(inputSelector).first();
                     await inputField.click();
