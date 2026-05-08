@@ -2,7 +2,7 @@
   "name": "xsurau",
   "version": "2.0.0",
   "description": "Xsurau Antidetect Browser Manager - Custom Chromium C++ patched",
-  "main": "server.js",
+  "main": "electron-main.js",
   "scripts": {
     "start": "node server.js",
     "test": "node manager.js"
