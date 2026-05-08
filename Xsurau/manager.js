@@ -320,6 +320,9 @@ class ProfileManager {
         }
         
         const profileDir = path.join(this.profilesDataPath, profileId);
+        
+        // Kiểm tra xem profile đã có dữ liệu chưa (để biết là mở lần đầu hay mở lại)
+        const isNewProfile = !fs.existsSync(path.join(profileDir, 'Default', 'Preferences'));
 
         // Đảm bảo profile cũ có đủ fingerprint data (backward compat)
         const screen = profileData.screen || { width: 1920, height: 1080 };
@@ -532,12 +535,43 @@ class ProfileManager {
         }
 
         let page;
-        if (options.startUrl && options.startUrl !== 'about:blank') {
+        // Nếu là profile mới và không có URL chỉ định, mặc định mở Google
+        const effectiveStartUrl = (isNewProfile && (!options.startUrl || options.startUrl === 'about:blank')) 
+            ? 'https://www.google.com' 
+            : options.startUrl;
+
+        if (effectiveStartUrl && effectiveStartUrl !== 'about:blank') {
             page = context.pages()[0] || await context.newPage();
-            await page.goto(options.startUrl, { waitUntil: 'domcontentloaded' });
+            await page.goto(effectiveStartUrl, { waitUntil: 'domcontentloaded' }).catch(() => {});
         } else {
-            // Lấy page đầu tiên chỉ để tracking, không đổi URL để giữ lại các tab đã mở từ lần trước
-            page = context.pages()[0] || await context.newPage();
+            // Đợi session khôi phục (tối đa 2 giây)
+            for (let i = 0; i < 10; i++) {
+                if (context.pages().length > 1) break;
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            let pages = context.pages();
+            if (pages.length > 1) {
+                // Nếu có nhiều tab, đóng TẤT CẢ các tab trống để trả lại session cũ
+                for (const p of pages) {
+                    const url = p.url();
+                    if (url === 'about:blank' || url.includes('chrome://newtab')) {
+                        // Chỉ đóng nếu vẫn còn ít nhất 1 tab khác trong context
+                        if (context.pages().length > 1) {
+                            await p.close().catch(() => {});
+                        }
+                    }
+                }
+                const remainingPages = context.pages();
+                page = remainingPages[0];
+            } else {
+                // Nếu chỉ có 1 tab duy nhất và nó đang trống -> Mặc định mở Google
+                page = pages[0] || await context.newPage();
+                const url = page.url();
+                if (url === 'about:blank' || url.includes('chrome://newtab')) {
+                    await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded' }).catch(() => {});
+                }
+            }
         }
 
         // Lưu vào bộ theo dõi
