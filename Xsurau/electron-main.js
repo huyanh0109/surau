@@ -10,16 +10,16 @@ app.commandLine.appendSwitch('disable-http-cache');
 let mainWindow;
 let serverProcess;
 
-const logPath = 'G:\\XsurauData\\server_log.txt';
+const logPath = path.join(app.getPath('userData'), 'server_log.txt');
 function logToFile(data) {
-  fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${data}\n`);
+  try { fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${data}\n`); } catch(e) {}
 }
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1500,
     height: 950,
-    icon: path.join(__dirname, 'icon.png'),
+    // icon: path.join(__dirname, 'icon.png'), // Removed missing icon
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -71,7 +71,6 @@ function startServer() {
 }
 
 app.on('ready', () => {
-  if (!fs.existsSync('G:\\XsurauData')) fs.mkdirSync('G:\\XsurauData', { recursive: true });
   fs.writeFileSync(logPath, '--- App Started (Port 3333) ---\n');
   
   startServer();
