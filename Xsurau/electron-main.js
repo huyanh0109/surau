@@ -7,13 +7,30 @@ const fs = require('fs');
 app.commandLine.appendSwitch('no-proxy-server');
 app.commandLine.appendSwitch('disable-http-cache');
 
-let mainWindow;
-let serverProcess;
-
-const logPath = path.join(app.getPath('userData'), 'server_log.txt');
+let logPath = null;
 function logToFile(data) {
+  if (!logPath) {
+    try { logPath = path.join(app.getPath('userData'), 'server_log.txt'); } catch(e) { return; }
+  }
   try { fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${data}\n`); } catch(e) {}
 }
+
+// KHÓA DUY NHẤT 1 BẢN CHẠY (Single Instance Lock)
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Nếu ai đó cố gắng mở bản thứ 2, hãy tập trung vào cửa sổ hiện tại
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
+let mainWindow;
+let serverProcess;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -71,7 +88,7 @@ function startServer() {
 }
 
 app.on('ready', () => {
-  fs.writeFileSync(logPath, '--- App Started (Port 3333) ---\n');
+  logToFile('--- App Started (Port 3333) ---');
   
   startServer();
   createWindow();
