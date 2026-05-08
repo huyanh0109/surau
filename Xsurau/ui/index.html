@@ -193,7 +193,58 @@
         .fd-proxy-row label { width: 120px; color: var(--accent); font-size: 12px; font-weight: bold; }
         .fd-proxy-row input { flex: 1; padding: 8px 12px; background: #000; border: 1px solid var(--border); color: var(--text-primary); font-size: 12px; outline: none; }
         .fd-proxy-row button { margin-left: 10px; }
-        .fd-console-output { height: 600px; background: #000; border: 1px solid var(--border); padding: 15px; overflow-y: auto; font-size: 12px; line-height: 1.6; }
+        .fd-console-output { 
+            height: 600px; 
+            background: rgba(0, 0, 0, 0.9); 
+            border: 1px solid var(--border); 
+            padding: 18px; 
+            overflow-y: auto; 
+            font-size: 11.5px; 
+            line-height: 1.8; 
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) #050505;
+        }
+
+        /* Custom Scrollbar for Chrome/Safari */
+        .fd-console-output::-webkit-scrollbar {
+            width: 4px;
+        }
+        .fd-console-output::-webkit-scrollbar-track {
+            background: #050505;
+        }
+        .fd-console-output::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        .fd-console-output::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 12px;
+            padding: 2px 8px;
+            border-left: 2px solid transparent;
+            transition: all 0.15s ease;
+        }
+        .log-entry:hover {
+            background: rgba(245, 176, 0, 0.05);
+            border-left-color: var(--accent);
+        }
+        .log-time {
+            color: var(--text-muted);
+            font-family: monospace;
+            font-size: 10px;
+            width: 85px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+        }
+        .log-msg {
+            flex: 1;
+        }
 
         /* Automation Table */
         #autoProfileTable { border: none; }
@@ -1137,7 +1188,7 @@ function fdLogMsg(msg, type = 'info') {
     const time = new Date().toLocaleTimeString();
     const entry = document.createElement('div');
     entry.className = 'log-entry';
-    entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-msg ${type}">${msg}</span>`;
+    entry.innerHTML = `<div class="log-time">[${time}]</div><div class="log-msg ${type}">${msg}</div>`;
     
     consoleEl.appendChild(entry);
     
@@ -1149,7 +1200,7 @@ function fdLogMsg(msg, type = 'info') {
     // Cuộn xuống cuối
     requestAnimationFrame(() => {
         consoleEl.scrollTop = consoleEl.scrollHeight;
-    }, 0);
+    });
 }
 
 // SSE Logging connection
