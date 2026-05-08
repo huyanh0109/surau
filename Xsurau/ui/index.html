@@ -1194,48 +1194,27 @@ async function fdXoayProxy() {
     }
     
     saveFastSettings();
-    const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
-
-    if (proxyMode === 'global') {
-        fdLogMsg(`ROTATING GLOBAL PROXY...`, 'info');
-        try {
-            const res = await fetch(`${API}/proxy/rotate`, {
-                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ rotateUrl: url })
-            });
-            const data = await res.json();
-            if(data.error) {
-                fdLogMsg(`ERROR: ${data.error}`, 'error');
-            } else if (data.success) {
-                fdLogMsg(`ROTATE SUCCESS. NEW IP: <span style="color:var(--cyan); font-weight:bold;">${data.ip}</span>`, 'success');
-            } else {
-                fdLogMsg(`ROTATE WAIT: <span style="color:var(--yellow);">${data.message}</span>`, 'warning');
-            }
-        } catch(e) {
-            fdLogMsg(`ERROR: ${e.message}`, 'error');
+    fdLogMsg(`XOAY PROXY triggered... Calling API via Backend...`, 'info');
+    try {
+        const res = await fetch(`${API}/proxy/rotate`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ rotateUrl: url })
+        });
+        const data = await res.json();
+        
+        if (data.error) {
+            fdLogMsg(`XOAY ERROR: ${data.error}`, 'error');
+        } else if (data.success) {
+            fdLogMsg(`XOAY SUCCESS. NEW IP: <span style="color:var(--cyan); font-weight:bold;">${data.ip || 'DONE'}</span>`, 'success');
+        } else {
+            fdLogMsg(`XOAY WAIT: <span style="color:var(--yellow);">${data.message || 'Waiting for IP change...'}</span>`, 'warning');
         }
-    } else {
-        fdLogMsg(`XOAY PROXY triggered... Calling API...`, 'info');
-        try {
-
-            const res = await fetch(url);
-            const text = await res.text();
-            try {
-                const data = JSON.parse(text);
-                if (data.status === 100) {
-                    fdLogMsg(`XOAY SUCCESS. NEW IP: <span style="color:var(--cyan); font-weight:bold;">${data.ip}</span>`, 'success');
-                } else {
-                    fdLogMsg(`XOAY WAIT: <span style="color:var(--yellow);">${data.message}</span>`, 'warning');
-                }
-            } catch(e) {
-                // Not JSON, show raw text
-                let display = text.length < 50 ? text : 'DONE';
-                fdLogMsg(`XOAY SUCCESS. Response: ${display}`, 'success');
-            }
-        } catch(e) {
-            fdLogMsg(`XOAY ERROR: ${e.message}`, 'error');
-        }
+    } catch(e) {
+        fdLogMsg(`XOAY ERROR: ${e.message}`, 'error');
     }
 }
+
 
 async function pauseAllProfiles() {
     fdLogMsg('PAUSE ALL requested...', 'warning');

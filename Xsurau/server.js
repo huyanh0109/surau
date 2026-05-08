@@ -1,3 +1,4 @@
+require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -158,8 +159,8 @@ app.post('/api/proxy/switch', async (req, res) => {
 
 app.post('/api/proxy/rotate', async (req, res) => {
     const { rotateUrl } = req.body;
+    if (!rotateUrl) return res.status(400).json({ error: 'Missing rotateUrl' });
     try {
-        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
         const rotateRes = await fetch(rotateUrl);
         const text = await rotateRes.text();
         
