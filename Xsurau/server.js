@@ -44,8 +44,8 @@ app.get('/api/profiles/:id', (req, res) => {
 });
 
 app.post('/api/profiles', (req, res) => {
-    const { name, proxy, extensions, isPixel } = req.body;
-    res.json(manager.createProfile(name, proxy, extensions, isPixel));
+    const { name, proxy, extensions } = req.body;
+    res.json(manager.createProfile(name, proxy, extensions));
 });
 
 app.put('/api/profiles/:id', (req, res) => {
@@ -64,9 +64,9 @@ app.delete('/api/profiles/:id', (req, res) => {
 });
 
 app.post('/api/profiles/bulk', (req, res) => {
-    const { count, namePrefix, proxies, isPixel } = req.body;
+    const { count, namePrefix, proxies } = req.body;
     if (!count || count < 1 || count > 500) return res.status(400).json({ error: 'Số lượng từ 1-500' });
-    const profiles = manager.bulkCreateProfiles(count, namePrefix || 'Profile', proxies || [], isPixel);
+    const profiles = manager.bulkCreateProfiles(count, namePrefix || 'Profile', proxies || []);
     res.json({ success: true, count: profiles.length, profiles });
 });
 

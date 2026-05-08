@@ -139,7 +139,7 @@ class ProfileManager {
     // ========================================================================
 
     /** Tạo profile mới */
-    createProfile(name, proxy = null, extensions = [], isPixel = false) {
+    createProfile(name, proxy = null, extensions = []) {
         const id = 'profile_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex');
         const noiseSeed = crypto.randomBytes(16).toString('hex');
         const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -151,13 +151,6 @@ class ProfileManager {
         let hardwareConcurrency = pick(HARDWARE_CONCURRENCY);
         let deviceMemory = pick(DEVICE_MEMORY);
 
-        if (isPixel) {
-            userAgent = 'Mozilla/5.0 (Linux; Android 14; Pixel 10 Pro XL Build/UP1A.231005.007) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.164 Mobile Safari/537.36';
-            screen = { width: 1344, height: 2992 };
-            hardwareConcurrency = 8;
-            deviceMemory = 8;
-        }
-
         const profileData = {
             id,
             name: name || id,
@@ -166,7 +159,6 @@ class ProfileManager {
             extensions,
             noiseSeed,
             userAgent,
-            isPixel,
             gpu: pick(GPU_DATABASE),
             screen,
             hardwareConcurrency,
@@ -183,12 +175,12 @@ class ProfileManager {
     }
 
     /** Tạo hàng loạt profile */
-    bulkCreateProfiles(count, namePrefix = 'Profile', proxies = [], isPixel = false) {
+    bulkCreateProfiles(count, namePrefix = 'Profile', proxies = []) {
         const created = [];
         for (let i = 0; i < count; i++) {
             const num = String(i + 1).padStart(3, '0');
             const proxy = proxies[i] || null;
-            const profile = this.createProfile(`${namePrefix} ${num}`, proxy, [], isPixel);
+            const profile = this.createProfile(`${namePrefix} ${num}`, proxy, []);
             created.push(profile);
         }
         console.log(`[Manager] ✅ Đã tạo ${count} profile hàng loạt!`);
