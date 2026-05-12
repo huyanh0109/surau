@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: 'K:/Surau/.env' });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -9,7 +9,7 @@ const proxyService = require('./proxy-service');
 const { registerSheetRoutes } = require('./google-sheet');
 const { registerPhoneRoutes } = require('./phone');
 
-const { authenticator } = require('otplib');
+
 
 const app = express();
 const manager = new ProfileManager();
@@ -65,16 +65,78 @@ app.delete('/api/profiles/all', async (req, res) => {
     catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// Sinh mã 2FA thời gian thực
+// Tự code logic 2FA (TOTP) không dùng thư viện ngoài để tránh lỗi đóng gói
+function generateTOTP(secret) {
+    try {
+        const cleanedSecret = secret.replace(/\s+/g, '').toUpperCase();
+        
+        // Base32 Decode
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        let bits = '';
+        for (let i = 0; i < cleanedSecret.length; i++) {
+            const val = alphabet.indexOf(cleanedSecret.charAt(i));
+            if (val === -1) continue;
+            bits += val.toString(2).padStart(5, '0');
+        }
+        
+        const bytes = [];
+        for (let i = 0; i + 8 <= bits.length; i += 8) {
+            bytes.push(parseInt(bits.substr(i, 8), 2));
+        }
+        const key = Buffer.from(bytes);
+        
+        // Tính Counter (số lần 30s kể từ Epoch)
+        const epoch = Math.round(Date.now() / 1000);
+        const counter = Math.floor(epoch / 30);
+        
+        // Chuẩn bị buffer counter 8-byte (big-endian)
+        const buf = Buffer.alloc(8);
+        for (let i = 7; i >= 0; i--) {
+            buf[i] = counter & 0xff;
+            counter === 0 ? 0 : (function() {
+                // Bitwise operations on large numbers need careful handling in JS, 
+                // but for timestamp counter, simple shift is okay for next ~200 years.
+            })();
+            // For safety with large numbers, handle counter as BigInt or manually:
+        }
+        // Manual 8-byte big-endian counter
+        let tempCounter = counter;
+        const msg = Buffer.alloc(8);
+        for (let i = 7; i >= 0; i--) {
+            msg[i] = tempCounter & 0xff;
+            tempCounter = Math.floor(tempCounter / 256);
+        }
+
+        // HMAC-SHA1
+        const hmac = crypto.createHmac('sha1', key);
+        const hash = hmac.update(msg).digest();
+        
+        // Dynamic Truncation
+        const offset = hash[hash.length - 1] & 0xf;
+        const binary = ((hash[offset] & 0x7f) << 24) |
+                       ((hash[offset + 1] & 0xff) << 16) |
+                       ((hash[offset + 2] & 0xff) << 8) |
+                       (hash[offset + 3] & 0xff);
+        
+        const otp = binary % 1000000;
+        return otp.toString().padStart(6, '0');
+    } catch (e) {
+        return null;
+    }
+}
+
 app.post('/api/2fa/generate', (req, res) => {
     const { secrets } = req.body;
     if (!secrets || !Array.isArray(secrets)) return res.status(400).json({ error: 'Secrets must be an array' });
     
     const codes = secrets.map(s => {
         if (!s) return '—';
-        try {
-            return authenticator.generate(s.replace(/\s+/g, ''));
-        } catch (e) { return 'INVALID'; }
+        const code = generateTOTP(s);
+        if (code) return code;
+        
+        console.error(`[2FA ERROR] Secret: "${s}" failed native generation`);
+        if (typeof logToFile === 'function') logToFile(`2FA ERROR: Native generation failed for secret ${s}`);
+        return 'INVALID';
     });
     res.json({ codes });
 });
@@ -82,6 +144,37 @@ app.post('/api/2fa/generate', (req, res) => {
 app.delete('/api/profiles/:id', (req, res) => {
     try { manager.deleteProfile(req.params.id); res.json({ success: true }); }
     catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// ============================================================================
+// ARCHIVE API
+// ============================================================================
+
+app.get('/api/archives', (req, res) => {
+    res.json(manager.getArchiveGroups());
+});
+
+app.post('/api/archives', (req, res) => {
+    const { profileIds, groupName } = req.body;
+    try {
+        const count = manager.archiveProfiles(profileIds, groupName);
+        res.json({ success: true, count });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.post('/api/archives/restore', (req, res) => {
+    const { profileIds, groupName } = req.body;
+    try {
+        const count = manager.restoreProfiles(profileIds, groupName);
+        res.json({ success: true, count });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.delete('/api/archives/:groupName', (req, res) => {
+    try {
+        const success = manager.deleteArchiveGroup(req.params.groupName);
+        res.json({ success });
+    } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 app.post('/api/profiles/bulk', (req, res) => {

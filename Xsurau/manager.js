@@ -48,8 +48,10 @@ class ProfileManager {
         const baseDir = options.baseDir || 'G:\\XsurauData';
         this.profilesDataPath = path.join(baseDir, 'profiles_data');  // Lưu cookie, cache trình duyệt
         this.profilesMetaPath = path.join(baseDir, 'profiles_meta');  // Lưu cấu hình profile (JSON)
+        this.archivesDir = path.join(baseDir, 'archives');           // Lưu trữ profile cũ (Safe from Delete All)
         this.extensionsPath = path.join(baseDir, 'extensions');       // Kho extension dùng chung
         this.settingsFile = path.join(baseDir, 'settings.json');      // Cấu hình toàn cục
+        this.archivesMetaFile = path.join(this.archivesDir, 'archives.json'); // Metadata cho lưu trữ
         this.customChromePath = options.chromePath || 'K:\\chromium_src\\src\\out\\Xsurau\\chrome.exe';
 
         // Theo dõi profile đang chạy (RAM only — không cần lưu file)
@@ -70,9 +72,12 @@ class ProfileManager {
     }
 
     _initDirectories() {
-        [this.profilesDataPath, this.profilesMetaPath, this.extensionsPath].forEach(dir => {
+        [this.profilesDataPath, this.profilesMetaPath, this.archivesDir, this.extensionsPath].forEach(dir => {
             if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         });
+        if (!fs.existsSync(this.archivesMetaFile)) {
+            fs.writeFileSync(this.archivesMetaFile, JSON.stringify({}, null, 2));
+        }
     }
 
     _initSettings() {
@@ -255,11 +260,130 @@ class ProfileManager {
                 fs.rmSync(this.profilesDataPath, { recursive: true, force: true });
                 fs.mkdirSync(this.profilesDataPath, { recursive: true });
             }
-            console.log(`[Manager] 🔥 ĐÃ XÓA CỰC MẠNH: ${count} profile và toàn bộ dữ liệu trình duyệt.`);
+            console.log(`[Manager] 🔥 ĐÃ XÓA CỰC MẠNH: ${count} profile và toàn bộ dữ liệu trình duyệt. (Lưu trữ vẫn an toàn)`);
         } catch (err) {
             console.error(`[Manager] ❌ Lỗi khi xóa cực mạnh: ${err.message}`);
         }
         return count;
+    }
+
+    // ========================================================================
+    // LƯU TRỮ (ARCHIVE)
+    // ========================================================================
+
+    /** Lưu trữ các profile vào một nhóm */
+    archiveProfiles(profileIds, groupName) {
+        if (!groupName) throw new Error('Thiếu tên nhóm lưu trữ');
+        const archives = JSON.parse(fs.readFileSync(this.archivesMetaFile, 'utf8'));
+        if (!archives[groupName]) archives[groupName] = [];
+
+        const groupDir = path.join(this.archivesDir, groupName);
+        const groupMetaDir = path.join(groupDir, 'meta');
+        const groupDataDir = path.join(groupDir, 'data');
+
+        if (!fs.existsSync(groupMetaDir)) fs.mkdirSync(groupMetaDir, { recursive: true });
+        if (!fs.existsSync(groupDataDir)) fs.mkdirSync(groupDataDir, { recursive: true });
+
+        let archivedCount = 0;
+        for (const id of profileIds) {
+            if (this.runningProfiles.has(id)) {
+                console.warn(`[Manager] ⚠️ Bỏ qua lưu trữ profile đang chạy: ${id}`);
+                continue;
+            }
+
+            const metaFile = path.join(this.profilesMetaPath, `${id}.json`);
+            const dataDir = path.join(this.profilesDataPath, id);
+
+            if (fs.existsSync(metaFile)) {
+                // Di chuyển meta
+                fs.renameSync(metaFile, path.join(groupMetaDir, `${id}.json`));
+                
+                // Di chuyển data (nếu có)
+                if (fs.existsSync(dataDir)) {
+                    fs.renameSync(dataDir, path.join(groupDataDir, id));
+                }
+
+                if (!archives[groupName].includes(id)) {
+                    archives[groupName].push(id);
+                }
+                archivedCount++;
+            }
+        }
+
+        fs.writeFileSync(this.archivesMetaFile, JSON.stringify(archives, null, 2));
+        console.log(`[Manager] 📦 Đã lưu trữ ${archivedCount} profile vào nhóm [${groupName}]`);
+        return archivedCount;
+    }
+
+    /** Khôi phục các profile từ nhóm lưu trữ */
+    restoreProfiles(profileIds, groupName) {
+        if (!groupName) throw new Error('Thiếu tên nhóm lưu trữ');
+        const archives = JSON.parse(fs.readFileSync(this.archivesMetaFile, 'utf8'));
+        if (!archives[groupName]) return 0;
+
+        const groupDir = path.join(this.archivesDir, groupName);
+        const groupMetaDir = path.join(groupDir, 'meta');
+        const groupDataDir = path.join(groupDir, 'data');
+
+        let restoredCount = 0;
+        const remainingProfiles = [];
+
+        for (const id of archives[groupName]) {
+            if (profileIds.includes(id)) {
+                const archivedMetaFile = path.join(groupMetaDir, `${id}.json`);
+                const archivedDataDir = path.join(groupDataDir, id);
+
+                if (fs.existsSync(archivedMetaFile)) {
+                    // Khôi phục meta
+                    fs.renameSync(archivedMetaFile, path.join(this.profilesMetaPath, `${id}.json`));
+                    
+                    // Khôi phục data (nếu có)
+                    if (fs.existsSync(archivedDataDir)) {
+                        fs.renameSync(archivedDataDir, path.join(this.profilesDataPath, id));
+                    }
+                    restoredCount++;
+                }
+            } else {
+                remainingProfiles.push(id);
+            }
+        }
+
+        if (remainingProfiles.length === 0) {
+            delete archives[groupName];
+            // Xóa folder nhóm nếu trống
+            if (fs.existsSync(groupDir)) fs.rmSync(groupDir, { recursive: true, force: true });
+        } else {
+            archives[groupName] = remainingProfiles;
+        }
+
+        fs.writeFileSync(this.archivesMetaFile, JSON.stringify(archives, null, 2));
+        console.log(`[Manager] ♻️  Đã khôi phục ${restoredCount} profile từ nhóm [${groupName}]`);
+        return restoredCount;
+    }
+
+    /** Lấy danh sách các nhóm lưu trữ và số lượng profile */
+    getArchiveGroups() {
+        if (!fs.existsSync(this.archivesMetaFile)) return [];
+        const archives = JSON.parse(fs.readFileSync(this.archivesMetaFile, 'utf8'));
+        return Object.keys(archives).map(name => ({
+            name,
+            count: archives[name].length,
+            profiles: archives[name]
+        }));
+    }
+
+    /** Xóa vĩnh viễn một nhóm lưu trữ */
+    deleteArchiveGroup(groupName) {
+        const archives = JSON.parse(fs.readFileSync(this.archivesMetaFile, 'utf8'));
+        if (archives[groupName]) {
+            delete archives[groupName];
+            const groupDir = path.join(this.archivesDir, groupName);
+            if (fs.existsSync(groupDir)) fs.rmSync(groupDir, { recursive: true, force: true });
+            fs.writeFileSync(this.archivesMetaFile, JSON.stringify(archives, null, 2));
+            console.log(`[Manager] 🗑️ Đã xóa vĩnh viễn nhóm lưu trữ [${groupName}]`);
+            return true;
+        }
+        return false;
     }
 
     // ========================================================================

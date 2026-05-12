@@ -311,6 +311,10 @@
             <span class="stat-label" style="color: var(--cyan);">SYNCED</span>
             <span class="stat-value" id="syncedCount" style="color: var(--cyan);">0</span>
         </div>
+        <div class="stat-box" style="border-color: var(--orange);">
+            <span class="stat-label" style="color: var(--orange);">ARCHIVED</span>
+            <span class="stat-value" id="archivedCount" style="color: var(--orange);">0</span>
+        </div>
     </div>
 </div>
 
@@ -318,6 +322,7 @@
     <button class="tab-btn active" onclick="switchTab('fastdashboard')">FAST DASHBOARD</button>
     <button class="tab-btn" onclick="switchTab('profiles')">PROFILE MANAGER</button>
     <button class="tab-btn" onclick="switchTab('automation')">AUTOMATION</button>
+    <button class="tab-btn" onclick="switchTab('archives')">ARCHIVES</button>
     <button class="tab-btn" onclick="switchTab('settings')">SETTINGS</button>
 </div>
 
@@ -465,13 +470,20 @@
             <button class="btn btn-run btn-sm" style="border-left: none;" onclick="openLayoutModal()">GRID</button>
         </div>
         <button class="btn btn-danger btn-sm" onclick="closeAllProfiles()">CEASE ALL</button>
+        <button class="btn btn-orange btn-sm" onclick="archiveSelected()">ARCHIVE SELECTED</button>
         <button class="btn btn-ghost btn-sm" onclick="deleteAllProfilesUI()" style="color: var(--red); border-color: var(--red);">PURGE ALL</button>
     </div>
 </div>
 
 <div class="table-container">
     <table>
-        <thead><tr><th>NAME</th><th>STATUS</th><th>PROXY</th><th style="text-align:right;">ACTIONS</th></tr></thead>
+        <thead><tr>
+            <th style="width: 40px;"><input type="checkbox" id="selectAllProfiles" onclick="toggleAllProfileCheck()"></th>
+            <th>NAME</th>
+            <th>STATUS</th>
+            <th>PROXY</th>
+            <th style="text-align:right;">ACTIONS</th>
+        </tr></thead>
         <tbody id="profileTable"></tbody>
     </table>
     <div class="empty-state" id="emptyState" style="display:none;">
@@ -680,6 +692,26 @@
     </div>
 </div> <!-- end tab-settings -->
 
+<!-- ========================================== -->
+<!-- TAB: ARCHIVES -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-archives">
+    <div style="padding: 20px 32px;">
+        <div class="settings-section">
+            <div class="settings-header">
+                <div class="settings-title"><span style="color:var(--accent);">📦</span> ARCHIVED GROUPS</div>
+                <button class="btn btn-ghost btn-sm" onclick="loadArchives()">REFRESH</button>
+            </div>
+            <div class="settings-body">
+                <div id="archivesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                    <!-- Archive groups will load here -->
+                    <div class="empty-state" style="grid-column: 1/-1;">NO ARCHIVED GROUPS FOUND.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
@@ -696,6 +728,112 @@ function switchTab(tabId) {
     if (tabId === 'automation') {
         refreshAutoProfiles();
     }
+    if (tabId === 'archives') {
+        loadArchives();
+    }
+}
+
+// =======================
+// ARCHIVES
+// =======================
+async function loadArchives() {
+    try {
+        const res = await fetch(`${API}/archives`);
+        const groups = await res.json();
+        const list = document.getElementById('archivesList');
+        
+        // Update global counter in header
+        const totalArchived = groups.reduce((acc, g) => acc + g.count, 0);
+        const archivedBadge = document.getElementById('archivedCount');
+        if (archivedBadge) archivedBadge.textContent = totalArchived;
+        
+        if (groups.length === 0) {
+            list.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">NO ARCHIVED GROUPS FOUND.</div>';
+            return;
+        }
+
+        list.innerHTML = groups.map(g => `
+            <div class="settings-section" style="border-color: var(--border);">
+                <div class="settings-header" style="padding: 12px 20px;">
+                    <div class="settings-title" style="font-size: 13px;">${escHtml(g.name)}</div>
+                    <div class="version-tag">${g.count} PROFILES</div>
+                </div>
+                <div class="settings-body" style="padding: 15px; display: flex; gap: 8px;">
+                    <button class="btn btn-run btn-sm" style="flex:1" onclick="restoreArchive('${g.name.replace(/'/g, "\\'")}')">RESTORE</button>
+                    <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteArchiveGroup('${g.name.replace(/'/g, "\\'")}')">WIPE</button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) {
+        showToast('Error loading archives');
+    }
+}
+
+async function archiveSelected() {
+    const checked = Array.from(document.querySelectorAll('.profile-check:checked')).map(c => c.dataset.id);
+    if (checked.length === 0) return showToast('SELECT PROFILES FIRST');
+
+    const groupName = prompt('ENTER ARCHIVE GROUP NAME:');
+    if (!groupName) return;
+
+    try {
+        const res = await fetch(`${API}/archives`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ profileIds: checked, groupName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`ARCHIVED ${data.count} PROFILES`);
+            loadProfiles();
+        } else {
+            showToast('ERROR: ' + data.error);
+        }
+    } catch(e) {
+        showToast('Archive failed');
+    }
+}
+
+async function restoreArchive(groupName) {
+    try {
+        const resList = await fetch(`${API}/archives`);
+        const groups = await resList.json();
+        const group = groups.find(g => g.name === groupName);
+        if (!group) return;
+
+        const res = await fetch(`${API}/archives/restore`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ profileIds: group.profiles, groupName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`RESTORED ${data.count} PROFILES`);
+            loadArchives();
+            loadProfiles();
+        }
+    } catch(e) {
+        showToast('Restore failed');
+    }
+}
+
+async function deleteArchiveGroup(groupName) {
+    if (!confirm(`WIPE ALL DATA FOR [${groupName}]? CANNOT BE UNDONE.`)) return;
+    try {
+        const res = await fetch(`${API}/archives/${encodeURIComponent(groupName)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('ARCHIVE GROUP WIPED');
+            loadArchives();
+        }
+    } catch(e) {
+        showToast('Wipe failed');
+    }
+}
+
+function toggleAllProfileCheck() {
+    const master = document.getElementById('selectAllProfiles').checked;
+    document.querySelectorAll('.profile-check').forEach(c => c.checked = master);
 }
 
 // =======================
@@ -792,6 +930,7 @@ async function loadProfiles() {
             
             return `
             <tr>
+                <td><input type="checkbox" class="profile-check" data-id="${p.id}"></td>
                 <td>
                     <div class="profile-name">${escHtml(p.name)}</div>
                     <div class="profile-id">${p.id}</div>
@@ -1467,6 +1606,7 @@ setInterval(() => {
 // Init
 setInterval(loadProfiles, 5000);
 loadProfiles();
+loadArchives(); // Initial load for counters
 loadFastSettingsUI();
 loadGlobalExts();
 </script>

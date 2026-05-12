@@ -280,6 +280,92 @@ label {
     color: var(--bronze-accent);
 }
 
+/* ============================================================================
+   TABS SYSTEM
+   ============================================================================ */
+.tabs-container {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: rgba(255, 215, 0, 0.05);
+    color: var(--ivory-text);
+    cursor: pointer;
+    font-family: 'Marcellus', serif;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.tab-btn.active {
+    background: var(--glass-bg);
+    border-color: var(--border-color);
+    color: var(--imperial-gold);
+    border-bottom: 2px solid var(--imperial-gold);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* ============================================================================
+   ARCHIVE LISTING
+   ============================================================================ */
+.archive-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+}
+
+.archive-group-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(205, 127, 50, 0.2);
+    padding: 15px;
+    transition: all 0.2s;
+}
+
+.archive-group-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--bronze-accent);
+}
+
+.archive-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.archive-group-name {
+    color: var(--imperial-gold);
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.archive-group-count {
+    font-size: 0.7rem;
+    color: var(--bronze-accent);
+    background: rgba(205, 127, 50, 0.1);
+    padding: 2px 6px;
+}
+
+.archive-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 10px;
+}
+
 @media (max-width: 1000px) {
     .dashboard-layout {
         grid-template-columns: 1fr;

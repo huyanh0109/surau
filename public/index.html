@@ -20,7 +20,16 @@
     <div class="dashboard-layout">
         <!-- Main Content Area -->
         <div class="main-content">
-            <!-- Profile Management -->
+            <!-- Tabs Navigation -->
+            <div class="tabs-container">
+                <button class="tab-btn active" onclick="switchTab('tab-browsers')">Browsers</button>
+                <button class="tab-btn" onclick="switchTab('tab-archives')">Archives</button>
+                <button class="tab-btn" onclick="switchTab('tab-proxy')">Proxy & Settings</button>
+            </div>
+
+            <!-- Tab: Browsers -->
+            <div id="tab-browsers" class="tab-content active">
+                <!-- Profile Management -->
             <div class="card">
                 <div class="card-header">
                     <h2>Profile Management</h2>
@@ -29,6 +38,7 @@
                     <label>Quantity:</label>
                     <input id="count" type="number" value="5" min="1" max="24" style="width: 60px;" />
                     <button class="btn-primary" onclick="createProfiles()">Create</button>
+                    <button class="btn-info" onclick="archiveSelectedProfiles()">Archive Selected</button>
                     <button class="btn-danger" onclick="deleteAllProfiles()">Purge All</button>
                 </div>
             </div>
@@ -101,6 +111,25 @@
                     <button class="btn-info" onclick="showQueueStatus()">Stats</button>
                 </div>
             </div>
+            </div> <!-- End tab-browsers -->
+
+            <!-- Tab: Archives -->
+            <div id="tab-archives" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Archived Groups</h2>
+                        <button class="btn-info" onclick="loadArchives()">Refresh</button>
+                    </div>
+                    <div id="archivesList" class="archive-grid">
+                        <!-- Archives will be loaded here -->
+                        <p style="color: var(--bronze-accent); font-style: italic;">No archived groups found.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Proxy -->
+            <div id="tab-proxy" class="tab-content">
+                <!-- Proxy Management -->
 
             <!-- Proxy Management -->
             <div class="card">
@@ -136,6 +165,7 @@
                     </div>
                 </div>
             </div>
+            </div> <!-- End tab-proxy -->
         </div>
 
         <!-- Sidebar Panel for Results -->
@@ -153,6 +183,96 @@
         const API = 'http://localhost:3500';
         window.openedProfiles = [];
         window.sheetRows = [];
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            const activeBtn = document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            const activeTab = document.getElementById(tabId);
+            if (activeTab) activeTab.classList.add('active');
+
+            if (tabId === 'tab-archives') loadArchives();
+        }
+
+        async function loadArchives() {
+            const list = document.getElementById('archivesList');
+            try {
+                const res = await fetch(`${API}/archives`);
+                const groups = await res.json();
+                
+                if (groups.length === 0) {
+                    list.innerHTML = '<p style="color: var(--bronze-accent); font-style: italic;">No archived groups found.</p>';
+                    return;
+                }
+
+                list.innerHTML = groups.map(g => `
+                    <div class="archive-group-card">
+                        <div class="archive-group-header">
+                            <span class="archive-group-name">${g.name}</span>
+                            <span class="archive-group-count">${g.count} Profiles</span>
+                        </div>
+                        <div class="archive-actions">
+                            <button class="btn-success" onclick="restoreArchive('${g.name}')">Restore</button>
+                            <button class="btn-danger" onclick="deleteArchiveGroup('${g.name}')">Wipe</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) { show('Archive Error: ' + err.message); }
+        }
+
+        async function archiveSelectedProfiles() {
+            if (window.openedProfiles.length === 0) return alert('Please launch profiles first, then close them to archive.');
+            // Note: Logic logic is simplified. In a real app, we'd have a selection list.
+            // For now, let's archive all current active profiles (if they are closed).
+            const groupName = prompt('Enter Archive Group Name:');
+            if (!groupName) return;
+
+            const profileIds = window.openedProfiles.map(p => p.profile_id);
+            try {
+                const res = await fetch(`${API}/archives`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileIds, groupName })
+                });
+                const data = await res.json();
+                show(`✅ Archived ${data.count} profiles to [${groupName}]`);
+                loadArchives();
+            } catch (err) { show('Error: ' + err.message); }
+        }
+
+        async function restoreArchive(groupName) {
+            try {
+                // Get profile list for this group first (stored in groups metadata)
+                const resList = await fetch(`${API}/archives`);
+                const groups = await resList.json();
+                const group = groups.find(g => g.name === groupName);
+                if (!group) return;
+
+                const res = await fetch(`${API}/archives/restore`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileIds: group.profiles, groupName })
+                });
+                const data = await res.json();
+                show(`✅ Restored ${data.count} profiles from [${groupName}]`);
+                loadArchives();
+            } catch (err) { show('Error: ' + err.message); }
+        }
+
+        async function deleteArchiveGroup(groupName) {
+            if (!confirm(`Permanently delete group [${groupName}] and ALL its data? This cannot be undone.`)) return;
+            try {
+                const res = await fetch(`${API}/archives/${groupName}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    show(`🗑️ Group [${groupName}] wiped.`);
+                    loadArchives();
+                }
+            } catch (err) { show('Error: ' + err.message); }
+        }
 
         async function restoreState() {
             try {
