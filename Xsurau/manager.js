@@ -124,9 +124,29 @@ class ProfileManager {
 
     /** Thêm 1 extension vào danh sách toàn cục */
     addGlobalExtension(extPath) {
+        if (!fs.existsSync(extPath)) return this.getGlobalExtensions();
+
+        let finalPath = extPath;
+        const targetDir = this.extensionsPath; // G:\XsurauData\extensions
+
+        // Nếu path chưa nằm trong thư mục extensions của G:, tiến hành copy
+        if (!extPath.toLowerCase().startsWith(targetDir.toLowerCase())) {
+            const folderName = path.basename(extPath);
+            const dest = path.join(targetDir, folderName);
+            
+            try {
+                console.log(`[Manager] 📂 Đang copy extension sang ổ G: ${extPath} -> ${dest}`);
+                // fs.cpSync có từ Node 16.7.0+, hỗ trợ copy đệ quy
+                fs.cpSync(extPath, dest, { recursive: true, overwrite: true });
+                finalPath = dest;
+            } catch (e) {
+                console.error(`[Manager] ❌ Lỗi copy extension: ${e.message}`);
+            }
+        }
+
         const exts = this.getGlobalExtensions();
-        if (!exts.includes(extPath)) {
-            exts.push(extPath);
+        if (!exts.includes(finalPath)) {
+            exts.push(finalPath);
             this.setGlobalExtensions(exts);
         }
         return exts;

@@ -14,7 +14,7 @@ const { registerPhoneRoutes } = require('./phone');
 const app = express();
 const manager = new ProfileManager();
 const automationEngine = new AutomationEngine(manager);
-const PORT = 3333;
+const PORT = process.env.API_PORT || 3333;
 
 app.use(cors());
 app.use(express.json());

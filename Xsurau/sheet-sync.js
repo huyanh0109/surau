@@ -1,5 +1,5 @@
 /**
- * Sync Sheet helper — Lấy data từ Google Sheet qua Surau API (localhost:3500)
+ * Sync Sheet helper — Lấy data từ Google Sheet qua Surau API (localhost:API_PORT)
  * để map vào profileIds khi chạy automation trong Xsurau.
  *
  * Cách dùng qua API:
@@ -20,7 +20,7 @@ function registerSheetRoutes(app, automationEngine) {
             const { status, limit = 100, sheetType = 'main' } = req.query;
 
             // Gọi Surau Sheet API
-            let url = `http://localhost:3500/sheet/rows?limit=${limit}`;
+            let url = `http://localhost:${process.env.API_PORT || 3333}/sheet/rows?limit=${limit}`;
             if (status) url += `&status=${encodeURIComponent(status)}`;
             if (sheetType) url += `&sheetType=${sheetType}`;
 
@@ -48,7 +48,7 @@ function registerSheetRoutes(app, automationEngine) {
             if (!profileIds?.length) return res.status(400).json({ error: 'Thiếu profileIds' });
 
             // Lấy rows từ sheet
-            let url = `http://localhost:3500/sheet/rows?limit=${limit || profileIds.length}`;
+            let url = `http://localhost:${process.env.API_PORT || 3333}/sheet/rows?limit=${limit || profileIds.length}`;
             if (status) url += `&status=${encodeURIComponent(status)}`;
 
             const response = await fetch(url);

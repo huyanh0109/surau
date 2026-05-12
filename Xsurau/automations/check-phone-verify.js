@@ -123,7 +123,7 @@ async function run(page, job, signal, logger) {
 
 async function getNextPhoneFromQueue(profileId) {
     try {
-        const res = await fetch(`http://localhost:1337/api/phone/queue/next?profileId=${profileId}`);
+        const res = await fetch(`http://localhost:${process.env.API_PORT || 3333}/api/phone/queue/next?profileId=${profileId}`);
         const data = await res.json();
         if (data.error) return null;
         return data;
@@ -132,7 +132,7 @@ async function getNextPhoneFromQueue(profileId) {
 
 async function markPhoneInQueue(phoneNumber, profileId, isValid) {
     try {
-        await fetch('http://localhost:1337/api/phone/queue/mark', {
+        await fetch(`http://localhost:${process.env.API_PORT || 3333}/api/phone/queue/mark`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phoneNumber, profileId: Number(profileId), isValid }),
@@ -152,7 +152,7 @@ async function checkIfPhoneInvalid(page) {
 }
 
 async function getVerificationCode(phoneNumber, profileId) {
-    const apiUrl = `http://localhost:1337/api/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
+    const apiUrl = `http://localhost:${process.env.API_PORT || 3333}/api/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
     for (let i = 1; i <= 5; i++) {
         try {
             const res = await fetch(apiUrl);
@@ -167,7 +167,7 @@ async function getVerificationCode(phoneNumber, profileId) {
 
 async function updatePhoneInSheet(gmail, phoneNumber) {
     try {
-        await fetch('http://localhost:1337/api/sheet/update-phone', {
+        await fetch(`http://localhost:${process.env.API_PORT || 3333}/api/sheet/update-phone`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ gmail, phone: phoneNumber }),

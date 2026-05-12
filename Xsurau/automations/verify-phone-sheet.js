@@ -64,7 +64,7 @@ async function run(page, job, signal, logger) {
 }
 
 async function getVerificationCode(phoneNumber, profileId) {
-    const apiUrl = `http://localhost:1337/api/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
+    const apiUrl = `http://localhost:${process.env.API_PORT || 3333}/api/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
     for (let i = 1; i <= 5; i++) {
         try {
             const res = await fetch(apiUrl);
@@ -86,7 +86,7 @@ function getCurrentDateGMT7() {
 
 async function updateSheetAfterVerification(gmail) {
     try {
-        await fetch('http://localhost:1337/api/sheet/update-note-and-date', {
+        await fetch(`http://localhost:${process.env.API_PORT || 3333}/api/sheet/update-note-and-date`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ gmail, note: 'done', dateRestore: getCurrentDateGMT7() }),

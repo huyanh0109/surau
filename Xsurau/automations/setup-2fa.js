@@ -195,7 +195,7 @@ async function run(page, job, signal, logger) {
             if (profileEmail) {
                 associatedEmail = profileEmail;
                 // Cập nhật qua Surau Sheet API (localhost:3500)
-                const resp = await fetch('http://localhost:1337/api/sheet/update-2fa-key', {
+                const resp = await fetch(`http://localhost:${process.env.API_PORT || 3333}/api/sheet/update-2fa-key`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ gmail: associatedEmail, secretKey }),
@@ -205,7 +205,7 @@ async function run(page, job, signal, logger) {
                 // Fallback: dùng email từ sheetRow nếu có
                 if (job.sheetRow?.Gmail) {
                     associatedEmail = job.sheetRow.Gmail;
-                    const resp = await fetch('http://localhost:1337/api/sheet/update-2fa-key', {
+                    const resp = await fetch(`http://localhost:${process.env.API_PORT || 3333}/api/sheet/update-2fa-key`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ gmail: associatedEmail, secretKey }),
