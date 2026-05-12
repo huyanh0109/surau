@@ -367,9 +367,9 @@ registerPhoneRoutes(app);
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'ui', 'index.html')));
 
 app.listen(PORT, () => {
-    console.log(`\n╔══════════════════════════════════════════════════╗`);
-    console.log(`║   🔥 XSURAU ANTIDETECT MANAGER v2.0             ║`);
-    console.log(`║   Server đang chạy tại: http://localhost:${PORT}   ║`);
+    console.log(`╔══════════════════════════════════════════════════╗`);
+    console.log(`║   🔥 XSURAU ANTIDETECT MANAGER v2.1.3           ║`);
+    console.log(`║   Server đang chạy tại: http://localhost:3333   ║`);
     console.log(`║   Mở trình duyệt để quản lý profile!            ║`);
     console.log(`╚══════════════════════════════════════════════════╝\n`);
 });

@@ -7,21 +7,21 @@ const fs = require('fs');
 app.commandLine.appendSwitch('no-proxy-server');
 app.commandLine.appendSwitch('disable-http-cache');
 
-let logPath = null;
+let logPath = path.join(__dirname, 'debug_log.txt');
 function logToFile(data) {
-  if (!logPath) {
-    try { logPath = path.join(app.getPath('userData'), 'server_log.txt'); } catch(e) { return; }
-  }
   try { fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${data}\n`); } catch(e) {}
 }
 
-// KHÓA DUY NHẤT 1 BẢN CHẠY (Single Instance Lock)
+logToFile('Script loaded at top level');
+
+// KHÓA DUY NHẤT 1 BẢN CHẠY
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
+  logToFile('Lock not obtained, quitting');
   app.quit();
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
-    // Nếu ai đó cố gắng mở bản thứ 2, hãy tập trung vào cửa sổ hiện tại
+    logToFile('Second instance attempted');
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
