@@ -289,6 +289,15 @@
         .twofa-panel { border-color: var(--orange) !important; }
         .twofa-panel::before, .twofa-panel::after { border-color: var(--orange) !important; }
         #twofaResults div:hover { transform: translateY(-2px); border-color: var(--accent) !important; box-shadow: 0 5px 15px rgba(245,176,0,0.2); }
+
+        /* PHONE LOOKUP STYLES */
+        .phone-lookup-panel { border-color: var(--cyan) !important; }
+        .phone-lookup-panel::before, .phone-lookup-panel::after { border-color: var(--cyan) !important; }
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
     </style>
 </head>
 <body>
@@ -427,6 +436,28 @@
                     <div style="flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border); background: #050505;">
                         <div style="padding: 8px 15px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); font-size: 9px; color: var(--text-muted); font-weight: 900; text-align: center;">6-DIGIT CODES</div>
                         <div id="twofaResults" style="flex: 1; display: flex; flex-direction: column; padding: 15px 0;">
+                            <div style="text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 10px; text-transform: uppercase;">Awaiting input...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PHONE CODE LOOKUP (LINE-BY-LINE DESIGN) -->
+            <div class="fd-panel phone-lookup-panel" style="border-color: var(--cyan); padding: 0; margin-top: 20px; min-height: 300px;">
+                <div style="background: rgba(0, 170, 170, 0.05); padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <div style="color: var(--cyan); font-size: 13px; font-weight: 900; letter-spacing: 2px;">PHONE CODE LOOKUP</div>
+                    <button class="btn btn-sm" style="border-color: var(--cyan); color: var(--cyan);" onclick="lookupPhoneCodes()">LOOKUP CODES</button>
+                </div>
+                <div style="padding: 20px; display: flex; gap: 0; align-items: stretch;">
+                    <!-- LEFT: PHONE NUMBERS INPUT -->
+                    <div style="flex: 3; display: flex; flex-direction: column; border: 1px solid var(--border); border-right: none; background: #000;">
+                        <div style="padding: 8px 15px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); font-size: 9px; color: var(--text-muted); font-weight: 900;">INPUT PHONE NUMBERS (ONE PER LINE)</div>
+                        <textarea id="phoneInput" style="flex: 1; width: 100%; min-height: 250px; background: transparent; border: none; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 14px; padding: 15px; outline: none; resize: none; line-height: 40px; white-space: pre; overflow-y: hidden;" placeholder="Paste phone numbers (e.g. 7196262605)..." oninput="handlePhoneInput()"></textarea>
+                    </div>
+                    <!-- RIGHT: CODES OUTPUT -->
+                    <div style="flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border); background: #050505;">
+                        <div style="padding: 8px 15px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); font-size: 9px; color: var(--text-muted); font-weight: 900; text-align: center;">OTP CODES</div>
+                        <div id="phoneResults" style="flex: 1; display: flex; flex-direction: column; padding: 15px 0;">
                             <div style="text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 10px; text-transform: uppercase;">Awaiting input...</div>
                         </div>
                     </div>
@@ -1602,6 +1633,126 @@ setInterval(() => {
         update2FA();
     }
 }, 1000);
+
+// =======================
+// PHONE LOOKUP LOGIC
+// =======================
+window.phoneLookupState = [];
+
+function handlePhoneInput() {
+    const input = document.getElementById('phoneInput').value;
+    const container = document.getElementById('phoneResults');
+    
+    if (input.trim() === '') {
+        window.phoneLookupState = [];
+        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 10px; text-transform: uppercase;">Awaiting input...</div>';
+        return;
+    }
+
+    const lines = input.split('\n').map(s => s.trim());
+    const newState = [];
+
+    lines.forEach((line, index) => {
+        if (!line) {
+            newState.push({ number: '', status: 'empty', code: null, error: null });
+            return;
+        }
+
+        const cleanNum = line.replace(/\D/g, '');
+        const prevState = window.phoneLookupState[index];
+
+        if (prevState && prevState.number === cleanNum) {
+            newState.push(prevState);
+        } else {
+            newState.push({ number: cleanNum, status: 'idle', code: null, error: null });
+        }
+    });
+
+    window.phoneLookupState = newState;
+    renderPhoneResults();
+}
+
+function renderPhoneResults() {
+    const container = document.getElementById('phoneResults');
+    if (window.phoneLookupState.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 10px; text-transform: uppercase;">Awaiting input...</div>';
+        return;
+    }
+
+    container.innerHTML = window.phoneLookupState.map((item, index) => {
+        if (item.status === 'empty') {
+            return '<div style="height: 40px;"></div>';
+        }
+
+        let content = '';
+        if (item.status === 'idle') {
+            content = `<div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">AWAITING LOOKUP</div>`;
+        } else if (item.status === 'loading') {
+            content = `<div style="font-size: 11px; font-weight: bold; color: var(--text-secondary); text-transform: uppercase; animation: pulse 1.5s infinite;">WAITING...</div>`;
+        } else if (item.status === 'success') {
+            content = `<div style="font-size: 18px; font-weight: 900; color: var(--accent); letter-spacing: 4px; font-family: 'Outfit', sans-serif;">${item.code}</div>`;
+        } else if (item.status === 'error') {
+            content = `<div style="font-size: 11px; font-weight: bold; color: var(--red); text-transform: uppercase;" title="${escHtml(item.error)}">ERR/RETRY</div>`;
+        }
+
+        return `
+            <div style="height: 40px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(255,255,255,0.03); cursor: pointer; transition: all 0.2s;" 
+                 onclick="phoneItemClick(${index})" 
+                 onmouseover="this.style.background='rgba(0,170,170,0.05)'" 
+                 onmouseout="this.style.background='transparent'">
+                ${content}
+            </div>
+        `;
+    }).join('');
+}
+
+async function lookupPhoneCodes() {
+    if (window.phoneLookupState.length === 0) return;
+
+    const promises = window.phoneLookupState.map(async (item, index) => {
+        if (item.status === 'empty' || item.status === 'success') return;
+        await fetchSinglePhoneCode(index);
+    });
+
+    await Promise.all(promises);
+}
+
+async function fetchSinglePhoneCode(index) {
+    const item = window.phoneLookupState[index];
+    if (!item || item.status === 'empty') return;
+
+    item.status = 'loading';
+    item.error = null;
+    renderPhoneResults();
+
+    try {
+        const res = await fetch(`${API}/phone/lookup?number=${item.number}`);
+        const data = await res.json();
+
+        if (data.error) {
+            item.status = 'error';
+            item.error = data.error;
+        } else {
+            item.status = 'success';
+            item.code = data.code || '—';
+        }
+    } catch (e) {
+        item.status = 'error';
+        item.error = e.message;
+    }
+    renderPhoneResults();
+}
+
+function phoneItemClick(index) {
+    const item = window.phoneLookupState[index];
+    if (!item || item.status === 'empty') return;
+
+    if (item.status === 'success') {
+        copyToClipboard(item.code);
+    } else if (item.status === 'error' || item.status === 'idle') {
+        fetchSinglePhoneCode(index);
+    }
+}
 
 // Init
 setInterval(loadProfiles, 5000);
