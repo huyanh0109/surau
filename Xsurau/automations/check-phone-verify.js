@@ -3,23 +3,20 @@ const { sleep } = require('./helpers');
 const API_BASE = `http://localhost:${process.env.API_PORT || 3333}`;
 
 /**
- * Check Phone Verify — port 1-to-1 từ script gốc TypeScript (Surau).
+ * Check Phone Verify — dựa trên script gốc TypeScript (Surau).
  *
- * Logic chính:
- *  1. Kiểm tra #phoneNumberId tồn tại trên trang (không có → throw)
- *  2. Vòng lặp tối đa 70 lần: lấy số từ queue → nhập → check lỗi → nếu ok đọc SĐT từ trang
- *  3. Lấy code từ API, điền code, submit
- *  4. Mark valid + ghi sheet nếu có Gmail
+ * 2 điều chỉnh cho Xsurau (không có trong script gốc vì Surau xử lý ở tầng server):
+ *  A. Auto-load queue nếu trống (Surau tự load, Xsurau không)
+ *  B. Tìm đúng tab có #phoneNumberId (Surau đảm bảo page đúng, Xsurau không)
  *
- * Khác biệt so với bản cũ:
- *  - Không có ensureQueueLoaded/reload (giống gốc: hết số thì dừng)
- *  - Không có findCorrectPageInContext (giống gốc: dùng page được truyền vào)
- *  - Chỉ dùng #phoneNumberId (giống gốc)
- *  - Signal abort được check trong loop
- *  - Submit dùng 4 phương pháp fallback giống gốc
+ * Core logic giữ nguyên 1-to-1 với script gốc.
  */
+
+// Dùng Promise chung để tránh nhiều profile cùng load queue 1 lúc
+let _queueLoadPromise = null;
+
 async function run(page, job, signal, logger) {
-    const log = (msg, level = 'info') => {
+    const log = (msg) => {
         logger?.(msg);
         console.log(`[P${job.profileId}] ${msg}`);
     };
@@ -29,24 +26,68 @@ async function run(page, job, signal, logger) {
             return { profileId: job.profileId, success: false, error: 'Stopped' };
         }
 
-        // 1. Kiểm tra ô nhập SĐT có tồn tại không
-        const phoneInputSelector = '#phoneNumberId';
-        log(`Kiểm tra ô nhập SĐT (${phoneInputSelector})...`);
-        const phoneInputExists = await page.$(phoneInputSelector);
+        // A. Auto-load queue nếu trống (Xsurau cần, Surau không cần)
+        await ensureQueueLoaded(log);
 
-        if (!phoneInputExists) {
+        if (signal?.aborted) {
+            return { profileId: job.profileId, success: false, error: 'Stopped' };
+        }
+
+        // B. Tìm đúng tab có #phoneNumberId (tối đa 30s)
+        //    Xsurau có thể trả về tab sai khi browser có nhiều tab mở
+        const phoneInputSelector = '#phoneNumberId';
+        log(`Tìm tab có ô nhập SĐT (${phoneInputSelector})...`);
+
+        let activePage = page;
+        const deadline = Date.now() + 30000;
+        let found = false;
+
+        while (Date.now() < deadline) {
+            if (signal?.aborted) {
+                return { profileId: job.profileId, success: false, error: 'Stopped' };
+            }
+            // Thử tất cả tab trong context
+            try {
+                const allPages = page.context().pages();
+                for (const p of allPages) {
+                    try {
+                        const el = await p.$(phoneInputSelector);
+                        if (el && await el.isVisible({ timeout: 300 })) {
+                            activePage = p;
+                            found = true;
+                            if (activePage !== page) {
+                                log(`⚠️ Tab ban đầu sai, chuyển sang: ${activePage.url()}`);
+                                try { await activePage.bringToFront(); } catch { }
+                            }
+                            break;
+                        }
+                    } catch { }
+                }
+            } catch { }
+
+            if (found) break;
+            await sleep(500);
+        }
+
+        if (!found) {
             log(`❌ Không có ô nhập số điện thoại (${phoneInputSelector})`);
             throw new Error(`Không có ô nhập số điện thoại (${phoneInputSelector})`);
         }
         log(`✅ Tìm thấy ô nhập SĐT`);
 
-        // 2. Vòng lặp lấy & check SĐT (tối đa 70 lần)
+        // Dùng đúng tab từ đây trở đi
+        page = activePage;
+
+        // ============================================================
+        // CORE LOGIC — giữ nguyên 1-to-1 với script gốc TypeScript
+        // ============================================================
+
         let usablePhone = null;
         const maxAttempts = 70;
         let attempt = 0;
 
         while (attempt < maxAttempts && !usablePhone) {
-            // Check abort signal
+            // Check abort signal (giống gốc: check đầu mỗi iteration)
             if (signal?.aborted) {
                 log(`⏹️ Dừng lại theo signal tại lần thử ${attempt}`);
                 return { profileId: job.profileId, success: false, error: 'Stopped' };
@@ -66,7 +107,7 @@ async function run(page, job, signal, logger) {
             const phone = phoneData.phoneNumber;
             log(`Checking: ${phone}`);
 
-            // Xóa nội dung cũ & nhập SĐT
+            // Xóa input cũ & nhập SĐT mới
             await page.click(phoneInputSelector, { clickCount: 3 });
             await page.keyboard.press('Backspace');
             await page.type(phoneInputSelector, phone, { delay: 10 });
@@ -84,10 +125,9 @@ async function run(page, job, signal, logger) {
                 log(`⚠️ Không click được nút Next lần 1: ${err.message}`);
             }
 
-            // Đợi 2s để Google hiển thị lỗi (nếu có)
             await sleep(2000);
 
-            // Kiểm tra lỗi sau click lần 1
+            // Kiểm tra lỗi sau click 1
             const isInvalid = await checkIfPhoneInvalid(page);
             if (isInvalid) {
                 log(`✗ ${phone} (Invalid sau click 1)`);
@@ -95,20 +135,18 @@ async function run(page, job, signal, logger) {
                 continue;
             }
 
-            // Bước tiếp theo: click Next lần 2 + đọc SĐT từ trang
+            // Bước tiếp: click Next lần 2 + đọc SĐT thực từ trang
             try {
-                // Click Next lần 2
                 const nextBtn2 = await page.waitForSelector('button[type="button"]', { state: 'visible', timeout: 10000 });
-                if (nextBtn2) {
-                    await nextBtn2.click();
-                }
+                if (nextBtn2) await nextBtn2.click();
+
                 await sleep(2000);
 
                 if (signal?.aborted) {
                     return { profileId: job.profileId, success: false, error: 'Stopped' };
                 }
 
-                // Kiểm tra lỗi sau click lần 2
+                // Kiểm tra lỗi sau click 2
                 const hasErrorAfterClick2 = await checkIfPhoneInvalid(page);
                 if (hasErrorAfterClick2) {
                     log(`✗ ${phone} (Invalid sau click 2)`);
@@ -117,7 +155,7 @@ async function run(page, job, signal, logger) {
                     continue;
                 }
 
-                // Đọc SĐT thực tế Google gửi code đến từ trang
+                // Đọc SĐT thực tế Google gửi code đến (format: (XXX) XXX-XXXX)
                 const actualPhone = await page.evaluate(() => {
                     const bodyText = document.body.innerText || '';
                     const match = bodyText.match(/\((\d{3})\)\s*(\d{3})-(\d{4})/);
@@ -143,7 +181,6 @@ async function run(page, job, signal, logger) {
             }
         }
 
-        // Hết loop mà không có số hợp lệ
         if (!usablePhone) {
             throw new Error(`Không tìm được SĐT hợp lệ sau ${attempt} lần thử`);
         }
@@ -152,13 +189,13 @@ async function run(page, job, signal, logger) {
             return { profileId: job.profileId, success: false, error: 'Stopped' };
         }
 
-        // 3. Lấy verification code
+        // Lấy verification code
         log(`Lấy code cho ${usablePhone}...`);
         const verificationCode = await getVerificationCode(usablePhone, job.profileId);
         if (!verificationCode) throw new Error('Không lấy được verification code');
         log(`Code: ${verificationCode}`);
 
-        // 4. Điền code
+        // Điền code
         await page.waitForSelector('[aria-label="Enter code"]', { state: 'visible', timeout: 30000 });
         await page.type('[aria-label="Enter code"]', verificationCode, { delay: 20 });
         await sleep(1000);
@@ -167,18 +204,15 @@ async function run(page, job, signal, logger) {
             return { profileId: job.profileId, success: false, error: 'Stopped' };
         }
 
-        // 5. Submit — thử 4 cách giống script gốc
-        log(`Tìm nút submit...`);
+        // Submit — 4 cách fallback giống script gốc
         let submitButton = null;
         let clickMethod = '';
 
-        // Cách 1: button text "Next"
         try {
             submitButton = await page.waitForSelector('button::-p-text(Next)', { state: 'visible', timeout: 3000 });
             clickMethod = 'text-selector';
         } catch { }
 
-        // Cách 2: jsname="V67Aae"
         if (!submitButton) {
             try {
                 submitButton = await page.waitForSelector('button[jsname="V67Aae"]', { state: 'visible', timeout: 3000 });
@@ -186,7 +220,6 @@ async function run(page, job, signal, logger) {
             } catch { }
         }
 
-        // Cách 3: button:not([disabled])
         if (!submitButton) {
             try {
                 submitButton = await page.waitForSelector('button:not([disabled])', { state: 'visible', timeout: 3000 });
@@ -194,7 +227,6 @@ async function run(page, job, signal, logger) {
             } catch { }
         }
 
-        // Cách 4: evaluate click
         if (!submitButton) {
             try {
                 const clicked = await page.evaluate(() => {
@@ -210,8 +242,7 @@ async function run(page, job, signal, logger) {
         if (submitButton && clickMethod !== 'evaluate-click') {
             try {
                 await submitButton.click();
-            } catch (err) {
-                // Fallback evaluate
+            } catch {
                 await page.evaluate(() => {
                     const btn = Array.from(document.querySelectorAll('button'))
                         .find(b => b.textContent?.trim().toLowerCase() === 'next' && !b.disabled);
@@ -224,10 +255,10 @@ async function run(page, job, signal, logger) {
 
         await sleep(2000);
 
-        // 6. Mark valid
+        // Mark valid
         await markPhoneInQueue(usablePhone, job.profileId, true);
 
-        // 7. Ghi SĐT vào sheet nếu có Gmail
+        // Ghi sheet nếu có Gmail
         if (job.sheetRow?.Gmail) {
             log(`📋 Cập nhật sheet: Gmail=${job.sheetRow.Gmail}, Phone=${usablePhone}`);
             await updatePhoneInSheet(job.sheetRow.Gmail, usablePhone);
@@ -247,20 +278,49 @@ async function run(page, job, signal, logger) {
     }
 }
 
-// ============ HELPERS ============
+// ============================================================
+// HELPERS
+// ============================================================
+
+/**
+ * Auto-load queue nếu trống.
+ * Xsurau cần vì không có server tự quản lý queue như Surau.
+ */
+async function ensureQueueLoaded(log) {
+    try {
+        const res = await fetch(`${API_BASE}/api/phone/queue/status`);
+        const status = await res.json();
+        if (status.available > 0) {
+            log(`Queue đã có sẵn ${status.total} SĐT (available: ${status.available})`);
+            return;
+        }
+    } catch { }
+
+    if (!_queueLoadPromise) {
+        log('Queue trống, đang load SĐT từ sheet...');
+        _queueLoadPromise = fetch(`${API_BASE}/api/phone/queue/load`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ days: 5, limit: 70 }),
+        })
+            .then(r => r.json())
+            .then(data => { log(`Load queue xong: ${data.total || 0} SĐT`); return data; })
+            .catch(() => null)
+            .finally(() => { _queueLoadPromise = null; });
+    } else {
+        log('Đang chờ profile khác load queue xong...');
+    }
+
+    await _queueLoadPromise;
+}
 
 async function getNextPhoneFromQueue(profileId) {
     try {
-        const apiUrl = `${API_BASE}/api/phone/queue/next?profileId=${profileId}`;
-        const res = await fetch(apiUrl);
+        const res = await fetch(`${API_BASE}/api/phone/queue/next?profileId=${profileId}`);
         const data = await res.json();
-        if (data.error) {
-            console.log(`[Queue] Không còn SĐT: ${data.error}`);
-            return null;
-        }
+        if (data.error) return null;
         return data;
-    } catch (err) {
-        console.error(`[Queue] Lỗi getNextPhone: ${err.message}`);
+    } catch {
         return null;
     }
 }
@@ -301,13 +361,10 @@ async function getVerificationCode(phoneNumber, profileId) {
                 await sleep(2000);
                 continue;
             }
-            const responseText = await res.text();
+            const text = await res.text();
             let data;
-            try { data = JSON.parse(responseText); }
-            catch { await sleep(2000); continue; }
-
+            try { data = JSON.parse(text); } catch { await sleep(2000); continue; }
             if (data.code) return data.code;
-
             console.log(`[Code] Chưa có code, thử lại (${attempt}/${maxRetries})...`);
             await sleep(2000);
         } catch (err) {
@@ -320,19 +377,12 @@ async function getVerificationCode(phoneNumber, profileId) {
 
 async function updatePhoneInSheet(gmail, phoneNumber) {
     try {
-        const res = await fetch(`${API_BASE}/api/sheet/update-phone`, {
+        await fetch(`${API_BASE}/api/sheet/update-phone`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ gmail, phone: phoneNumber }),
         });
-        if (res.ok) {
-            console.log(`[Sheet] Đã cập nhật SĐT ${phoneNumber} cho ${gmail}`);
-        } else {
-            console.warn(`[Sheet] Không cập nhật được cho ${gmail}`);
-        }
-    } catch (err) {
-        console.error(`[Sheet] Lỗi: ${err.message}`);
-    }
+    } catch { }
 }
 
 module.exports = { name: 'check-phone-verify', run };
