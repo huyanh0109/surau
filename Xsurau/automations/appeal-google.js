@@ -1,5 +1,7 @@
 const { sleep } = require('./helpers');
 
+const API_BASE = `http://localhost:${process.env.API_PORT || 3333}`;
+
 /** Appeal (khiếu nại) tài khoản Google bị disable */
 async function run(page, job, signal, logger) {
     const log = (msg) => { logger?.(msg); console.log(`[P${job.profileId}] ${msg}`); };
@@ -86,13 +88,19 @@ async function run(page, job, signal, logger) {
                 const now = new Date();
                 const gmt7 = new Date(now.getTime() + 7 * 3600000);
                 const currentDate = `${gmt7.getUTCDate()}/${gmt7.getUTCMonth() + 1}/${String(gmt7.getUTCFullYear()).slice(-2)}`;
-                const resp = await fetch('http://localhost:1337/api/sheet/update-note-and-appeal', {
+                const resp = await fetch(`${API_BASE}/api/sheet/update-note-and-appeal`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ gmail, note: 'appealing', dateAppeal: currentDate }),
                 });
                 sheetUpdateResult = await resp.json();
-            } catch (e) { sheetUpdateResult = { success: false, error: e.message }; }
+                log(sheetUpdateResult?.success ? `📋 Sheet đã cập nhật: Gmail "${gmail}" → note=appealing, date=${currentDate}` : `⚠️ Sheet không tìm thấy Gmail "${gmail}"`);
+            } catch (e) {
+                sheetUpdateResult = { success: false, error: e.message };
+                log(`❌ Lỗi ghi sheet: ${e.message}`);
+            }
+        } else {
+            log('⚠️ Không có Gmail trong sheetRow. Hãy sync sheet trước khi chạy để ghi kết quả appeal.');
         }
 
         log('✅ Appeal đã gửi thành công!');
