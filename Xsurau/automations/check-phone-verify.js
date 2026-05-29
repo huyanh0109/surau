@@ -96,6 +96,29 @@ async function run(page, job, signal, logger) {
             attempt++;
             log(`=== Lần thử ${attempt}/${maxAttempts} ===`);
 
+            // Đầu mỗi vòng: kiểm tra #phoneNumberId còn visible không
+            // (trang có thể đã điều hướng sang trang nhập code sau lần thử trước)
+            const inputStillVisible = await page.locator(phoneInputSelector).isVisible({ timeout: 2000 }).catch(() => false);
+            if (!inputStillVisible) {
+                // Tìm lại qua tất cả tab trong context (timeout 5s)
+                log(`Tab hiện tại không còn ô nhập SĐT, tìm lại qua các tab...`);
+                let refound = false;
+                try {
+                    const allPages = page.context().pages();
+                    for (const p of allPages) {
+                        try {
+                            const vis = await p.locator(phoneInputSelector).isVisible({ timeout: 1000 }).catch(() => false);
+                            if (vis) { page = p; refound = true; try { await page.bringToFront(); } catch { } break; }
+                        } catch { }
+                    }
+                } catch { }
+                if (!refound) {
+                    log(`❌ Không còn tìm thấy ô nhập SĐT trên bất kỳ tab nào. Dừng.`);
+                    break;
+                }
+                log(`✅ Tìm lại được ô nhập SĐT trên tab: ${page.url()}`);
+            }
+
             // Lấy số tiếp theo từ queue
             const phoneData = await getNextPhoneFromQueue(job.profileId);
 
@@ -107,8 +130,12 @@ async function run(page, job, signal, logger) {
             const phone = phoneData.phoneNumber;
             log(`Checking: ${phone}`);
 
-            // Xóa input cũ & nhập SĐT mới
-            await page.click(phoneInputSelector, { clickCount: 3 });
+            // Xóa input cũ & nhập SĐT mới (dùng locator để không bị treo)
+            try {
+                await page.locator(phoneInputSelector).click({ clickCount: 3, timeout: 5000 });
+            } catch {
+                await page.click(phoneInputSelector, { clickCount: 3 });
+            }
             await page.keyboard.press('Backspace');
             await page.type(phoneInputSelector, phone, { delay: 10 });
             await sleep(500);
@@ -156,17 +183,24 @@ async function run(page, job, signal, logger) {
                 }
 
                 // Đọc SĐT thực tế Google gửi code đến (format: (XXX) XXX-XXXX)
-                const actualPhone = await page.evaluate(() => {
+                let actualPhone = await page.evaluate(() => {
                     const bodyText = document.body.innerText || '';
                     const match = bodyText.match(/\((\d{3})\)\s*(\d{3})-(\d{4})/);
                     return match ? match[1] + match[2] + match[3] : null;
                 });
 
                 if (!actualPhone) {
-                    log(`⚠️ Không đọc được SĐT trên trang cho ${phone}`);
-                    await markPhoneInQueue(phone, job.profileId, false);
-                    usablePhone = null;
-                    continue;
+                    actualPhone = await page.evaluate((p) => {
+                        const bodyText = document.body.innerText || '';
+                        const cleanText = bodyText.replace(/[\s\-\(\)\+]/g, '');
+                        if (cleanText.includes(p)) return p;
+                        return null;
+                    }, phone);
+                }
+
+                if (!actualPhone) {
+                    log(`⚠️ Không đọc được SĐT từ trang. Sử dụng SĐT đã nhập: ${phone}`);
+                    actualPhone = phone;
                 }
 
                 log(`✓ ${actualPhone} (Valid)`);
@@ -196,61 +230,36 @@ async function run(page, job, signal, logger) {
         log(`Code: ${verificationCode}`);
 
         // Điền code
-        await page.waitForSelector('[aria-label="Enter code"]', { state: 'visible', timeout: 30000 });
-        await page.type('[aria-label="Enter code"]', verificationCode, { delay: 20 });
+        await page.waitForSelector('[aria-label="Enter code"], [aria-label="Enter the code"]', { state: 'visible', timeout: 30000 });
+        let inputSel = '[aria-label="Enter code"]';
+        const altInputs = await page.$$('[aria-label="Enter the code"]');
+        if (altInputs.length > 0) inputSel = '[aria-label="Enter the code"]';
+        await page.locator(inputSel).type(verificationCode, { delay: 20 });
         await sleep(1000);
 
         if (signal?.aborted) {
             return { profileId: job.profileId, success: false, error: 'Stopped' };
         }
 
-        // Submit — 4 cách fallback giống script gốc
-        let submitButton = null;
-        let clickMethod = '';
-
-        try {
-            submitButton = await page.waitForSelector('button::-p-text(Next)', { state: 'visible', timeout: 3000 });
-            clickMethod = 'text-selector';
-        } catch { }
-
-        if (!submitButton) {
+        // Submit — XPath và các cách fallback giống script gốc
+        let submitted = false;
+        for (const sel of [
+            'xpath///*[@id="idvPreregisteredPhoneNext"]/div/button',
+            'button[jsname="V67Aae"]',
+            'button:not([disabled])',
+        ]) {
             try {
-                submitButton = await page.waitForSelector('button[jsname="V67Aae"]', { state: 'visible', timeout: 3000 });
-                clickMethod = 'jsname-selector';
+                const btn = await page.waitForSelector(sel, { state: 'visible', timeout: 3000 });
+                if (btn) { await btn.click(); submitted = true; break; }
             } catch { }
         }
-
-        if (!submitButton) {
-            try {
-                submitButton = await page.waitForSelector('button:not([disabled])', { state: 'visible', timeout: 3000 });
-                clickMethod = 'enabled-button';
-            } catch { }
-        }
-
-        if (!submitButton) {
-            try {
-                const clicked = await page.evaluate(() => {
-                    const btn = Array.from(document.querySelectorAll('button'))
-                        .find(b => b.textContent?.trim().toLowerCase() === 'next' && !b.disabled);
-                    if (btn) { btn.click(); return true; }
-                    return false;
-                });
-                if (clicked) clickMethod = 'evaluate-click';
-            } catch { }
-        }
-
-        if (submitButton && clickMethod !== 'evaluate-click') {
-            try {
-                await submitButton.click();
-            } catch {
-                await page.evaluate(() => {
-                    const btn = Array.from(document.querySelectorAll('button'))
-                        .find(b => b.textContent?.trim().toLowerCase() === 'next' && !b.disabled);
-                    if (btn) btn.click();
-                });
-            }
-        } else if (!clickMethod) {
-            throw new Error('Không tìm thấy nút submit');
+        if (!submitted) {
+            await page.evaluate(() => {
+                const btn = Array.from(document.querySelectorAll('button')).find(b =>
+                    b.textContent?.trim().toLowerCase() === 'next' && !b.disabled
+                );
+                if (btn) btn.click();
+            });
         }
 
         await sleep(2000);
