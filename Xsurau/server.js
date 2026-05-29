@@ -13,7 +13,6 @@ const { registerPhoneRoutes } = require('./phone');
 
 const app = express();
 const manager = new ProfileManager();
-proxyService.manager = manager;
 const automationEngine = new AutomationEngine(manager);
 const PORT = process.env.API_PORT || 3333;
 

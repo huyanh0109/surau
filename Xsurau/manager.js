@@ -466,7 +466,7 @@ class ProfileManager {
         
         let proxyStr = profileData.proxy;
         if (options.proxyMode === 'global') {
-            proxyStr = `http://${profileId}@127.0.0.1:8888`;
+            proxyStr = 'http://127.0.0.1:8888';
         }
         
         const profileDir = path.join(this.profilesDataPath, profileId);

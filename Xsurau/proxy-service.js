@@ -6,23 +6,15 @@ class ProxyService {
         this.localPort = 8888;
         this.server = null;
         this.activeUpstream = null; 
-        this.manager = null;
     }
 
     async startServer() {
         if (this.server) return;
         this.server = new ProxyChain.Server({
             port: this.localPort,
-            prepareRequestFunction: ({ username }) => {
-                let upstream = this.activeUpstream;
-                if (!upstream && username && this.manager) {
-                    const p = this.manager.getProfile(username);
-                    if (p && p.proxy) {
-                        upstream = p.proxy;
-                    }
-                }
-                if (!upstream) return {};
-                return { upstreamProxyUrl: this.toProxyUrl(upstream) };
+            prepareRequestFunction: () => {
+                if (!this.activeUpstream) return {}; // Direct = IP thật của máy
+                return { upstreamProxyUrl: this.toProxyUrl(this.activeUpstream) };
             }
         });
         await this.server.listen();
