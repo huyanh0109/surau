@@ -56,38 +56,32 @@ async function run(page, job, signal, logger) {
         }
 
         // 7. Lấy verification code
-        log(`Lấy code cho ${phone}...`);
+        log(`Lấy code cho SĐT: ${phone}`);
         const verificationCode = await getVerificationCode(phone, job.profileId);
-        if (!verificationCode) throw new Error('Không lấy được verification code từ API');
+        if (!verificationCode) throw new Error('Không lấy được verification code');
         log(`Code: ${verificationCode}`);
 
+        if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
+
         // 8. Điền code
-        await page.waitForSelector('[aria-label="Enter code"], [aria-label="Enter the code"]', { state: 'visible', timeout: 30000 });
-        // Chọn input đúng
-        let inputSel = '[aria-label="Enter code"]';
-        const altInputs = await page.$$('[aria-label="Enter the code"]');
-        if (altInputs.length > 0) inputSel = '[aria-label="Enter the code"]';
-        await page.locator(inputSel).type(verificationCode, { delay: 20 });
+        await page.waitForSelector('[aria-label="Enter the code"]', { state: 'visible', timeout: 30000 });
+        await page.locator('[aria-label="Enter the code"]').type(verificationCode, { delay: 20 });
         await sleep(1000);
 
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
 
-        // 9. Submit
+        // 9. Submit bằng XPath hoặc fallback
         let submitted = false;
-        for (const sel of [
-            'xpath///*[@id="idvPreregisteredPhoneNext"]/div/button',
-            'button[jsname="V67Aae"]',
-            'button:not([disabled])',
-        ]) {
-            try {
-                const btn = await page.waitForSelector(sel, { state: 'visible', timeout: 3000 });
-                if (btn) { await btn.click(); submitted = true; break; }
-            } catch { }
-        }
+        try {
+            await page.waitForSelector('xpath///*[@id="idvPreregisteredPhoneNext"]/div/button', { state: 'visible', timeout: 5000 });
+            await page.locator('xpath///*[@id="idvPreregisteredPhoneNext"]/div/button').click();
+            submitted = true;
+        } catch { }
+
         if (!submitted) {
             await page.evaluate(() => {
                 const btn = Array.from(document.querySelectorAll('button')).find(b =>
-                    b.textContent?.trim().toLowerCase() === 'next' && !b.disabled
+                    !b.disabled && (b.textContent?.trim().toLowerCase() === 'next' || b.textContent?.trim().toLowerCase() === 'verify')
                 );
                 if (btn) btn.click();
             });
@@ -118,12 +112,12 @@ async function getVerificationCode(phoneNumber, profileId) {
     for (let i = 1; i <= maxRetries; i++) {
         try {
             const res = await fetch(apiUrl);
-            if (res.status === 500) { await new Promise(r => setTimeout(r, 2000)); continue; }
-            const text = await res.text();
-            const data = JSON.parse(text);
+            if (res.status === 500) { await sleep(2000); continue; }
+            const data = await res.json();
             if (data.code) return data.code;
-            await new Promise(r => setTimeout(r, 2000));
-        } catch { await new Promise(r => setTimeout(r, 2000)); }
+            console.warn(`[P${profileId}] No code in response (attempt ${i}/${maxRetries})`);
+            await sleep(2000);
+        } catch { await sleep(2000); }
     }
     return null;
 }
