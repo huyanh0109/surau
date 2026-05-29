@@ -449,7 +449,10 @@
             <div class="fd-panel phone-lookup-panel" style="border-color: var(--cyan); padding: 0; margin-top: 20px; min-height: 300px;">
                 <div style="background: rgba(0, 170, 170, 0.05); padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                     <div style="color: var(--cyan); font-size: 13px; font-weight: 900; letter-spacing: 2px;">PHONE CODE LOOKUP</div>
-                    <button class="btn btn-sm" style="border-color: var(--cyan); color: var(--cyan);" onclick="lookupPhoneCodes()">LOOKUP CODES</button>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div id="phoneTimerText" style="color: var(--cyan); font-weight: 900; font-size: 14px;">5S</div>
+                        <button class="btn btn-sm" style="border-color: var(--cyan); color: var(--cyan);" onclick="lookupPhoneCodes()">LOOKUP CODES</button>
+                    </div>
                 </div>
                 <div style="padding: 20px; display: flex; gap: 0; align-items: stretch;">
                     <!-- LEFT: PHONE NUMBERS INPUT -->
@@ -1729,7 +1732,7 @@ async function lookupPhoneCodes() {
     if (window.phoneLookupState.length === 0) return;
 
     const promises = window.phoneLookupState.map(async (item, index) => {
-        if (item.status === 'empty' || item.status === 'success') return;
+        if (item.status === 'empty' || item.status === 'success' || item.status === 'loading') return;
         await fetchSinglePhoneCode(index);
     });
 
@@ -1772,6 +1775,31 @@ function phoneItemClick(index) {
         fetchSinglePhoneCode(index);
     }
 }
+
+// Auto-refresh Phone Lookup timer (checks every 5s for non-success numbers)
+setInterval(() => {
+    const t = document.getElementById('phoneTimerText');
+    if (!t) return;
+
+    const hasActiveNumbers = window.phoneLookupState && window.phoneLookupState.some(item => 
+        item.status === 'idle' || item.status === 'error' || item.status === 'loading'
+    );
+    if (!hasActiveNumbers) {
+        t.textContent = '—';
+        return;
+    }
+
+    let currentVal = parseInt(t.textContent);
+    if (isNaN(currentVal) || currentVal <= 0) currentVal = 5;
+    
+    let timeLeft = currentVal - 1;
+    if (timeLeft <= 0) {
+        timeLeft = 5;
+        lookupPhoneCodes();
+    }
+    
+    t.textContent = `${timeLeft}S`;
+}, 1000);
 
 // Init
 setInterval(loadProfiles, 5000);
