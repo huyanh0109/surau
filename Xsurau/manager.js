@@ -470,20 +470,36 @@ class ProfileManager {
         const locale = profileData.locale || 'vi-VN';
 
         // Generate a fake local IP from noiseSeed for WebRTC spoofing
-        const seedInt = profileData.noiseSeed || 12345;
+        const rawSeed = profileData.noiseSeed || '12345';
+        const seedInt = typeof rawSeed === 'string' ? (parseInt(rawSeed.substring(0, 8), 16) || 12345) : (rawSeed || 12345);
         const ip3 = (seedInt % 254) + 1;
         const ip4 = ((seedInt >> 8) % 254) + 1;
         const fakeLocalIp = `192.168.${ip3}.${ip4}`;
 
+        // Helper: convert ip:port:user:pass OR ip:port -> standard http proxy URL
+        const toProxyUrl = (raw) => {
+            if (!raw) return null;
+            const t = raw.trim();
+            if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('socks5://')) return t;
+            const p = t.split(':');
+            if (p.length === 4) return `http://${p[2]}:${p[3]}@${p[0]}:${p[1]}`;
+            if (p.length === 2) return `http://${p[0]}:${p[1]}`;
+            return `http://${t}`;
+        };
+
+        // Determine effective proxy (global mode = gateway, individual = profile's own)
+        const effectiveProxy = (options.proxyMode === 'global')
+            ? 'http://127.0.0.1:8888'
+            : toProxyUrl(profileData.proxy);
+
         // Resolve proxy OUTGOING IP for WebRTC spoofing
-        // (DNS chỉ cho IP server, cần HTTP request qua proxy để lấy IP outgoing thực tế)
-        let webrtcIp = fakeLocalIp; // fallback khi không có proxy
-        if (profileData.proxy) {
+        let webrtcIp = fakeLocalIp; // fallback when no proxy
+        const proxyForIpCheck = toProxyUrl(profileData.proxy); // always use real proxy for IP check
+        if (proxyForIpCheck && options.proxyMode !== 'global') {
             try {
                 const http = require('http');
-                const https = require('https');
                 const { URL } = require('url');
-                const proxyUrl = new URL(profileData.proxy.startsWith('http') ? profileData.proxy : `http://${profileData.proxy}`);
+                const proxyUrl = new URL(proxyForIpCheck);
 
                 // Dùng fetch qua proxy để lấy IP outgoing thực tế
                 const outgoingIp = await new Promise((resolve, reject) => {
@@ -603,8 +619,8 @@ class ProfileManager {
             // timezoneId/locale gây fail Turnstile (Cloudflare detect CDP override)
         };
 
-        if (profileData.proxy) {
-            launchConfig.proxy = { server: profileData.proxy };
+        if (effectiveProxy) {
+            launchConfig.proxy = { server: effectiveProxy };
         }
 
         console.log(`[Manager] 🚀 Đang mở profile [${profileData.name}]...`);
