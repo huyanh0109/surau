@@ -230,11 +230,9 @@ async function run(page, job, signal, logger) {
         log(`Code: ${verificationCode}`);
 
         // Điền code
-        await page.waitForSelector('[aria-label="Enter code"], [aria-label="Enter the code"]', { state: 'visible', timeout: 30000 });
-        let inputSel = '[aria-label="Enter code"]';
-        const altInputs = await page.$$('[aria-label="Enter the code"]');
-        if (altInputs.length > 0) inputSel = '[aria-label="Enter the code"]';
-        await page.locator(inputSel).type(verificationCode, { delay: 20 });
+        const codeInputSel = '[aria-label="Enter code"], [aria-label="Enter the code"], #idvAnyPhonePin, [name="pin"]';
+        await page.waitForSelector(codeInputSel, { state: 'visible', timeout: 30000 });
+        await page.locator(codeInputSel).first().type(verificationCode, { delay: 20 });
         await sleep(1000);
 
         if (signal?.aborted) {

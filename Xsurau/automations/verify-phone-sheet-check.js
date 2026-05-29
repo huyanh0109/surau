@@ -64,8 +64,9 @@ async function run(page, job, signal, logger) {
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
 
         // 8. Điền code
-        await page.waitForSelector('[aria-label="Enter the code"]', { state: 'visible', timeout: 30000 });
-        await page.locator('[aria-label="Enter the code"]').type(verificationCode, { delay: 20 });
+        const codeInputSel = '[aria-label="Enter code"], [aria-label="Enter the code"], #idvAnyPhonePin, [name="pin"]';
+        await page.waitForSelector(codeInputSel, { state: 'visible', timeout: 30000 });
+        await page.locator(codeInputSel).first().type(verificationCode, { delay: 20 });
         await sleep(1000);
 
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
