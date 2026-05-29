@@ -482,7 +482,8 @@ class ProfileManager {
         const locale = profileData.locale || 'vi-VN';
 
         // Generate a fake local IP from noiseSeed for WebRTC spoofing
-        const seedInt = profileData.noiseSeed || 12345;
+        const rawSeed = profileData.noiseSeed || '12345';
+        const seedInt = typeof rawSeed === 'string' ? (parseInt(rawSeed.substring(0, 8), 16) || 12345) : (rawSeed || 12345);
         const ip3 = (seedInt % 254) + 1;
         const ip4 = ((seedInt >> 8) % 254) + 1;
         const fakeLocalIp = `192.168.${ip3}.${ip4}`;
