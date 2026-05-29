@@ -64,14 +64,15 @@ async function run(page, job, signal, logger) {
 }
 
 async function getVerificationCode(phoneNumber, profileId) {
-    const apiUrl = `http://localhost:${process.env.API_PORT || 3333}/api/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
-    for (let i = 1; i <= 5; i++) {
+    const apiUrl = `http://127.0.0.1:${process.env.API_PORT || 3333}/api/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
+    const maxRetries = 45;
+    for (let i = 1; i <= maxRetries; i++) {
         try {
             const res = await fetch(apiUrl);
             if (res.status === 500) { await sleep(2000); continue; }
             const data = await res.json();
             if (data.code) return data.code;
-            console.warn(`[P${profileId}] No code in response (attempt ${i}/5)`);
+            console.warn(`[P${profileId}] No code in response (attempt ${i}/${maxRetries})`);
             await sleep(2000);
         } catch { await sleep(2000); }
     }

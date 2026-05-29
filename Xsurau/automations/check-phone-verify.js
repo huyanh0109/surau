@@ -1,6 +1,6 @@
 const { sleep } = require('./helpers');
 
-const API_BASE = `http://localhost:${process.env.API_PORT || 3333}`;
+const API_BASE = `http://127.0.0.1:${process.env.API_PORT || 3333}`;
 
 /**
  * Check Phone Verify — dựa trên script gốc TypeScript (Surau).
@@ -360,7 +360,7 @@ async function checkIfPhoneInvalid(page) {
 
 async function getVerificationCode(phoneNumber, profileId) {
     const apiUrl = `${API_BASE}/api/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
-    const maxRetries = 5;
+    const maxRetries = 45;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
