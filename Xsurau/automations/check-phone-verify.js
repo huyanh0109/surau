@@ -154,6 +154,15 @@ async function run(page, job, signal, logger) {
 
             await sleep(2000);
 
+            // Kiểm tra xem đã chuyển sang trang nhập OTP chưa (1-click flow)
+            const codeInputSel = '[aria-label="Enter code"], [aria-label="Enter the code"], #idvAnyPhonePin, [name="pin"]';
+            let isOtpPage = await page.locator(codeInputSel).first().isVisible({ timeout: 2000 }).catch(() => false);
+            if (isOtpPage) {
+                log(`✓ SĐT ${phone} hợp lệ (đã chuyển sang trang nhập OTP)`);
+                usablePhone = phone;
+                break;
+            }
+
             // Kiểm tra lỗi sau click 1
             const isInvalid = await checkIfPhoneInvalid(page);
             if (isInvalid) {
@@ -162,57 +171,38 @@ async function run(page, job, signal, logger) {
                 continue;
             }
 
-            // Bước tiếp: click Next lần 2 + đọc SĐT thực từ trang
+            // Bước tiếp: click Next lần 2 (nếu có)
             try {
-                const nextBtn2 = await page.waitForSelector('button[type="button"]', { state: 'visible', timeout: 10000 });
-                if (nextBtn2) await nextBtn2.click();
-
-                await sleep(2000);
-
-                if (signal?.aborted) {
-                    return { profileId: job.profileId, success: false, error: 'Stopped' };
+                const nextBtn2 = await page.waitForSelector('button[type="button"]', { state: 'visible', timeout: 4000 }).catch(() => null);
+                if (nextBtn2) {
+                    await nextBtn2.click();
+                    await sleep(2000);
                 }
-
-                // Kiểm tra lỗi sau click 2
-                const hasErrorAfterClick2 = await checkIfPhoneInvalid(page);
-                if (hasErrorAfterClick2) {
-                    log(`✗ ${phone} (Invalid sau click 2)`);
-                    await markPhoneInQueue(phone, job.profileId, false);
-                    usablePhone = null;
-                    continue;
-                }
-
-                // Đọc SĐT thực tế Google gửi code đến (format: (XXX) XXX-XXXX)
-                let actualPhone = await page.evaluate(() => {
-                    const bodyText = document.body.innerText || '';
-                    const match = bodyText.match(/\((\d{3})\)\s*(\d{3})-(\d{4})/);
-                    return match ? match[1] + match[2] + match[3] : null;
-                });
-
-                if (!actualPhone) {
-                    actualPhone = await page.evaluate((p) => {
-                        const bodyText = document.body.innerText || '';
-                        const cleanText = bodyText.replace(/[\s\-\(\)\+]/g, '');
-                        if (cleanText.includes(p)) return p;
-                        return null;
-                    }, phone);
-                }
-
-                if (!actualPhone) {
-                    log(`⚠️ Không đọc được SĐT từ trang. Sử dụng SĐT đã nhập: ${phone}`);
-                    actualPhone = phone;
-                }
-
-                log(`✓ ${actualPhone} (Valid)`);
-                usablePhone = actualPhone;
-                break;
-
             } catch (err) {
-                log(`❌ Lỗi khi xác minh ${phone}: ${err.message}`);
+                log(`Info: Không có hoặc không click được Next lần 2: ${err.message}`);
+            }
+
+            // Kiểm tra xem đã sang trang nhập OTP chưa sau click 2
+            isOtpPage = await page.locator(codeInputSel).first().isVisible({ timeout: 2000 }).catch(() => false);
+            if (isOtpPage) {
+                log(`✓ SĐT ${phone} hợp lệ (đã chuyển sang trang nhập OTP sau click 2)`);
+                usablePhone = phone;
+                break;
+            }
+
+            // Kiểm tra lỗi sau click 2
+            const hasErrorAfterClick2 = await checkIfPhoneInvalid(page);
+            if (hasErrorAfterClick2) {
+                log(`✗ ${phone} (Invalid sau click 2)`);
                 await markPhoneInQueue(phone, job.profileId, false);
                 usablePhone = null;
                 continue;
             }
+
+            // Fallback check: nếu không báo lỗi và không còn ô nhập SĐT, tạm coi là valid
+            log(`⚠️ Không rõ trạng thái của ${phone}, tạm coi là valid`);
+            usablePhone = phone;
+            break;
         }
 
         if (!usablePhone) {
@@ -346,12 +336,17 @@ async function checkIfPhoneInvalid(page) {
     try {
         return await page.evaluate(() => {
             const bodyText = document.body.innerText || '';
-            return [
+            const errorKeywords = [
                 "can't be used for verification",
                 "cannot be used for verification",
                 "too many unsuccessful attempts",
                 "Use another phone number",
-            ].some(kw => bodyText.includes(kw));
+                "không thể dùng để xác minh",
+                "quá nhiều lần thử",
+                "thử số điện thoại khác",
+                "chọn số điện thoại khác"
+            ];
+            return errorKeywords.some(kw => bodyText.toLowerCase().includes(kw.toLowerCase()));
         });
     } catch { return false; }
 }

@@ -30,29 +30,42 @@ async function run(page, job, signal, logger) {
             const btn = await page.waitForSelector('button:not([disabled])', { state: 'visible', timeout: 5000 });
             if (btn) { await btn.scrollIntoViewIfNeeded(); await sleep(200); await btn.click(); }
         } catch { }
-        await sleep(1000);
+        await sleep(2000);
 
-        // 4. Kiểm tra lỗi sau click 1
-        const isInvalid1 = await checkIfPhoneInvalid(page);
-        if (isInvalid1) {
-            log(`✗ ${phone} — Invalid (sau click 1)`);
-            return { profileId: job.profileId, success: false, error: 'Phone invalid based on Google check' };
-        }
+        // Kiểm tra xem đã chuyển sang trang nhập OTP chưa (1-click flow)
+        const codeInputSel = '[aria-label="Enter code"], [aria-label="Enter the code"], #idvAnyPhonePin, [name="pin"]';
+        let isOtpPage = await page.locator(codeInputSel).first().isVisible({ timeout: 2000 }).catch(() => false);
+        if (isOtpPage) {
+            log(`✓ SĐT ${phone} hợp lệ (đã chuyển sang trang nhập OTP)`);
+        } else {
+            // 4. Kiểm tra lỗi sau click 1
+            const isInvalid1 = await checkIfPhoneInvalid(page);
+            if (isInvalid1) {
+                log(`✗ ${phone} — Invalid (sau click 1)`);
+                return { profileId: job.profileId, success: false, error: 'Phone invalid based on Google check' };
+            }
 
-        // 5. Click Next lần 2
-        try {
-            const btn2 = await page.waitForSelector('button[type="button"]', { state: 'visible', timeout: 5000 });
-            if (btn2) { await btn2.click(); }
-        } catch { }
-        await sleep(1000);
+            // 5. Click Next lần 2 (nếu có)
+            try {
+                const btn2 = await page.waitForSelector('button[type="button"]', { state: 'visible', timeout: 4000 }).catch(() => null);
+                if (btn2) { await btn2.click(); await sleep(2000); }
+            } catch { }
 
-        if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
-
-        // 6. Kiểm tra lỗi sau click 2
-        const isInvalid2 = await checkIfPhoneInvalid(page);
-        if (isInvalid2) {
-            log(`✗ ${phone} — Invalid (sau click 2)`);
-            return { profileId: job.profileId, success: false, error: 'Phone invalid after 2nd submit' };
+            // Kiểm tra lại xem đã sang trang nhập OTP chưa sau click 2
+            isOtpPage = await page.locator(codeInputSel).first().isVisible({ timeout: 2000 }).catch(() => false);
+            if (!isOtpPage) {
+                // 6. Kiểm tra lỗi sau click 2
+                const isInvalid2 = await checkIfPhoneInvalid(page);
+                if (isInvalid2) {
+                    log(`✗ ${phone} — Invalid (sau click 2)`);
+                    return { profileId: job.profileId, success: false, error: 'Phone invalid after 2nd submit' };
+                }
+                
+                // Fallback check
+                log(`⚠️ Không rõ trạng thái của ${phone}, tạm coi là valid`);
+            } else {
+                log(`✓ SĐT ${phone} hợp lệ (đã chuyển sang trang nhập OTP sau click 2)`);
+            }
         }
 
         // 7. Lấy verification code
@@ -100,9 +113,17 @@ async function checkIfPhoneInvalid(page) {
     try {
         return await page.evaluate(() => {
             const bodyText = document.body.innerText || '';
-            return ["can't be used for verification", "cannot be used for verification",
-                "too many unsuccessful attempts", "Use another phone number"]
-                .some(kw => bodyText.includes(kw));
+            const errorKeywords = [
+                "can't be used for verification",
+                "cannot be used for verification",
+                "too many unsuccessful attempts",
+                "Use another phone number",
+                "không thể dùng để xác minh",
+                "quá nhiều lần thử",
+                "thử số điện thoại khác",
+                "chọn số điện thoại khác"
+            ];
+            return errorKeywords.some(kw => bodyText.toLowerCase().includes(kw.toLowerCase()));
         });
     } catch { return false; }
 }
