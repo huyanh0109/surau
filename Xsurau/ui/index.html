@@ -414,6 +414,11 @@
                     <button class="btn btn-yellow" onclick="fdApplyProxy('fdProxy2')">USE P2</button>
                 </div>
                 <div class="fd-proxy-row">
+                    <label>DIRECT IP:</label>
+                    <span style="flex: 1; color: var(--text-muted); font-size: 11px; padding: 0 8px;">Dùng IP thật của máy tính (không proxy)</span>
+                    <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="fdUseDirectProxy()">USE DIRECT</button>
+                </div>
+                <div class="fd-proxy-row">
                     <label>XOAY URL:</label>
                     <input type="text" id="fdXoayApi" placeholder="https://proxyxoay.shop/api/get.php?...">
                     <button class="btn" style="border-color: var(--blue); color: var(--blue);" onclick="fdXoayProxy()">XOAY PROXY</button>
@@ -1330,39 +1335,45 @@ async function runAutomationFast(name) {
 
 async function fdApplyProxy(inputId) {
     const val = document.getElementById(inputId).value;
+    if(!val) {
+        fdLogMsg(`ERROR: ${inputId} cần điền proxy. Dùng nút USE DIRECT để dùng IP máy.`, 'error');
+        return;
+    }
     
     document.getElementById('fdDefProxy').value = val;
     saveFastSettings();
 
     const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
     if (proxyMode === 'global') {
-        if (!val) {
-            fdLogMsg(`P1 trống. Đang chuyển sang dùng proxy gốc của từng profile...`, 'info');
-        } else {
-            fdLogMsg(`SWITCHING GLOBAL PROXY TO: ${val}...`, 'info');
-        }
+        fdLogMsg(`SWITCHING GLOBAL PROXY TO: ${val}...`, 'info');
         try {
             const res = await fetch(`${API}/proxy/switch`, {
                 method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxyUrl: val })
             });
             const data = await res.json();
             if(data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
-            else {
-                if (!val) {
-                    fdLogMsg(`Đã chuyển sang dùng proxy gốc của từng profile.`, 'success');
-                } else {
-                    fdLogMsg(`GLOBAL PROXY SWITCHED. Browsers reconnected.`, 'success');
-                }
-            }
+            else fdLogMsg(`GLOBAL PROXY SWITCHED. Browsers reconnected.`, 'success');
         } catch(e) {
             fdLogMsg(`ERROR: ${e.message}`, 'error');
         }
     } else {
-        if (!val) {
-            fdLogMsg(`DEFAULT PROXY cleared.`, 'success');
-        } else {
-            fdLogMsg(`PROXY APPLIED TO DEFAULT: ${val}`, 'success');
-        }
+        fdLogMsg(`PROXY APPLIED TO DEFAULT: ${val}`, 'success');
+    }
+}
+
+async function fdUseDirectProxy() {
+    fdLogMsg('SWITCHING TO DIRECT IP (IP thật của máy)...', 'info');
+    document.getElementById('fdDefProxy').value = '';
+    saveFastSettings();
+    try {
+        const res = await fetch(`${API}/proxy/switch`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxyUrl: '' })
+        });
+        const data = await res.json();
+        if(data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
+        else fdLogMsg('✅ DIRECT IP activated. Trình duyệt dùng IP thật của máy.', 'success');
+    } catch(e) {
+        fdLogMsg(`ERROR: ${e.message}`, 'error');
     }
 }
 

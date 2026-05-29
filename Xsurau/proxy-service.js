@@ -13,7 +13,9 @@ class ProxyService {
         this.server = new ProxyChain.Server({
             port: this.localPort,
             prepareRequestFunction: () => {
-                if (!this.activeUpstream) return {}; // Direct = IP thật của máy
+                if (!this.activeUpstream) {
+                    return { upstreamProxyUrl: null }; // Direct connection = IP thật của máy
+                }
                 return { upstreamProxyUrl: this.toProxyUrl(this.activeUpstream) };
             }
         });
