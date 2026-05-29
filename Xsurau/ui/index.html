@@ -401,7 +401,10 @@
             <div class="fd-panel">
                 <div class="fd-panel-header">
                     <div class="fd-panel-title">PROXY MANAGEMENT</div>
-                    <div class="fd-status-badge" style="border-color: var(--green); color: var(--green);">READY</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button onclick="fdUseDirectProxy()" title="Dùng IP thật của máy tính" style="padding: 2px 8px; font-size: 10px; cursor: pointer; background: transparent; border: 1px solid var(--cyan); color: var(--cyan); border-radius: 4px; letter-spacing: 1px;">&#128187; IP MÁY</button>
+                        <div class="fd-status-badge" style="border-color: var(--green); color: var(--green);">READY</div>
+                    </div>
                 </div>
                 <div class="fd-proxy-row">
                     <label>PROXY 1:</label>
@@ -1355,6 +1358,22 @@ async function fdApplyProxy(inputId) {
         fdLogMsg(`PROXY APPLIED TO DEFAULT: ${val}`, 'success');
     }
 }
+
+async function fdUseDirectProxy() {
+    fdLogMsg('🖥️ Switching to machine real IP (no proxy)...', 'info');
+    try {
+        const res = await fetch(`${API}/proxy/switch`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ proxyUrl: '' })
+        });
+        const data = await res.json();
+        if(data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
+        else fdLogMsg('✅ IP MÁY activated. Tất cả trình duyệt dùng IP thật của máy.', 'success');
+    } catch(e) {
+        fdLogMsg(`ERROR: ${e.message}`, 'error');
+    }
+}
+
 
 async function fdXoayProxy() {
     const url = document.getElementById('fdXoayApi').value;
