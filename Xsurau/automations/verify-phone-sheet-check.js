@@ -7,6 +7,7 @@ const { sleep } = require('./helpers');
  */
 async function run(page, job, signal, logger) {
     const log = (msg) => { logger?.(msg); console.log(`[P${job.profileId}] ${msg}`); };
+    const codeInputSel = '[aria-label="Enter code"], [aria-label="Enter the code"], #idvAnyPhonePin, [name="pin"]';
     try {
         const { sheetRow } = job;
         if (!sheetRow?.Phone) throw new Error('Thiếu Phone trong sheetRow');
@@ -33,7 +34,6 @@ async function run(page, job, signal, logger) {
         await sleep(2000);
 
         // Kiểm tra xem đã chuyển sang trang nhập OTP chưa (1-click flow)
-        const codeInputSel = '[aria-label="Enter code"], [aria-label="Enter the code"], #idvAnyPhonePin, [name="pin"]';
         let isOtpPage = await page.locator(codeInputSel).first().isVisible({ timeout: 2000 }).catch(() => false);
         if (isOtpPage) {
             log(`✓ SĐT ${phone} hợp lệ (đã chuyển sang trang nhập OTP)`);
@@ -77,7 +77,6 @@ async function run(page, job, signal, logger) {
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
 
         // 8. Điền code
-        const codeInputSel = '[aria-label="Enter code"], [aria-label="Enter the code"], #idvAnyPhonePin, [name="pin"]';
         await page.waitForSelector(codeInputSel, { state: 'visible', timeout: 30000 });
         await page.locator(codeInputSel).first().type(verificationCode, { delay: 20 });
         await sleep(1000);
