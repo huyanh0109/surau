@@ -1128,19 +1128,19 @@ async function handleProxyModeChange(isInitialLoad = false) {
         defProxyInput.style.opacity = '0.6';
         defProxyInput.style.color = 'var(--green)';
         
-        // Auto-sync P1 to backend gateway if P1 exists
-        if (p1Value) {
-            try {
-                await fetch(`${API}/proxy/switch`, {
-                    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxyUrl: p1Value })
-                });
-                if (!isInitialLoad) {
+        // Sync P1 or fallback to backend gateway
+        try {
+            await fetch(`${API}/proxy/switch`, {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxyUrl: p1Value })
+            });
+            if (!isInitialLoad) {
+                if (p1Value) {
                     fdLogMsg(`PROXY MODE: GLOBAL. Gateway initialized with P1: ${p1Value}`, 'success');
+                } else {
+                    fdLogMsg(`PROXY MODE: GLOBAL. P1 trống. Tự động sử dụng proxy gốc của từng profile.`, 'info');
                 }
-            } catch(e) { }
-        } else {
-            if (!isInitialLoad) fdLogMsg('PROXY MODE: GLOBAL. No P1 set. Gateway is empty.', 'warning');
-        }
+            }
+        } catch(e) { }
     } else {
         const s = getFastSettings();
         defProxyInput.value = s.defProxy || '';
@@ -1330,29 +1330,39 @@ async function runAutomationFast(name) {
 
 async function fdApplyProxy(inputId) {
     const val = document.getElementById(inputId).value;
-    if(!val) {
-        fdLogMsg(`ERROR: ${inputId} is empty`, 'error');
-        return;
-    }
     
     document.getElementById('fdDefProxy').value = val;
     saveFastSettings();
 
     const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
     if (proxyMode === 'global') {
-        fdLogMsg(`SWITCHING GLOBAL PROXY TO: ${val}...`, 'info');
+        if (!val) {
+            fdLogMsg(`P1 trống. Đang chuyển sang dùng proxy gốc của từng profile...`, 'info');
+        } else {
+            fdLogMsg(`SWITCHING GLOBAL PROXY TO: ${val}...`, 'info');
+        }
         try {
             const res = await fetch(`${API}/proxy/switch`, {
                 method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ proxyUrl: val })
             });
             const data = await res.json();
             if(data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
-            else fdLogMsg(`GLOBAL PROXY SWITCHED. Browsers reconnected.`, 'success');
+            else {
+                if (!val) {
+                    fdLogMsg(`Đã chuyển sang dùng proxy gốc của từng profile.`, 'success');
+                } else {
+                    fdLogMsg(`GLOBAL PROXY SWITCHED. Browsers reconnected.`, 'success');
+                }
+            }
         } catch(e) {
             fdLogMsg(`ERROR: ${e.message}`, 'error');
         }
     } else {
-        fdLogMsg(`PROXY APPLIED TO DEFAULT: ${val}`, 'success');
+        if (!val) {
+            fdLogMsg(`DEFAULT PROXY cleared.`, 'success');
+        } else {
+            fdLogMsg(`PROXY APPLIED TO DEFAULT: ${val}`, 'success');
+        }
     }
 }
 

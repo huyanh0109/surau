@@ -1,5 +1,6 @@
 const { chromium } = require('patchright');
-const { FingerprintGenerator } = require('fingerprint-generator');
+// fingerprint-generator removed: v2.1.55 database có rác (Chrome/91 LarkUrl, macOS UA)
+// Dùng curated list thay thế
 const { injectFingerprint } = require('./fingerprint-injector');
 const fs = require('fs');
 const path = require('path');
@@ -41,6 +42,23 @@ const TIMEZONES = [
     'Asia/Tokyo', 'Asia/Singapore', 'Asia/Bangkok',
 ];
 const LOCALES = ['vi-VN', 'en-US', 'en-GB', 'en-AU', 'ja-JP', 'de-DE'];
+// ============================================================================
+// CURATED WINDOWS CHROME USER-AGENTS
+// Chỉ Windows NT 10.0 + Chrome 133-137 (versions phổ biến nhất hiện tại)
+// Không dùng fingerprint-generator npm: database cũ/rác (Chrome/91 LarkUrl, macOS UA)
+// ============================================================================
+const WINDOWS_USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.6943.141 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.118 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.115 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.116 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.93 Safari/537.36',
+];
 
 class ProfileManager {
     constructor(options = {}) {
@@ -61,12 +79,7 @@ class ProfileManager {
         // Lưu vị trí grid layout cuối cùng (dùng lại khi automation mở profile)
         this.savedLayout = {}; // profileId -> { windowSize, windowPosition }
 
-        // Bộ sinh vân tay
-        this.fingerprintGenerator = new FingerprintGenerator({
-            browsers: ['chrome'],
-            operatingSystems: ['windows', 'macos'],
-        });
-
+        // Khởi tạo directories
         this._initDirectories();
         this._initSettings();
     }
@@ -169,9 +182,8 @@ class ProfileManager {
         const noiseSeed = crypto.randomBytes(16).toString('hex');
         const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-        // Sinh vân tay mới để lấy User-Agent ngẫu nhiên (Windows hoặc Mac)
-        const fp = this.fingerprintGenerator.getFingerprint();
-        let userAgent = fp.fingerprint.navigator.userAgent;
+        // Lấy Windows Chrome UA từ danh sách curated (npm package database rác)
+        const userAgent = pick(WINDOWS_USER_AGENTS);
         let screen = pick(SCREEN_DATABASE);
         let hardwareConcurrency = pick(HARDWARE_CONCURRENCY);
         let deviceMemory = pick(DEVICE_MEMORY);
@@ -454,7 +466,7 @@ class ProfileManager {
         
         let proxyStr = profileData.proxy;
         if (options.proxyMode === 'global') {
-            proxyStr = 'http://127.0.0.1:8888';
+            proxyStr = `http://${profileId}@127.0.0.1:8888`;
         }
         
         const profileDir = path.join(this.profilesDataPath, profileId);
@@ -600,11 +612,10 @@ class ProfileManager {
             args,
             ignoreDefaultArgs: ['--enable-automation'],
             viewport: null,
-            // timezoneId/locale gây fail Turnstile (Cloudflare detect CDP override)
         };
 
-        if (profileData.proxy) {
-            launchConfig.proxy = { server: profileData.proxy };
+        if (proxyStr) {
+            launchConfig.proxy = { server: proxyStr };
         }
 
         console.log(`[Manager] 🚀 Đang mở profile [${profileData.name}]...`);
@@ -653,9 +664,9 @@ class ProfileManager {
             }
         }
 
-        // ❌ KHÔNG dùng addInitScript — Cloudflare detect MỌI Object.defineProperty
-        // Screen/Timezone/Locale đã được xử lý native bởi patchright
-        // hardwareConcurrency/deviceMemory cần C++ patch trong tương lai
+        // navigator.userAgentData: được fix ở tầng C++ (user_agent_utils.cc)
+        // brands giờ sync với --user-agent version natively → không cần addInitScript
+
         console.log(`[Manager] 🎭 GPU: ${profileData.gpu.renderer.substring(0, 50)}`);
         console.log(`[Manager] 🖥️  Screen: ${screen.width}x${screen.height}`);
         console.log(`[Manager] 🌍 TZ: ${timezone} | Locale: ${locale}`);
@@ -681,6 +692,7 @@ class ProfileManager {
         if (effectiveStartUrl && effectiveStartUrl !== 'about:blank') {
             page = context.pages()[0] || await context.newPage();
             await page.goto(effectiveStartUrl, { waitUntil: 'domcontentloaded' }).catch(() => {});
+            await this._dismissGooglePromo(page);
         } else {
             // Đợi session khôi phục (tối đa 2 giây)
             for (let i = 0; i < 10; i++) {
@@ -708,6 +720,7 @@ class ProfileManager {
                 const url = page.url();
                 if (url === 'about:blank' || url.includes('chrome://newtab')) {
                     await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded' }).catch(() => {});
+                    await this._dismissGooglePromo(page);
                 }
             }
         }
