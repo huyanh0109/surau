@@ -402,7 +402,7 @@
                 <div class="fd-panel-header">
                     <div class="fd-panel-title">PROXY MANAGEMENT</div>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <button onclick="fdUseDirectProxy()" title="Dùng IP thật của máy tính" style="padding: 2px 8px; font-size: 10px; cursor: pointer; background: transparent; border: 1px solid var(--cyan); color: var(--cyan); border-radius: 4px; letter-spacing: 1px;">&#128187; IP MÁY</button>
+                        <button onclick="fdUseDirectProxy()" title="Dùng IP thật của máy tính" style="padding: 2px 8px; font-size: 10px; cursor: pointer; background: transparent; border: 1px solid var(--cyan); color: var(--cyan); border-radius: 4px; letter-spacing: 1px;">IP REAL</button>
                         <div class="fd-status-badge" style="border-color: var(--green); color: var(--green);">READY</div>
                     </div>
                 </div>
@@ -1371,7 +1371,7 @@ async function fdUseDirectProxy() {
         });
         const data = await res.json();
         if(data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
-        else fdLogMsg('✅ IP MÁY activated. Tất cả trình duyệt dùng IP thật của máy.', 'success');
+        else fdLogMsg('✅ IP REAL activated. Tất cả trình duyệt dùng IP thật của máy.', 'success');
     } catch(e) {
         fdLogMsg(`ERROR: ${e.message}`, 'error');
     }
