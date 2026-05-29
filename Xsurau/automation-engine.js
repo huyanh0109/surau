@@ -112,6 +112,17 @@ class AutomationEngine extends EventEmitter {
 
         log(`🚀 Bắt đầu [${automationName}] trên ${profileIds.length} profile (${concurrency} đồng thời)`);
 
+        // Tự động tải dữ liệu Google Sheet nếu mảng sheetData truyền vào trống
+        if (!sheetData || sheetData.length === 0) {
+            try {
+                const { getAllRows } = require('./google-sheet');
+                sheetData = await getAllRows();
+                log(`Tự động tải ${sheetData.length} dòng từ Google Sheet để khớp dữ liệu`, 'info');
+            } catch (e) {
+                log(`⚠️ Tự động tải dữ liệu Google Sheet thất bại: ${e.message}`, 'warning');
+            }
+        }
+
         try {
             for (const chunk of chunks) {
                 if (controller.signal.aborted) break;
@@ -120,9 +131,29 @@ class AutomationEngine extends EventEmitter {
                 const chunkResults = await Promise.all(
                     chunk.map(async (profileId, idx) => {
                         const globalIdx = results.length + idx;
+                        
+                        // Tìm dòng trong Google Sheet khớp với profile này theo tên Gmail
+                        let matchedRow = null;
+                        const profileObj = this.manager.getProfile(profileId);
+                        const profileName = profileObj ? profileObj.name : '';
+                        
+                        if (profileName && sheetData && sheetData.length > 0) {
+                            const gmailMatch = profileName.toLowerCase().match(/[a-zA-Z0-9._%+-]+@gmail\.com/);
+                            const searchKey = gmailMatch ? gmailMatch[0] : profileName.toLowerCase().trim();
+                            
+                            matchedRow = sheetData.find(row => 
+                                (row.Gmail && row.Gmail.toLowerCase().trim() === searchKey) ||
+                                (row.Gmail && searchKey.includes(row.Gmail.toLowerCase().trim()))
+                            );
+                        }
+                        
+                        if (!matchedRow) {
+                            matchedRow = sheetData[globalIdx] || {};
+                        }
+
                         const job = {
                             profileId,
-                            sheetRow: sheetData[globalIdx] || {},
+                            sheetRow: matchedRow,
                             blockImages: options.blockImages || false,
                             startUrl: options.startUrl || null,
                         };
