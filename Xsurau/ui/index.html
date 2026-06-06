@@ -1409,9 +1409,23 @@ async function fdXoayProxy() {
 
 
 async function pauseAllProfiles() {
-    fdLogMsg('PAUSE ALL requested...', 'warning');
-    // For now, this is a placeholder or we can implement a basic stop
-    showToast('PAUSE ALL TRIGGERED');
+    fdLogMsg('🛑 Sending STOP all automations command...', 'warning');
+    try {
+        const res = await fetch(`${API}/automation/stop`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+        const data = await res.json();
+        if (data.stopped) {
+            fdLogMsg('✅ STOP ALL AUTOMATIONS completed.', 'success');
+            showToast('AUTOMATIONS STOPPED');
+        } else {
+            fdLogMsg('⚠️ Failed to stop automations.', 'warning');
+        }
+    } catch (e) {
+        fdLogMsg(`❌ Error stopping automations: ${e.message}`, 'error');
+    }
 }
 
 function fdLogMsg(msg, type = 'info') {
