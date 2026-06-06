@@ -3,10 +3,44 @@ import { AutomationEngine } from '../../engines/automation.engine';
 import { AutomationJob, AutomationResult } from '../../types/automation-job';
 import { LogStreamService } from '../../../log-stream/log-stream.service';
 
+async function clickAppealButton(page: Page, allowedTexts: string[]): Promise<boolean> {
+    const clicked = await page.evaluate((texts) => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        for (const btn of buttons) {
+            const style = window.getComputedStyle(btn);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                continue;
+            }
+            if ((btn as HTMLButtonElement).disabled) {
+                continue;
+            }
+            const txt = (btn.textContent || '').trim().toLowerCase();
+            // Skip email selection button and language selection buttons
+            if (txt.includes('@') || txt.includes('english') || txt.includes('tiếng việt') || txt.includes('help') || txt.includes('trợ giúp')) {
+                continue;
+            }
+            // Skip back buttons
+            if (txt === 'back' || txt === 'quay lại' || txt.includes('back') || txt.includes('quay lại')) {
+                continue;
+            }
+            for (const target of texts) {
+                if (txt === target.toLowerCase() || txt.includes(target.toLowerCase())) {
+                    (btn as HTMLButtonElement).click();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }, allowedTexts);
+
+    return clicked;
+}
+
 export class AppealGoogleAutomation implements AutomationEngine {
     name = 'appeal-google';
 
     async run(page: Page, job: AutomationJob, signal?: AbortSignal, logger?: LogStreamService): Promise<AutomationResult> {
+        const log = (msg: string) => { logger?.(msg); console.log(`[P${job.profileId}] ${msg}`); };
         try {
             if (signal?.aborted) {
                 return { profileId: job.profileId, success: false, error: 'Stopped' };
@@ -110,13 +144,18 @@ export class AppealGoogleAutomation implements AutomationEngine {
                 return `${name}.${surname}${randomNum}@${domain}`;
             };
 
-            // 1. Kiểm tra xem có đúng trang appeal không
-            const pageContent = await page.content();
-            const isAppealPage =
-                pageContent.includes('Your account has been disabled') ||
-                pageContent.includes('account was disabled') ||
-                pageContent.includes('Start appeal');
+            let appealText = '';
+            let contactEmail = '';
+            let pageContent = await page.content();
+            const hasText = (t: string) => pageContent.toLowerCase().includes(t.toLowerCase());
 
+            // Nhận diện các trang/bước của Google Appeal
+            const isRequestReviewPage = hasText('Request a review') || hasText('review of your account') || hasText('Step 1 of 3') || hasText('Step 1/') || hasText('Bước 1/') || hasText('Yêu cầu xem xét') || hasText('xem xét tài khoản');
+            const isOnStep2 = hasText('Step 2 of 3') || hasText('Step 2/') || hasText('Bước 2/') || hasText('Enter appeal reason') || hasText('Nhập lý do khiếu nại') || (await page.$('textarea')) !== null;
+            const isOnStep3 = hasText('Step 3 of 3') || hasText('Step 3/') || hasText('Bước 3/') || hasText('contactEmailAddress') || (await page.$('[name="contactEmailAddress"]')) !== null;
+            const isInitialDisabledPage = hasText('Your account has been disabled') || hasText('account was disabled') || hasText('Start appeal') || hasText('Bắt đầu khiếu nại') || hasText('tài khoản đã bị vô hiệu') || hasText('tài khoản bị vô hiệu') || hasText('vô hiệu hóa');
+
+            const isAppealPage = isInitialDisabledPage || isRequestReviewPage || isOnStep2 || isOnStep3;
             if (!isAppealPage) {
                 return {
                     profileId: job.profileId,
@@ -125,136 +164,120 @@ export class AppealGoogleAutomation implements AutomationEngine {
                 };
             }
 
-            // 2. Tìm button "Start appeal" bằng jsaction attribute
-            const startAppealButton = await page.$(
-                'button[jsaction*="click:cOuCgd"][jsaction*="mousedown:UX7yZ"]',
-            );
+            // --- BƯỚC 1: NHẤN "START APPEAL" ---
+            if (!isRequestReviewPage && !isOnStep2 && !isOnStep3) {
+                log('Đang ở trang thông báo bị vô hiệu hóa. Tìm nút Start Appeal...');
+                const startBtn = await page.$('button[jsaction*="click:cOuCgd"][jsaction*="mousedown:UX7yZ"]');
+                let clickedStart = false;
+                if (startBtn) {
+                    await startBtn.click();
+                    clickedStart = true;
+                } else {
+                    clickedStart = await clickAppealButton(page, ['Start appeal', 'Bắt đầu khiếu nại', 'Bắt đầu']);
+                }
 
-            if (!startAppealButton) {
-                return {
-                    profileId: job.profileId,
-                    success: false,
-                    error: 'Start appeal button not found',
-                };
+                if (!clickedStart) {
+                    await new Promise((resolve) => setTimeout(resolve, 2000));
+                    pageContent = await page.content();
+                    const nowOnReview = hasText('Request a review') || hasText('Step 1 of 3') || hasText('Bước 1/') || hasText('Yêu cầu xem xét');
+                    if (!nowOnReview) {
+                        return { profileId: job.profileId, success: false, error: 'Start appeal button not found' };
+                    }
+                } else {
+                    await new Promise((resolve) => setTimeout(resolve, 2000));
+                }
             }
 
-            // 4. Click vào button
-            await startAppealButton.click();
+            // --- BƯỚC 2: CLICK NEXT Ở BƯỚC 1 (Request a Review) ---
+            pageContent = await page.content();
+            const currentlyOnStep1 = hasText('Request a review') || hasText('Step 1 of 3') || hasText('Bước 1/') || hasText('Yêu cầu xem xét') || hasText('xem xét tài khoản');
+            const currentlyOnStep2 = hasText('Step 2 of 3') || hasText('Step 2/') || hasText('Bước 2/') || hasText('Enter appeal reason') || hasText('Nhập lý do khiếu nại') || (await page.$('textarea')) !== null;
+            const currentlyOnStep3 = hasText('Step 3 of 3') || hasText('Step 3/') || hasText('Bước 3/') || hasText('contactEmailAddress') || (await page.$('[name="contactEmailAddress"]')) !== null;
 
-            // 5. Đợi trang "Request a review" load
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-
-            // 7. Tìm button "Next"
-            //const nextButton = await page.$('button[jsaction*="click:cOuCgd"]');
-            const nextButton = await page.$('[type="button"]');
-            if (!nextButton) {
-                return {
-                    profileId: job.profileId,
-                    success: false,
-                    error: 'Next button not found',
-                };
+            if (currentlyOnStep1 && !currentlyOnStep2 && !currentlyOnStep3) {
+                log('Đang ở trang Request a review (Bước 1). Nhấn Next...');
+                const clickedNext1 = await clickAppealButton(page, ['Next', 'Tiếp theo', 'Tiếp tục', 'Continue']);
+                if (!clickedNext1) {
+                    return { profileId: job.profileId, success: false, error: 'Next button not found' };
+                }
+                await new Promise((resolve) => setTimeout(resolve, 2000));
             }
 
+            // --- BƯỚC 3: NHẬP LÝ DO APPEAL Ở BƯỚC 2 ---
+            pageContent = await page.content();
+            const nowOnStep2 = hasText('Step 2 of 3') || hasText('Step 2/') || hasText('Bước 2/') || hasText('Enter appeal reason') || hasText('Nhập lý do khiếu nại') || (await page.$('textarea')) !== null;
+            const nowOnStep3 = hasText('Step 3 of 3') || hasText('Step 3/') || hasText('Bước 3/') || hasText('contactEmailAddress') || (await page.$('[name="contactEmailAddress"]')) !== null;
 
-            // 9. Click vào button Next
-            await nextButton.click();
+            if (nowOnStep2 && !nowOnStep3) {
+                log('Đang ở trang nhập lý do khiếu nại (Bước 2)...');
+                let textarea = await page.$('[aria-label="Enter appeal reason"]');
+                if (!textarea) {
+                    textarea = await page.$('textarea');
+                }
+                if (!textarea) {
+                    return { profileId: job.profileId, success: false, error: 'Appeal reason textarea not found' };
+                }
 
-            // 10. Đợi trang "Tell us why your account should be restored" load
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+                appealText = generateAppealText();
+                await textarea.click();
+                await textarea.type(appealText, { delay: 3 });
+                await new Promise((resolve) => setTimeout(resolve, 1000));
 
-
-            // 12. Tìm textarea để điền appeal reason
-            const textarea = await page.$('[aria-label="Enter appeal reason"]');
-
-            if (!textarea) {
-                return {
-                    profileId: job.profileId,
-                    success: false,
-                    error: 'Appeal reason textarea not found',
-                };
+                log('Nhấn Next ở Bước 2...');
+                const clickedNext2 = await clickAppealButton(page, ['Next', 'Tiếp theo', 'Tiếp tục', 'Continue']);
+                if (!clickedNext2) {
+                    return { profileId: job.profileId, success: false, error: 'Second Next button not found' };
+                }
+                await new Promise((resolve) => setTimeout(resolve, 2000));
             }
 
-            // 13. Generate random appeal text và điền vào textarea
-            const appealText = generateAppealText();
-            await textarea.click(); // Focus vào textarea
-            await textarea.type(appealText, { delay: 3 }); // Type nhanh hơn
+            // --- BƯỚC 4: NHẬP CONTACT EMAIL VÀ SUBMIT Ở BƯỚC 3 ---
+            pageContent = await page.content();
+            const nowOnStep3Final = hasText('Step 3 of 3') || hasText('Step 3/') || hasText('Bước 3/') || hasText('contactEmailAddress') || (await page.$('[name="contactEmailAddress"]')) !== null;
 
-            // 14. Đợi một chút sau khi điền text
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            if (nowOnStep3Final) {
+                log('Đang ở trang cung cấp email liên hệ (Bước 3)...');
+                let emailInput = await page.$('[name="contactEmailAddress"]');
+                if (!emailInput) {
+                    emailInput = await page.$('input[type="email"]');
+                }
+                if (!emailInput) {
+                    return { profileId: job.profileId, success: false, error: 'Contact email input not found' };
+                }
 
-            // 15. Tìm button "Next" (button thứ 2)
-            //const nextButton2 = await page.$('button[jsaction*="click:cOuCgd"]');
-            const nextButton2 = await page.$('[type="button"]');
+                contactEmail = generateRandomEmail();
+                await emailInput.click();
+                await emailInput.type(contactEmail, { delay: 10 });
+                await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            if (!nextButton2) {
-                return {
-                    profileId: job.profileId,
-                    success: false,
-                    error: 'Second Next button not found',
-                };
+                log('Nhấn nút gửi (Submit)...');
+                const clickedSubmit = await clickAppealButton(page, ['Submit', 'Gửi', 'Hoàn tất', 'Done']);
+                if (!clickedSubmit) {
+                    return { profileId: job.profileId, success: false, error: 'Submit appeal button not found' };
+                }
+                await new Promise((resolve) => setTimeout(resolve, 5000));
             }
 
-            // 16. Click vào button Next
-            await nextButton2.click();
-
-            // 17. Đợi trang "Provide a contact email" load
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-
-
-            // 19. Tìm input field để điền email
-            const emailInput = await page.$('[name="contactEmailAddress"]');
-
-            if (!emailInput) {
-                return {
-                    profileId: job.profileId,
-                    success: false,
-                    error: 'Contact email input not found',
-                };
-            }
-
-            // 20. Generate random email và điền vào input
-            const contactEmail = generateRandomEmail();
-            await emailInput.click(); // Focus vào input
-            await emailInput.type(contactEmail, { delay: 10 }); // Type với delay tự nhiên
-
-            // 21. Đợi một chút sau khi điền email
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            // 22. Tìm button "Submit appeal"
-            const submitButton = await page.$('button[jsaction*="click:cOuCgd"]');
-
-            if (!submitButton) {
-                return {
-                    profileId: job.profileId,
-                    success: false,
-                    error: 'Submit appeal button not found',
-                };
-            }
-            // 24. Click vào button Submit appeal
-            await submitButton.click();
-
-            // 25. Đợi confirmation page load (tăng lên 5s)
-            await new Promise((resolve) => setTimeout(resolve, 5000));
-
-            // 26. Kiểm tra xem có thành công không (trang "Your appeal was submitted")
+            // Kiểm tra thành công
             try {
-                // Wait for the success text to appear
                 await page.waitForFunction(
                     () => {
                         const text = document.body.innerText || '';
                         return text.includes('Your appeal was submitted') ||
-                            text.includes('appeal was submitted');
+                            text.includes('appeal was submitted') ||
+                            text.includes('khiếu nại của bạn đã được gửi') ||
+                            text.includes('đã được gửi');
                     },
                     { timeout: 10000 }
                 );
-
                 console.log('✅ Appeal submitted successfully');
             } catch (err) {
-                // Fallback: check page content
                 const confirmationPageContent = await page.content();
+                const lowerHtml = confirmationPageContent.toLowerCase();
                 const isAppealSubmitted =
-                    confirmationPageContent.includes('Your appeal was submitted') ||
-                    confirmationPageContent.includes('appeal was submitted');
+                    lowerHtml.includes('appeal was submitted') ||
+                    lowerHtml.includes('khiếu nại của bạn đã được gửi') ||
+                    lowerHtml.includes('đã được gửi');
 
                 if (!isAppealSubmitted) {
                     return {
@@ -271,9 +294,6 @@ export class AppealGoogleAutomation implements AutomationEngine {
 
             if (gmail) {
                 try {
-                    // console.log(`📝 Attempting to update sheet for gmail: ${gmail}`);
-
-                    // Lấy ngày hiện tại theo định dạng D/M/YY
                     const getCurrentDateGMT7 = (): string => {
                         const now = new Date();
                         const gmt7 = new Date(now.getTime() + (7 * 60 * 60 * 1000));
@@ -287,7 +307,6 @@ export class AppealGoogleAutomation implements AutomationEngine {
 
                     const currentDate = getCurrentDateGMT7();
 
-                    // Call API để update cột F (Note) thành "appealing" và cột H (DateAppeal)
                     const updateResponse = await fetch('http://localhost:3500/sheet/update-note-and-appeal', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -303,10 +322,8 @@ export class AppealGoogleAutomation implements AutomationEngine {
                     if (!updateResponse.ok) {
                         const errorMsg = `Failed to update sheet for ${gmail}: ${updateResponse.status} ${updateResponse.statusText}`;
                         console.error(errorMsg);
-                        console.error('Response:', responseData);
                         sheetUpdateResult = { success: false, error: errorMsg, response: responseData };
                     } else {
-                        // console.log(`✅ Updated Google Sheet for ${gmail}: Note=appealing, DateAppeal=${currentDate}`);
                         sheetUpdateResult = { success: true, ...responseData };
                     }
                 } catch (error: any) {

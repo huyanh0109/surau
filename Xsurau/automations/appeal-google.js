@@ -1,6 +1,54 @@
 const { sleep } = require('./helpers');
 
-const API_BASE = `http://localhost:${process.env.API_PORT || 3333}`;
+const API_BASE = `http://127.0.0.1:${process.env.API_PORT || 3333}`;
+
+// Helper function to click buttons robustly by filtering out back buttons, email/language selectors, etc.
+async function clickAppealButton(page, allowedTexts) {
+    const clicked = await page.evaluate((texts) => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        for (const btn of buttons) {
+            const style = window.getComputedStyle(btn);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                continue;
+            }
+            if (btn.disabled) {
+                continue;
+            }
+            const txt = (btn.textContent || '').trim().toLowerCase();
+            // Skip email selection button and language selection buttons
+            if (txt.includes('@') || txt.includes('english') || txt.includes('tiếng việt') || txt.includes('help') || txt.includes('trợ giúp')) {
+                continue;
+            }
+            // Skip back buttons
+            if (txt === 'back' || txt === 'quay lại' || txt.includes('back') || txt.includes('quay lại')) {
+                continue;
+            }
+            for (const target of texts) {
+                if (txt === target.toLowerCase() || txt.includes(target.toLowerCase())) {
+                    btn.click();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }, allowedTexts);
+
+    if (clicked) return true;
+
+    // Playwright locator fallback
+    for (const text of allowedTexts) {
+        try {
+            const locator = page.locator(`button:has-text("${text}")`).first();
+            if (await locator.isVisible({ timeout: 1000 })) {
+                await locator.click();
+                return true;
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+    return false;
+}
 
 /** Appeal (khiếu nại) tài khoản Google bị disable */
 async function run(page, job, signal, logger) {
@@ -26,58 +74,123 @@ async function run(page, job, signal, logger) {
 
     try {
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
-        const pageContent = await page.content();
-        const isAppealPage = pageContent.includes('Your account has been disabled') || pageContent.includes('account was disabled') || pageContent.includes('Start appeal');
+        
+        let appealText = '';
+        let contactEmail = '';
+        let pageContent = await page.content();
+        const hasText = (t) => pageContent.toLowerCase().includes(t.toLowerCase());
+        
+        // Nhận diện các trang/bước của Google Appeal
+        const isRequestReviewPage = hasText('Request a review') || hasText('review of your account') || hasText('Step 1 of 3') || hasText('Step 1/') || hasText('Bước 1/') || hasText('Yêu cầu xem xét') || hasText('xem xét tài khoản');
+        const isOnStep2 = hasText('Step 2 of 3') || hasText('Step 2/') || hasText('Bước 2/') || hasText('Enter appeal reason') || hasText('Nhập lý do khiếu nại') || (await page.$('textarea')) !== null;
+        const isOnStep3 = hasText('Step 3 of 3') || hasText('Step 3/') || hasText('Bước 3/') || hasText('contactEmailAddress') || (await page.$('[name="contactEmailAddress"]')) !== null;
+        const isInitialDisabledPage = hasText('Your account has been disabled') || hasText('account was disabled') || hasText('Start appeal') || hasText('Bắt đầu khiếu nại') || hasText('tài khoản đã bị vô hiệu') || hasText('tài khoản bị vô hiệu') || hasText('vô hiệu hóa');
+
+        const isAppealPage = isInitialDisabledPage || isRequestReviewPage || isOnStep2 || isOnStep3;
         if (!isAppealPage) return { profileId: job.profileId, success: false, error: 'Không phải trang appeal' };
 
-        // Click Start Appeal
-        const startBtn = await page.$('button[jsaction*="click:cOuCgd"][jsaction*="mousedown:UX7yZ"]');
-        if (!startBtn) return { profileId: job.profileId, success: false, error: 'Không tìm thấy nút Start appeal' };
-        await startBtn.click();
-        await sleep(2000);
+        // --- BƯỚC 1: NHẤN "START APPEAL" ---
+        // Chỉ nhấn nếu chưa ở bất cứ trang Request a Review nào (Step 1, Step 2, Step 3)
+        if (!isRequestReviewPage && !isOnStep2 && !isOnStep3) {
+            log('Đang ở trang thông báo bị vô hiệu hóa. Tìm nút Start Appeal...');
+            const startBtn = await page.$('button[jsaction*="click:cOuCgd"][jsaction*="mousedown:UX7yZ"]');
+            let clickedStart = false;
+            if (startBtn) {
+                await startBtn.click();
+                clickedStart = true;
+            } else {
+                clickedStart = await clickAppealButton(page, ['Start appeal', 'Bắt đầu khiếu nại', 'Bắt đầu']);
+            }
 
-        // Click Next
-        const nextBtn1 = await page.$('[type="button"]');
-        if (!nextBtn1) return { profileId: job.profileId, success: false, error: 'Không tìm thấy nút Next' };
-        await nextBtn1.click();
-        await sleep(2000);
+            if (!clickedStart) {
+                // Kiểm tra xem trang có tự chuyển sang review page không
+                await sleep(2000);
+                pageContent = await page.content();
+                const nowOnReview = hasText('Request a review') || hasText('Step 1 of 3') || hasText('Bước 1/') || hasText('Yêu cầu xem xét');
+                if (!nowOnReview) {
+                    return { profileId: job.profileId, success: false, error: 'Không tìm thấy nút Start appeal' };
+                }
+            } else {
+                await sleep(2000);
+            }
+        }
 
-        // Nhập lý do appeal
-        const textarea = await page.$('[aria-label="Enter appeal reason"]');
-        if (!textarea) return { profileId: job.profileId, success: false, error: 'Không tìm thấy ô nhập lý do' };
-        const appealText = generateAppealText();
-        await textarea.click();
-        await textarea.type(appealText, { delay: 3 });
-        await sleep(1000);
+        // --- BƯỚC 2: CLICK NEXT Ở BƯỚC 1 (Request a Review) ---
+        pageContent = await page.content();
+        const currentlyOnStep1 = hasText('Request a review') || hasText('Step 1 of 3') || hasText('Bước 1/') || hasText('Yêu cầu xem xét') || hasText('xem xét tài khoản');
+        const currentlyOnStep2 = hasText('Step 2 of 3') || hasText('Step 2/') || hasText('Bước 2/') || hasText('Enter appeal reason') || hasText('Nhập lý do khiếu nại') || (await page.$('textarea')) !== null;
+        const currentlyOnStep3 = hasText('Step 3 of 3') || hasText('Step 3/') || hasText('Bước 3/') || hasText('contactEmailAddress') || (await page.$('[name="contactEmailAddress"]')) !== null;
 
-        // Click Next lần 2
-        const nextBtn2 = await page.$('[type="button"]');
-        if (!nextBtn2) return { profileId: job.profileId, success: false, error: 'Không tìm thấy nút Next lần 2' };
-        await nextBtn2.click();
-        await sleep(2000);
+        if (currentlyOnStep1 && !currentlyOnStep2 && !currentlyOnStep3) {
+            log('Đang ở trang Request a review (Bước 1). Nhấn Next...');
+            const clickedNext1 = await clickAppealButton(page, ['Next', 'Tiếp theo', 'Tiếp tục', 'Continue']);
+            if (!clickedNext1) return { profileId: job.profileId, success: false, error: 'Không tìm thấy nút Next ở Bước 1' };
+            await sleep(2000);
+        }
 
-        // Nhập contact email
-        const emailInput = await page.$('[name="contactEmailAddress"]');
-        if (!emailInput) return { profileId: job.profileId, success: false, error: 'Không tìm thấy ô email liên hệ' };
-        const contactEmail = generateRandomEmail();
-        await emailInput.click();
-        await emailInput.type(contactEmail, { delay: 10 });
-        await sleep(1000);
+        // --- BƯỚC 3: NHẬP LÝ DO APPEAL Ở BƯỚC 2 ---
+        pageContent = await page.content();
+        const nowOnStep2 = hasText('Step 2 of 3') || hasText('Step 2/') || hasText('Bước 2/') || hasText('Enter appeal reason') || hasText('Nhập lý do khiếu nại') || (await page.$('textarea')) !== null;
+        const nowOnStep3 = hasText('Step 3 of 3') || hasText('Step 3/') || hasText('Bước 3/') || hasText('contactEmailAddress') || (await page.$('[name="contactEmailAddress"]')) !== null;
 
-        // Submit
-        const submitBtn = await page.$('button[jsaction*="click:cOuCgd"]');
-        if (!submitBtn) return { profileId: job.profileId, success: false, error: 'Không tìm thấy nút Submit' };
-        await submitBtn.click();
-        await sleep(5000);
+        if (nowOnStep2 && !nowOnStep3) {
+            log('Đang ở trang nhập lý do khiếu nại (Bước 2)...');
+            let textarea = await page.$('[aria-label="Enter appeal reason"]');
+            if (!textarea) {
+                textarea = await page.$('textarea');
+            }
+            if (!textarea) return { profileId: job.profileId, success: false, error: 'Không tìm thấy ô nhập lý do' };
+
+            appealText = generateAppealText();
+            await textarea.click();
+            await textarea.type(appealText, { delay: 3 });
+            await sleep(1000);
+
+            log('Nhấn Next ở Bước 2...');
+            const clickedNext2 = await clickAppealButton(page, ['Next', 'Tiếp theo', 'Tiếp tục', 'Continue']);
+            if (!clickedNext2) return { profileId: job.profileId, success: false, error: 'Không tìm thấy nút Next ở Bước 2' };
+            await sleep(2000);
+        }
+
+        // --- BƯỚC 4: NHẬP CONTACT EMAIL VÀ SUBMIT Ở BƯỚC 3 ---
+        pageContent = await page.content();
+        const nowOnStep3Final = hasText('Step 3 of 3') || hasText('Step 3/') || hasText('Bước 3/') || hasText('contactEmailAddress') || (await page.$('[name="contactEmailAddress"]')) !== null;
+
+        if (nowOnStep3Final) {
+            log('Đang ở trang cung cấp email liên hệ (Bước 3)...');
+            let emailInput = await page.$('[name="contactEmailAddress"]');
+            if (!emailInput) {
+                emailInput = await page.$('input[type="email"]');
+            }
+            if (!emailInput) return { profileId: job.profileId, success: false, error: 'Không tìm thấy ô email liên hệ' };
+
+            contactEmail = generateRandomEmail();
+            await emailInput.click();
+            await emailInput.type(contactEmail, { delay: 10 });
+            await sleep(1000);
+
+            log('Nhấn nút gửi (Submit)...');
+            const clickedSubmit = await clickAppealButton(page, ['Submit', 'Gửi', 'Hoàn tất', 'Done']);
+            if (!clickedSubmit) return { profileId: job.profileId, success: false, error: 'Không tìm thấy nút Submit' };
+            await sleep(5000);
+        }
 
         // Kiểm tra thành công
         try {
             await page.waitForFunction(() => {
-                return document.body.innerText.includes('Your appeal was submitted') || document.body.innerText.includes('appeal was submitted');
+                const text = document.body.innerText || '';
+                return text.includes('Your appeal was submitted') || 
+                       text.includes('appeal was submitted') || 
+                       text.includes('khiếu nại của bạn đã được gửi') || 
+                       text.includes('đã được gửi');
             }, { timeout: 10000 });
         } catch {
             const html = await page.content();
-            if (!html.includes('appeal was submitted')) return { profileId: job.profileId, success: false, error: 'Không thấy trang xác nhận appeal' };
+            const lowerHtml = html.toLowerCase();
+            const success = lowerHtml.includes('appeal was submitted') || 
+                            lowerHtml.includes('khiếu nại của bạn đã được gửi') || 
+                            lowerHtml.includes('đã được gửi');
+            if (!success) return { profileId: job.profileId, success: false, error: 'Không thấy trang xác nhận appeal' };
         }
 
         // Cập nhật Google Sheet nếu có Gmail
