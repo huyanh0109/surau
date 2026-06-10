@@ -15,20 +15,67 @@ async function tryGestureCaptchaOnce(page, job, signal, logger) {
     // Phan loai captcha: Gesture hay v2 hay khong co
     let hasGesture = false;
     let hasV2Captcha = false;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 30; i++) {
+        if (signal?.aborted) return page;
         try {
-            const url = page.url();
+            // Check early exit if next step is already visible
+            const nextStepVisible = await page.evaluate(() => {
+                const isVisible = (el) => {
+                    return !!(el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getBoundingClientRect().width > 0));
+                };
+                const email = document.querySelector('input[type="email"]');
+                if (isVisible(email)) return true;
+                const pwd = document.querySelector('input[type="password"]');
+                if (isVisible(pwd)) return true;
+                const code2fa = document.querySelector('input[type="tel"], input#totpPin, input[autocomplete="one-time-code"]');
+                if (isVisible(code2fa)) return true;
+                const recovery = document.querySelector('[name="knowledgePreregisteredEmailResponse"]');
+                if (isVisible(recovery)) return true;
+                return false;
+            }).catch(() => false);
+
+            if (nextStepVisible) {
+                log('Next step input visible - no captcha.');
+                break;
+            }
+
+            const currentUrl = page.url();
+            if (currentUrl.includes('one.google.com')) {
+                log('Successfully logged in (one.google.com) - no captcha.');
+                break;
+            }
+
             const frames = page.frames();
-            // Gesture Captcha: PHAI co iframe 'hand-gestures'
-            hasGesture = frames.some(f => f.url().includes('hand-gestures'));
             
+            // Check if any frame has hand-gestures or has text indicating gesture captcha
+            for (const f of frames) {
+                if (f.url().includes('hand-gestures')) {
+                    hasGesture = true;
+                    break;
+                }
+                if (f.url().includes('recaptcha')) {
+                    try {
+                        const text = await f.evaluate(() => {
+                            return (document.body?.innerText || '').toLowerCase();
+                        });
+                        // Cac tu khoa chi dien cua Gesture Captcha (bao gom tieng Anh va tieng Viet)
+                        if (text.includes('gesture') || text.includes('hand') || text.includes('camera') || 
+                            text.includes('bàn tay') || text.includes('giơ') || text.includes('nắm') ||
+                            text.includes('ngón') || text.includes('vẫy') || text.includes('chỉ')) {
+                            hasGesture = true;
+                            break;
+                        }
+                    } catch (e) {}
+                }
+            }
+
             if (hasGesture) {
                 log(`[detect] GESTURE CAPTCHA. Frames: ${frames.map(f => f.url().substring(0, 60)).join(' | ')}`);
                 break;
             }
 
             // reCAPTCHA v2: co iframe recaptcha
-            hasV2Captcha = (url.includes('challenge') || url.includes('recaptcha')) &&
+            hasV2Captcha = (currentUrl.includes('challenge') || currentUrl.includes('recaptcha')) &&
                 frames.some(f => f.url().includes('recaptcha'));
         } catch (e) {}
         await sleep(500);
@@ -36,14 +83,13 @@ async function tryGestureCaptchaOnce(page, job, signal, logger) {
 
     if (!hasGesture) {
         if (hasV2Captcha) log('reCAPTCHA v2 detected - khong tu dong giai, bo qua gesture solver.');
-        else log('Khong co gesture captcha, bo qua.');
+        else log('Khong phat hien gesture captcha, tiep tuc.');
         return page;
     }
 
-    log('Phat hien Gesture Captcha! Thu giai bang solveCaptchaProcess...');
+    log('Phat hien Gesture Captcha! Bat dau tu dong giai bang solveCaptchaProcess...');
 
     // Goi solveCaptchaProcess tu solve-gesture-captcha.js
-    // solveCaptchaProcess da co logic robust de handle "Something went wrong" va retry.
     const result = await solveCaptchaProcess(page, job, signal, log);
     if (result.success) {
         log(`Gesture da giai thanh cong! (${result.gesture})`);
@@ -78,6 +124,9 @@ async function run(page, job, signal, logger) {
         await page.goto('https://accounts.google.com/v3/signin/identifier?authuser=0&continue=https%3A%2F%2Fone.google.com%2F&ec=GAlAywM&hl=en_GB&flowName=GlifWebSignIn&flowEntry=AddSession&theme=glif', {
             waitUntil: 'domcontentloaded'
         });
+
+        // Thu giai Gesture Captcha neu xuat hien ngay khi load trang
+        page = await tryGestureCaptchaOnce(page, job, signal, logger);
 
         // 2. Nhap email
         await page.waitForSelector('input[type="email"]', { timeout: 30000 });
