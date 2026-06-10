@@ -46,10 +46,13 @@ async function tryGestureCaptchaOnce(page, job, signal, logger, step) {
             }
 
             const currentUrl = page.url();
-            if (currentUrl.includes('one.google.com')) {
-                log('Successfully logged in (one.google.com) - no captcha.');
-                break;
-            }
+            try {
+                const parsedUrl = new URL(currentUrl);
+                if (parsedUrl.hostname === 'one.google.com' || parsedUrl.hostname === 'myaccount.google.com') {
+                    log(`Successfully logged in (${parsedUrl.hostname}) - no captcha.`);
+                    break;
+                }
+            } catch (e) {}
 
             const frames = page.frames();
             
