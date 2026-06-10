@@ -1693,19 +1693,19 @@ function handlePhoneInput() {
     const lines = input.split('\n').map(s => s.trim());
     const newState = [];
 
-    lines.forEach((line, index) => {
+    lines.forEach((line) => {
         if (!line) {
-            newState.push({ number: '', status: 'empty', code: null, error: null });
+            newState.push({ number: '', status: 'empty', code: null, error: null, oldCode: null, addedAt: 0 });
             return;
         }
 
         const cleanNum = line.replace(/\D/g, '');
-        const prevState = window.phoneLookupState[index];
+        const prevState = window.phoneLookupState.find(item => item.number === cleanNum);
 
-        if (prevState && prevState.number === cleanNum) {
+        if (prevState) {
             newState.push(prevState);
         } else {
-            newState.push({ number: cleanNum, status: 'idle', code: null, error: null });
+            newState.push({ number: cleanNum, status: 'idle', code: null, error: null, oldCode: null, addedAt: Date.now() });
         }
     });
 
@@ -1729,7 +1729,11 @@ function renderPhoneResults() {
         if (item.status === 'idle') {
             content = `<div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">AWAITING LOOKUP</div>`;
         } else if (item.status === 'loading') {
-            content = `<div style="font-size: 11px; font-weight: bold; color: var(--text-secondary); text-transform: uppercase; animation: pulse 1.5s infinite;">WAITING...</div>`;
+            if (item.code) {
+                content = `<div style="font-size: 18px; font-weight: 900; color: var(--text-muted); letter-spacing: 4px; font-family: 'Outfit', sans-serif; opacity: 0.6; animation: pulse 1.5s infinite;">${item.code}</div>`;
+            } else {
+                content = `<div style="font-size: 11px; font-weight: bold; color: var(--text-secondary); text-transform: uppercase; animation: pulse 1.5s infinite;">WAITING...</div>`;
+            }
         } else if (item.status === 'success') {
             content = `<div style="font-size: 18px; font-weight: 900; color: var(--accent); letter-spacing: 4px; font-family: 'Outfit', sans-serif;">${item.code}</div>`;
         } else if (item.status === 'error') {
@@ -1753,9 +1757,11 @@ async function lookupPhoneCodes(force = false) {
     const promises = window.phoneLookupState.map(async (item, index) => {
         if (item.status === 'empty') return;
         if (force) {
-            item.status = 'idle'; // Reset status to allow fetching again
+            item.status = 'idle';
+            item.addedAt = Date.now();
         } else {
-            if (item.status === 'success' || item.status === 'loading') return;
+            if (Date.now() - item.addedAt >= 300000) return;
+            if (item.status === 'loading') return;
         }
         await fetchSinglePhoneCode(index);
     });
@@ -1776,15 +1782,45 @@ async function fetchSinglePhoneCode(index) {
         const data = await res.json();
 
         if (data.error) {
-            item.status = 'error';
-            item.error = data.error;
+            if (item.code) {
+                item.status = 'success';
+            } else {
+                item.status = 'error';
+                item.error = data.error;
+            }
         } else {
-            item.status = 'success';
-            item.code = data.code || '—';
+            const fetchedCode = data.code || '';
+            if (fetchedCode) {
+                if (item.oldCode === null) {
+                    item.oldCode = fetchedCode;
+                    item.code = fetchedCode;
+                    item.status = 'success';
+                } else if (fetchedCode !== item.oldCode) {
+                    item.oldCode = fetchedCode;
+                    item.code = fetchedCode;
+                    item.status = 'success';
+                    item.addedAt = Date.now(); // Extend polling window
+                    showToast(`NEW CODE: ${fetchedCode}`);
+                } else {
+                    item.code = fetchedCode;
+                    item.status = 'success';
+                }
+            } else {
+                if (item.code) {
+                    item.status = 'success';
+                } else {
+                    item.status = 'error';
+                    item.error = 'No code yet';
+                }
+            }
         }
     } catch (e) {
-        item.status = 'error';
-        item.error = e.message;
+        if (item.code) {
+            item.status = 'success';
+        } else {
+            item.status = 'error';
+            item.error = e.message;
+        }
     }
     renderPhoneResults();
 }
@@ -1795,18 +1831,20 @@ function phoneItemClick(index) {
 
     if (item.status === 'success') {
         copyToClipboard(item.code);
+        item.addedAt = Date.now(); // Extend polling window
+        fetchSinglePhoneCode(index);
     } else if (item.status === 'error' || item.status === 'idle') {
         fetchSinglePhoneCode(index);
     }
 }
 
-// Auto-refresh Phone Lookup timer (checks every 5s for non-success numbers)
+// Auto-refresh Phone Lookup timer (checks every 5s for active numbers)
 setInterval(() => {
     const t = document.getElementById('phoneTimerText');
     if (!t) return;
 
     const hasActiveNumbers = window.phoneLookupState && window.phoneLookupState.some(item => 
-        item.status === 'idle' || item.status === 'error' || item.status === 'loading'
+        item.status !== 'empty' && (Date.now() - item.addedAt < 300000)
     );
     if (!hasActiveNumbers) {
         t.textContent = '—';
