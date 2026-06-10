@@ -4,6 +4,7 @@ const { injectFingerprint } = require('./fingerprint-injector');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { stopGestureWatcher } = require('./gesture-watcher');
 
 // ============================================================================
 // CƠ SỞ DỮ LIỆU GPU ĐỂ RANDOMIZE WEBGL CHO MỖI PROFILE
@@ -412,15 +413,27 @@ class ProfileManager {
 
     /** Mở trình duyệt với profile đã chọn */
     async launchProfile(profileId, options = {}) {
-        const { blockImages = false, headless = false, startUrl = 'about:blank' } = options;
+        const { blockImages = false, headless = false, startUrl = 'about:blank', extraArgs = [], skipWatcher = false } = options;
 
         // Nếu profile đang chạy sẵn, trả về context hiện tại — không mở lại
         if (this.runningProfiles.has(profileId)) {
             const existing = this.runningProfiles.get(profileId);
-            const pages = existing.context.pages();
-            const page = pages[pages.length - 1] || await existing.context.newPage();
-            console.log(`[Manager] ♻️  Profile [${profileId}] đang chạy sẵn — tái sử dụng.`);
-            return { context: existing.context, page, profileData: this.getProfile(profileId), wsEndpoint: null, debugPort: null };
+            let isAlive = false;
+            try {
+                // Thử lấy danh sách pages để kiểm tra xem context/browser có còn sống không
+                existing.context.pages();
+                isAlive = true;
+            } catch (e) {
+                console.log(`[Manager] ⚠️ Profile [${profileId}] context đã chết, tiến hành dọn dẹp và mở mới.`);
+                this.runningProfiles.delete(profileId);
+                stopGestureWatcher(profileId);
+            }
+            if (isAlive) {
+                const pages = existing.context.pages();
+                const page = pages[pages.length - 1] || await existing.context.newPage();
+                console.log(`[Manager] ♻️  Profile [${profileId}] đang chạy sẵn — tái sử dụng.`);
+                return { context: existing.context, page, profileData: this.getProfile(profileId), wsEndpoint: null, debugPort: null };
+            }
         }
 
         // Nếu profile đang trong quá trình khởi động (chưa vào runningProfiles nhưng đã bắt đầu)
@@ -552,6 +565,15 @@ class ProfileManager {
         } catch (e) { /* ignore */ }
 
         // ---- CHROME FLAGS ----
+        // Fake camera mặc định: mọi profile đều có camera ảo sẵn
+        // → Khi gặp Gesture Captcha, watcher tự giải ngay, không cần đóng/mở lại trình duyệt
+        const handOpenY4m = path.join(__dirname, 'recordings', 'hand_open.y4m');
+        const defaultFakeCamArgs = fs.existsSync(handOpenY4m) ? [
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream',
+            `--use-file-for-fake-video-capture=${handOpenY4m}`,
+        ] : [];
+
         const args = [
             '--test-type',
             '--restore-last-session',
@@ -578,6 +600,12 @@ class ProfileManager {
             `--spoof-webrtc-ip=${webrtcIp}`,
             `--spoof-cpu-cores=${hwConcurrency}`,
             `--spoof-device-memory=${devMemory}`,
+
+            // --- FAKE CAMERA MỎC ĐỌNH (không cần relaunch) ---
+            ...defaultFakeCamArgs,
+
+            // Extra args từ caller
+            ...extraArgs,
         ];
 
         if (profileData.userAgent) {
@@ -734,8 +762,12 @@ class ProfileManager {
         // Khi profile bị đóng (user đóng cửa sổ), tự dọn dẹp
         context.on('close', () => {
             this.runningProfiles.delete(profileId);
+            stopGestureWatcher(profileId); // Dừng watcher nếu có
             console.log(`[Manager] ⏹️ Profile [${profileData.name}] đã đóng.`);
         });
+
+        // Gesture Captcha Watcher KHÔNG tự động gắn khi mở browser.
+        // Người dùng phải bấm nút 🖐️ SOLVE GESTURE trong UI để bắt đầu.
 
         // Đọc wsEndpoint từ file DevToolsActivePort (chứa port ngẫu nhiên thực sự)
         let wsEndpoint = null;

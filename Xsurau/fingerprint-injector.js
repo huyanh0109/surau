@@ -28,14 +28,24 @@ const GPU_DATABASE = [
     { vendor: 'Google Inc. (AMD)',    renderer: 'ANGLE (AMD, AMD Radeon Vega 8 Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)' },
 ];
 
+// Cập nhật định kỳ ~6 tuần/version theo lịch Chrome stable release
+// Lần cập nhật: 2026-05-27 | Chrome stable hiện tại: ~136-137
 const USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    // Chrome 133 (phát hành 02/2025)
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.6943.142 Safari/537.36',
+    // Chrome 134 (phát hành 03/2025)
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.165 Safari/537.36',
+    // Chrome 135 (phát hành 04/2025)
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.114 Safari/537.36',
+    // Chrome 136 (phát hành 04/2025 — stable hiện tại)
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.93 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.116 Safari/537.36',
+    // Chrome 137 (Beta / Early Stable — 05/2025)
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
 ];
 
 const SCREEN_RESOLUTIONS = [
@@ -76,11 +86,15 @@ function generateFingerprint(noiseSeed, gpuOverride = null) {
     const languages = pick(LANGUAGES);
 
     const uaVerMatch    = userAgent.match(/Chrome\/([\d.]+)/);
-    const chromeVersion = uaVerMatch ? uaVerMatch[1] : '124.0.0.0';
+    const chromeVersion = uaVerMatch ? uaVerMatch[1] : '136.0.0.0';
     const chromeMajor   = parseInt(chromeVersion.split('.')[0]);
 
     const canvasNoiseByte = Math.floor(rng() * 3) - 1; // -1, 0, 1
     const audioNoise      = (rng() - 0.5) * 0.0001;
+
+    // platformVersion: Windows 10 = "10.0.0", Windows 11 = "15.0.0"
+    // Tỷ lệ thực tế: ~68% Win10, ~32% Win11 (tính đến 2025)
+    const platformVersion = rng() < 0.68 ? '10.0.0' : '15.0.0';
 
     return {
         userAgent, platform: 'Win32',
@@ -89,6 +103,7 @@ function generateFingerprint(noiseSeed, gpuOverride = null) {
         hardwareConcurrency: pick(HARDWARE_CONCURRENCY),
         deviceMemory:        pick(DEVICE_MEMORY),
         chromeVersion, chromeMajor,
+        platformVersion,
         canvasNoiseByte, audioNoise,
     };
 }
@@ -190,11 +205,17 @@ try {
 
 /* 7. userAgentData */
 try {
+    // Brand "Not A Brand" đổi version theo Chrome major:
+    // Chrome <99: "8", Chrome 99-131: "24", Chrome 132+: "99"
+    const notABrandVer = FP.chromeMajor >= 132 ? '99' : FP.chromeMajor >= 99 ? '24' : '8';
     const brands = [
-        {brand:'Not_A Brand',version:'8'},
+        {brand:'Not A Brand',version:notABrandVer},
         {brand:'Chromium',version:String(FP.chromeMajor)},
         {brand:'Google Chrome',version:String(FP.chromeMajor)},
     ];
+    // Windows 11 = platformVersion "15.0.0", Windows 10 = "10.0.0"
+    // Phân bổ 70% Win10 / 30% Win11 cho tự nhiên
+    const platformVersion = FP.platformVersion || '10.0.0';
     Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => ({
         brands, mobile: false, platform: 'Windows',
         getHighEntropyValues: async function(hints) {
@@ -204,7 +225,7 @@ try {
                 if(h==='bitness')         r.bitness='64';
                 if(h==='model')           r.model='';
                 if(h==='platform')        r.platform='Windows';
-                if(h==='platformVersion') r.platformVersion='10.0.0';
+                if(h==='platformVersion') r.platformVersion=platformVersion;
                 if(h==='uaFullVersion')   r.uaFullVersion=FP.chromeVersion;
                 if(h==='fullVersionList') r.fullVersionList=brands.map(b=>({brand:b.brand,version:FP.chromeVersion}));
                 if(h==='wow64')           r.wow64=false;

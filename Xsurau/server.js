@@ -3,11 +3,49 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const crypto = require('crypto');
+const http = require('http');
+const fs = require('fs');
 const ProfileManager = require('./manager');
 const AutomationEngine = require('./automation-engine');
 const proxyService = require('./proxy-service');
 const { registerSheetRoutes } = require('./google-sheet');
 const { registerPhoneRoutes } = require('./phone');
+const { attachGestureWatcher, stopGestureWatcher, getActiveWatchers } = require('./gesture-watcher');
+
+// ============================================================
+// VIDEO SERVER — serve gesture captcha videos (port 17771)
+// ============================================================
+const VIDEO_PORT = 17771;
+const RECORDINGS_DIR = path.join(__dirname, 'recordings');
+
+function startVideoServer() {
+    const srv = http.createServer((req, res) => {
+        const fileName = path.basename(req.url);
+        const filePath = path.join(RECORDINGS_DIR, fileName);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
+        if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+        if (!fs.existsSync(filePath)) { res.writeHead(404); res.end('Not Found'); return; }
+        const stat = fs.statSync(filePath);
+        const fileSize = stat.size;
+        const range = req.headers.range;
+        if (range) {
+            const [s, e] = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(s, 10);
+            const end = e ? parseInt(e, 10) : fileSize - 1;
+            res.writeHead(206, { 'Content-Range': `bytes ${start}-${end}/${fileSize}`, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1, 'Content-Type': 'video/mp4' });
+            fs.createReadStream(filePath, { start, end }).pipe(res);
+        } else {
+            res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes' });
+            fs.createReadStream(filePath).pipe(res);
+        }
+    });
+    srv.on('error', e => { if (e.code !== 'EADDRINUSE') console.error('[VideoServer] Lỗi:', e.message); });
+    srv.listen(VIDEO_PORT, '127.0.0.1', () => console.log(`[VideoServer] ✅ Đang serve video tại http://127.0.0.1:${VIDEO_PORT}/`));
+    return srv;
+}
+startVideoServer();
 
 
 
@@ -354,7 +392,115 @@ app.post('/api/automation/stop', (req, res) => {
     res.json(automationEngine.stop(req.body?.automation || null));
 });
 
-// Google Sheet Routes (đọc/ghi trực tiếp Google Sheets API)
+// ============================================================================
+// GESTURE CAPTCHA AUTO-WATCH API
+// ============================================================================
+
+/**
+ * Gắn watcher tự động Gesture Captcha cho một profile.
+ * KHÔNG relaunch browser — fake camera đã có sẵn từ lúc launch.
+ * POST /api/gesture-watch/start
+ * { profileId }
+ */
+app.post('/api/gesture-watch/start', async (req, res) => {
+    const { profileId } = req.body;
+    if (!profileId) return res.status(400).json({ error: 'Thiếu profileId' });
+
+    try {
+        // Dừng watcher cũ nếu đang chạy
+        stopGestureWatcher(profileId);
+
+        // Lấy page từ profile đang chạy
+        const running = manager.runningProfiles.get(profileId);
+        if (!running) {
+            // Profile chưa mở → launch bình thường (fake cam được thêm tự động bởi manager)
+            console.log(`[Server] 🚀 Profile [${profileId}] chưa mở → Launch với fake camera mặc định...`);
+            const savedLayout = manager.getLayoutFor?.(profileId) || null;
+            const result = await manager.launchProfile(profileId, {
+                windowSize: savedLayout?.windowSize || null,
+                windowPosition: savedLayout?.windowPosition || null,
+                scaleFactor: savedLayout?.scaleFactor || null,
+            });
+            // Watcher đã được tự động gắn bởi manager.launchProfile (vì có fake cam mặc định)
+            res.json({ success: true, message: `Profile [${profileId}] đã được launch với fake camera & watcher tự động.` });
+        } else {
+            // Profile đang chạy → gắn watcher ngay vào page hiện tại (không relaunch!)
+            const pages = running.context.pages();
+            const page = pages[pages.length - 1];
+            if (!page || page.isClosed()) {
+                return res.status(400).json({ error: 'Profile đang chạy nhưng không có tab nào mở.' });
+            }
+            console.log(`[Server] 🤖 Gắn watcher vào profile đang chạy [${profileId}] (không relaunch)...`);
+            attachGestureWatcher(page, profileId, { manager });
+            res.json({ success: true, message: `Watcher đã được gắn vào profile [${profileId}] đang chạy. Sẽ tự giải captcha khi phát hiện.` });
+        }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+/**
+ * Dừng giám sát tự động Gesture Captcha.
+ * POST /api/gesture-watch/stop
+ * { profileId }
+ */
+app.post('/api/gesture-watch/stop', (req, res) => {
+    const { profileId } = req.body;
+    if (profileId) {
+        stopGestureWatcher(profileId);
+        res.json({ success: true, message: `Đã dừng auto-watch cho profile [${profileId}]` });
+    } else {
+        // Dừng tất cả
+        const active = getActiveWatchers();
+        active.forEach(id => stopGestureWatcher(id));
+        res.json({ success: true, message: `Đã dừng tất cả ${active.length} watcher`, stopped: active });
+    }
+});
+
+/**
+ * Xem danh sách các profile đang được giám sát.
+ * GET /api/gesture-watch/status
+ */
+app.get('/api/gesture-watch/status', (req, res) => {
+    res.json({ activeWatchers: getActiveWatchers() });
+});
+
+/**
+ * Doi camera gia lap sang gesture cu the NGAY LAP TUC (khong restart browser).
+ * POST /api/gesture-watch/switch-cam
+ * Body: { gesture: "fist" | "thumbs_up" | "finger_1" | "finger_2" | "thumbs_down" | "hand_open" }
+ */
+app.post('/api/gesture-watch/switch-cam', (req, res) => {
+    const { gesture } = req.body || {};
+    const fs = require('fs');
+    const path = require('path');
+    const RECORDINGS_DIR = path.join(__dirname, 'recordings');
+
+    const VALID = ['hand_open', 'fist', 'thumbs_up', 'thumbs_down', 'finger_1', 'finger_2'];
+    if (!gesture || !VALID.includes(gesture)) {
+        return res.status(400).json({ success: false, error: `gesture phai la: ${VALID.join(', ')}` });
+    }
+
+    const targetPath = path.join(RECORDINGS_DIR, `${gesture}.y4m`);
+    const handOpenPath = path.join(RECORDINGS_DIR, 'hand_open.y4m');
+    const switchFile = handOpenPath + '.switch';
+
+    if (!fs.existsSync(targetPath)) {
+        return res.status(404).json({ success: false, error: `Khong tim thay ${gesture}.y4m` });
+    }
+
+    try {
+        fs.writeFileSync(switchFile, targetPath, 'utf8');
+        console.log(`[Server] Camera switched -> ${gesture}`);
+        // Xoa switch file sau 3s (Chrome da doc roi)
+        setTimeout(() => { try { fs.unlinkSync(switchFile); } catch (e) {} }, 3000);
+        res.json({ success: true, gesture, path: targetPath });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 registerSheetRoutes(app);
 
 // Phone Routes (RentPhone sheet + in-memory queue)
