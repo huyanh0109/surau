@@ -385,7 +385,7 @@
                 </div>
                 <div class="fd-row">
                     <button class="btn btn-danger" onclick="runAutomationFast('login-google')">LOGIN GOOGLE</button>
-                    <button class="btn btn-danger" style="background: linear-gradient(135deg, #7c3aed, #db2777); border-color: #7c3aed;" onclick="runAutomationFast('login-google-gesture')">LOGIN GOOGLE GESTURE 🖐</button>
+                    <button class="btn btn-danger" onclick="runAutomationFast('login-google-gesture')">LOGIN GOOGLE GESTURE</button>
                     <button class="btn btn-danger" onclick="runAutomationFast('login-google')">PASSWORD GOOGLE</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('verify-phone-sheet')">VERIFY PHONE</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('verify-phone-sheet-check')">DOUBLE VERIFY</button>
@@ -395,7 +395,7 @@
                     <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="runAutomationFast('setup-2fa')">SETUP 2FA</button>
                     <button class="btn btn-run" onclick="runAutomationFast('solve-2fa')">SOLVE 2FA</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('solve-captcha-continuous')">SOLVE CAPTCHA</button>
-                    <button class="btn" id="solveGestureBtn" onclick="toggleSolveGesture()" style="border-color: #ff9900; color: #ff9900; position: relative;">🖐️ SOLVE GESTURE</button>
+                    <button class="btn" id="solveGestureBtn" onclick="toggleSolveGesture()" style="border-color: #ff9900; color: #ff9900; position: relative;">SOLVE GESTURE</button>
                     <button class="btn btn-danger" onclick="runAutomationFast('logout-google')">LOGOUT GOOGLE</button>
                 </div>
             </div>
@@ -1850,7 +1850,7 @@ function _setGestureUI(active) {
         }
     } else {
         if (solveBtn) {
-            solveBtn.textContent = '🖐️ SOLVE GESTURE';
+            solveBtn.textContent = 'SOLVE GESTURE';
             solveBtn.style.borderColor = '#ff9900';
             solveBtn.style.color = '#ff9900';
             solveBtn.style.background = '';
@@ -1866,7 +1866,7 @@ async function toggleSolveGesture() {
     }
 
     // Lấy profile đang chạy
-    fdLogMsg('🖐️ Bắt đầu SOLVE GESTURE cho các profile đang chạy...', 'warning');
+    fdLogMsg('Bắt đầu SOLVE GESTURE cho các profile đang chạy...', 'warning');
     try {
         const res = await fetch(`${API}/profiles`);
         const profiles = await res.json();
@@ -1900,7 +1900,7 @@ async function toggleSolveGesture() {
 
         if (started > 0) {
             _setGestureUI(true);
-            fdLogMsg(`🖐️ Đang giải gesture cho ${started}/${running.length} profile. Tự động thử lại khi thất bại!`, 'success');
+            fdLogMsg(`Đang giải gesture cho ${started}/${running.length} profile. Tự động thử lại khi thất bại!`, 'success');
             showToast(`GESTURE SOLVE: ${started} PROFILES`);
         } else {
             fdLogMsg('❌ Không khởi động được watcher nào.', 'error');
@@ -1969,7 +1969,7 @@ async function switchGestureCam(gesture) {
                 _lastActive = isActive;
                 _setGestureUI(isActive);
                 if (isActive) {
-                    fdLogMsg(`🟢 Auto-watcher đang chạy cho ${data.activeWatchers.length} profile. Bấm 🖐️ SOLVE GESTURE để dừng.`, 'info');
+                    fdLogMsg(`🟢 Auto-watcher đang chạy cho ${data.activeWatchers.length} profile. Bấm SOLVE GESTURE để dừng.`, 'info');
                 }
             }
         } catch (e) { /* server chưa sẵn, bỏ qua */ }
