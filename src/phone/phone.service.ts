@@ -41,20 +41,25 @@ export class PhoneService {
     private extractCode(text: string): string | null {
         if (!text || text === 'No code') return null;
 
-        // Pattern 1: G-XXXXXX format (Google)
-        const googlePattern = /G-(\d{6})/;
-        const googleMatch = text.match(googlePattern);
-        if (googleMatch) return googleMatch[1];
+        // Pattern 1: G-XXXXXX format (Google) - find all and get the last one
+        const googleMatches = text.match(/G-(\d{6})/g);
+        if (googleMatches && googleMatches.length > 0) {
+            const lastMatch = googleMatches[googleMatches.length - 1];
+            const m = lastMatch.match(/G-(\d{6})/);
+            if (m) return m[1];
+        }
 
-        // Pattern 2: 6-digit code anywhere in text
-        const digitPattern = /\b(\d{6})\b/;
-        const digitMatch = text.match(digitPattern);
-        if (digitMatch) return digitMatch[1];
+        // Pattern 2: 6-digit code - find all and get the last one
+        const sixDigitMatches = text.match(/\b(\d{6})\b/g);
+        if (sixDigitMatches && sixDigitMatches.length > 0) {
+            return sixDigitMatches[sixDigitMatches.length - 1];
+        }
 
-        // Pattern 3: 4-8 digit code patterns
-        const codePattern = /\b(\d{4,8})\b/;
-        const codeMatch = text.match(codePattern);
-        if (codeMatch) return codeMatch[1];
+        // Pattern 3: 4-8 digit fallback - find all and get the last one
+        const anyCodeMatches = text.match(/\b(\d{4,8})\b/g);
+        if (anyCodeMatches && anyCodeMatches.length > 0) {
+            return anyCodeMatches[anyCodeMatches.length - 1];
+        }
 
         return null;
     }

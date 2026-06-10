@@ -104,15 +104,27 @@ function getCurrentDateTimeGMT7() {
 
 function extractCode(text) {
     if (!text || text === 'No code') return null;
-    // G-XXXXXX format (Google)
-    const googleMatch = text.match(/G-(\d{6})/);
-    if (googleMatch) return googleMatch[1];
-    // 6-digit code
-    const sixDigit = text.match(/\b(\d{6})\b/);
-    if (sixDigit) return sixDigit[1];
-    // 4-8 digit fallback
-    const anyCode = text.match(/\b(\d{4,8})\b/);
-    if (anyCode) return anyCode[1];
+    
+    // G-XXXXXX format (Google) - find all and get the last one
+    const googleMatches = text.match(/G-(\d{6})/g);
+    if (googleMatches && googleMatches.length > 0) {
+        const lastMatch = googleMatches[googleMatches.length - 1];
+        const m = lastMatch.match(/G-(\d{6})/);
+        if (m) return m[1];
+    }
+    
+    // 6-digit code - find all and get the last one
+    const sixDigitMatches = text.match(/\b(\d{6})\b/g);
+    if (sixDigitMatches && sixDigitMatches.length > 0) {
+        return sixDigitMatches[sixDigitMatches.length - 1];
+    }
+    
+    // 4-8 digit fallback - find all and get the last one
+    const anyCodeMatches = text.match(/\b(\d{4,8})\b/g);
+    if (anyCodeMatches && anyCodeMatches.length > 0) {
+        return anyCodeMatches[anyCodeMatches.length - 1];
+    }
+    
     return null;
 }
 

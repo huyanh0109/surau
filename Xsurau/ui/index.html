@@ -83,6 +83,9 @@
         .btn-stop { border-color: var(--red); color: var(--red); }
         .btn-ghost { border-color: var(--border); color: var(--text-secondary); }
         .btn-ghost:hover { border-color: var(--text-primary); color: var(--text-primary); }
+        .gesture-cam-btn { border-color: #7c5cbf; color: #b08fff; font-size: 11px; padding: 6px 12px; }
+        .gesture-cam-btn:hover { background: rgba(124,92,191,0.25); border-color: #b08fff; }
+        .gesture-cam-btn.active { background: rgba(124,92,191,0.45); border-color: #d4b8ff; color: #fff; box-shadow: 0 0 8px rgba(176,143,255,0.5); }
         .btn-sm { padding: 5px 12px; font-size: 11px; }
 
         .table-container { padding: 0 32px 32px; }
@@ -391,6 +394,8 @@
                     <button class="btn" style="border-color: var(--cyan); color: var(--cyan);" onclick="runAutomationFast('setup-2fa')">SETUP 2FA</button>
                     <button class="btn btn-run" onclick="runAutomationFast('solve-2fa')">SOLVE 2FA</button>
                     <button class="btn btn-yellow" onclick="runAutomationFast('solve-captcha-continuous')">SOLVE CAPTCHA</button>
+                    <button class="btn" id="solveGestureBtn" onclick="toggleSolveGesture()" style="border-color: #ff9900; color: #ff9900; position: relative;">🖐️ SOLVE GESTURE</button>
+                    <button class="btn" id="pauseGestureBtn" onclick="pauseGestureSolve()" style="border-color: #666; color: #666; position: relative;" disabled>⏸️ PAUSE</button>
                     <button class="btn btn-danger" onclick="runAutomationFast('logout-google')">LOGOUT GOOGLE</button>
                 </div>
             </div>
@@ -451,7 +456,7 @@
                     <div style="color: var(--cyan); font-size: 13px; font-weight: 900; letter-spacing: 2px;">PHONE CODE LOOKUP</div>
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div id="phoneTimerText" style="color: var(--cyan); font-weight: 900; font-size: 14px;">5S</div>
-                        <button class="btn btn-sm" style="border-color: var(--cyan); color: var(--cyan);" onclick="lookupPhoneCodes()">LOOKUP CODES</button>
+                        <button class="btn btn-sm" style="border-color: var(--cyan); color: var(--cyan);" onclick="lookupPhoneCodes(true)">LOOKUP CODES</button>
                     </div>
                 </div>
                 <div style="padding: 20px; display: flex; gap: 0; align-items: stretch;">
@@ -1742,11 +1747,16 @@ function renderPhoneResults() {
     }).join('');
 }
 
-async function lookupPhoneCodes() {
+async function lookupPhoneCodes(force = false) {
     if (window.phoneLookupState.length === 0) return;
 
     const promises = window.phoneLookupState.map(async (item, index) => {
-        if (item.status === 'empty' || item.status === 'success' || item.status === 'loading') return;
+        if (item.status === 'empty') return;
+        if (force) {
+            item.status = 'idle'; // Reset status to allow fetching again
+        } else {
+            if (item.status === 'success' || item.status === 'loading') return;
+        }
         await fetchSinglePhoneCode(index);
     });
 
@@ -1821,6 +1831,164 @@ loadProfiles();
 loadArchives(); // Initial load for counters
 loadFastSettingsUI();
 loadGlobalExts();
+
+// =======================
+// SOLVE GESTURE + PAUSE
+// =======================
+let _gestureActive = false;
+
+function _setGestureUI(active) {
+    const solveBtn = document.getElementById('solveGestureBtn');
+    const pauseBtn = document.getElementById('pauseGestureBtn');
+    _gestureActive = active;
+
+    if (active) {
+        if (solveBtn) {
+            solveBtn.textContent = '🟢 SOLVING...';
+            solveBtn.style.borderColor = '#00aa00';
+            solveBtn.style.color = '#00aa00';
+            solveBtn.style.background = 'rgba(0,170,0,0.1)';
+        }
+        if (pauseBtn) {
+            pauseBtn.disabled = false;
+            pauseBtn.style.borderColor = '#ff4444';
+            pauseBtn.style.color = '#ff4444';
+        }
+    } else {
+        if (solveBtn) {
+            solveBtn.textContent = '🖐️ SOLVE GESTURE';
+            solveBtn.style.borderColor = '#ff9900';
+            solveBtn.style.color = '#ff9900';
+            solveBtn.style.background = '';
+        }
+        if (pauseBtn) {
+            pauseBtn.disabled = true;
+            pauseBtn.style.borderColor = '#666';
+            pauseBtn.style.color = '#666';
+        }
+    }
+}
+
+async function toggleSolveGesture() {
+    if (_gestureActive) {
+        // Đang chạy → dừng (giống PAUSE)
+        await pauseGestureSolve();
+        return;
+    }
+
+    // Lấy profile đang chạy
+    fdLogMsg('🖐️ Bắt đầu SOLVE GESTURE cho các profile đang chạy...', 'warning');
+    try {
+        const res = await fetch(`${API}/profiles`);
+        const profiles = await res.json();
+        const running = profiles.filter(p => p.status === 'running');
+
+        if (running.length === 0) {
+            fdLogMsg('⚠️ Không có profile nào đang chạy. Hãy mở profile trước.', 'warning');
+            showToast('NO RUNNING PROFILES');
+            return;
+        }
+
+        let started = 0;
+        for (const p of running) {
+            try {
+                const r = await fetch(`${API}/gesture-watch/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileId: p.id })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    started++;
+                    fdLogMsg(`✅ [${p.name}] — Vòng lặp giải gesture đã bắt đầu`, 'success');
+                } else {
+                    fdLogMsg(`⚠️ [${p.name}]: ${d.error || 'Failed'}`, 'warning');
+                }
+            } catch(e) {
+                fdLogMsg(`❌ [${p.name}]: ${e.message}`, 'error');
+            }
+        }
+
+        if (started > 0) {
+            _setGestureUI(true);
+            fdLogMsg(`🖐️ Đang giải gesture cho ${started}/${running.length} profile. Tự động thử lại khi thất bại!`, 'success');
+            showToast(`GESTURE SOLVE: ${started} PROFILES`);
+        } else {
+            fdLogMsg('❌ Không khởi động được watcher nào.', 'error');
+        }
+    } catch(e) {
+        fdLogMsg(`❌ Lỗi: ${e.message}`, 'error');
+    }
+}
+
+
+async function pauseGestureSolve() {
+    fdLogMsg('⏸️ PAUSE — Dừng tất cả vòng lặp giải gesture...', 'warning');
+    try {
+        const res = await fetch(`${API}/gesture-watch/stop`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const data = await res.json();
+        _setGestureUI(false);
+        fdLogMsg(`✅ Đã dừng. ${data.message || ''}`, 'info');
+        showToast('GESTURE PAUSED');
+    } catch(e) {
+        fdLogMsg(`❌ Lỗi dừng: ${e.message}`, 'error');
+    }
+}
+
+// GESTURE CAMERA QUICK-SWITCH
+async function switchGestureCam(gesture) {
+    try {
+        const res = await fetch(`${API}/gesture-watch/switch-cam`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gesture })
+        });
+        const data = await res.json();
+        if (data.success) {
+            // Highlight nut duoc chon
+            document.querySelectorAll('.gesture-cam-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.gesture === gesture);
+            });
+            showToast(`CAM: ${gesture.toUpperCase()}`);
+            fdLogMsg(`📷 Camera chuyển sang: ${gesture}`, 'success');
+            // Tu dong bo highlight sau 4s
+            setTimeout(() => {
+                document.querySelectorAll('.gesture-cam-btn').forEach(b => b.classList.remove('active'));
+            }, 4000);
+        } else {
+            fdLogMsg(`❌ Switch cam thất bại: ${data.error}`, 'error');
+        }
+    } catch(e) {
+        fdLogMsg(`❌ Lỗi switch cam: ${e.message}`, 'error');
+    }
+}
+
+// Polling: đồng bộ UI với server thực tế mỗi 2 giây
+// → Khi auto-watcher tự bắt đầu lúc mở browser, nút PAUSE tự sáng
+(function _gesturePollLoop() {
+    let _lastActive = null;
+    async function poll() {
+        try {
+            const res = await fetch(`${API}/gesture-watch/status`);
+            const data = await res.json();
+            const isActive = data.activeWatchers && data.activeWatchers.length > 0;
+            if (isActive !== _lastActive) {
+                _lastActive = isActive;
+                _setGestureUI(isActive);
+                if (isActive) {
+                    fdLogMsg(`🟢 Auto-watcher đang chạy cho ${data.activeWatchers.length} profile. Bấm ⏸️ PAUSE để dừng.`, 'info');
+                }
+            }
+        } catch (e) { /* server chưa sẵn, bỏ qua */ }
+    }
+    setInterval(poll, 2000);
+    poll(); // chạy ngay
+})();
+
 </script>
 <!-- MODAL: PROFILE INFO -->
 <div class="modal-overlay" id="infoModalOverlay">
