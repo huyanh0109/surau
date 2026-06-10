@@ -13,7 +13,8 @@ const { EventEmitter } = require('events');
 // REGISTRY — Đăng ký tất cả automation scripts
 // ============================================================
 const automationRegistry = {
-    'login-google':                require('./automations/login-google'),
+    'login-google':                require('./automations/login-google'),             // Ban goc, khong co Gesture Captcha
+    'login-google-gesture':        require('./automations/login-google-gesture'),     // Co xu ly Gesture Captcha
     'logout-google':               require('./automations/logout-google'),
     'appeal-google':               require('./automations/appeal-google'),
     'solve-captcha-continuous':    require('./automations/solve-captcha-continuous'),
@@ -22,6 +23,7 @@ const automationRegistry = {
     'verify-phone-sheet':          require('./automations/verify-phone-sheet'),
     'verify-phone-sheet-check':    require('./automations/verify-phone-sheet-check'),
     'solve-2fa':                   require('./automations/solve-2fa'),
+    'solve-gesture-captcha':       require('./automations/solve-gesture-captcha'),
 };
 
 class AutomationEngine extends EventEmitter {
@@ -156,7 +158,9 @@ class AutomationEngine extends EventEmitter {
                             sheetRow: matchedRow,
                             blockImages: options.blockImages || false,
                             startUrl: options.startUrl || null,
+                            manager: this.manager, // cho phép automation close/relaunch profile
                         };
+
 
                         let page = null;
 

@@ -1,7 +1,8 @@
 const { sleep, generate2FACode, isEmail, clickNextButton } = require('./helpers');
 
-/** 
- * Login Google - Ported from src/automation/automations/login-google/login-google.automation.ts 
+/**
+ * LOGIN GOOGLE (không có Gesture Captcha)
+ * Bản gốc — dành cho tài khoản không bị Gesture Captcha.
  */
 async function run(page, job, signal, logger) {
     const log = (msg) => { logger?.(msg); console.log(`[P${job.profileId}] ${msg}`); };
@@ -10,10 +11,10 @@ async function run(page, job, signal, logger) {
         if (!sheetRow?.Gmail || !sheetRow?.PassWord) return { profileId: job.profileId, success: false, error: 'Thiếu Gmail hoặc Password' };
 
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
-        
-        // 1. Mở trang login (URL gốc)
-        await page.goto('https://accounts.google.com/v3/signin/identifier?authuser=0&continue=https%3A%2F%2Fone.google.com%2F&ec=GAlAywM&hl=en_GB&flowName=GlifWebSignIn&flowEntry=AddSession&theme=glif', { 
-            waitUntil: 'domcontentloaded' 
+
+        // 1. Mở trang login
+        await page.goto('https://accounts.google.com/v3/signin/identifier?authuser=0&continue=https%3A%2F%2Fone.google.com%2F&ec=GAlAywM&hl=en_GB&flowName=GlifWebSignIn&flowEntry=AddSession&theme=glif', {
+            waitUntil: 'domcontentloaded'
         });
 
         // 2. Nhập email
@@ -22,125 +23,95 @@ async function run(page, job, signal, logger) {
         await page.locator('#identifierNext').click();
 
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
-        
+
         // 3. Chờ và nhập password
         await page.waitForSelector('input[type="password"]', { state: 'visible', timeout: 300000 });
-        await sleep(2000);
-        await page.locator('input[type="password"]').type(sheetRow.PassWord, { delay: 10 });
-        await sleep(500);
-        await page.locator('#passwordNext').click({ clickCount: 2, delay: 100 });
-        await sleep(2000);
+        const pwField = page.locator('input[type="password"]').first();
+        await pwField.type(sheetRow.PassWord, { delay: 10 });
+        log('Đã nhập password.');
+        await sleep(300);
+        await pwField.press('Enter');
+        log('Đã submit password.');
 
-        // Tự động đóng popup "Save password?"
+        // Dismiss "Save password?" popup
         try {
             await page.evaluate(() => {
-                const buttons = Array.from(document.querySelectorAll('button'));
-                const dismissBtn = buttons.find(btn =>
-                    btn.textContent?.includes('Never') ||
-                    btn.textContent?.includes('No thanks') ||
-                    btn.textContent?.includes('Không bao giờ') ||
-                    btn.textContent?.includes('Không, cảm ơn')
+                const btn = Array.from(document.querySelectorAll('button')).find(b =>
+                    ['Never', 'No thanks', 'Không bao giờ', 'Không, cảm ơn'].some(t => b.textContent?.includes(t))
                 );
-                if (dismissBtn) dismissBtn.click();
+                if (btn) btn.click();
             });
-        } catch { }
+        } catch {}
 
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
 
-        // 4. Xác minh qua Email hoặc 2FA
+        // 4. Xác minh: Email khôi phục hoặc 2FA
         try {
             const isEmailRecovery = isEmail(sheetRow.Recover);
 
             if (isEmailRecovery) {
-                // ===== LUỒNG EMAIL KHÔI PHỤC =====
-                const recoveryOption = page.locator('[data-challengetype="12"]').first();
-                if (await recoveryOption.isVisible({ timeout: 10000 })) {
-                    await recoveryOption.scrollIntoViewIfNeeded();
-                    await sleep(500);
-                    await recoveryOption.click();
-                }
+                // ===== EMAIL KHÔI PHỤC =====
+                try {
+                    const recoveryOption = page.locator('[data-challengetype="12"]').first();
+                    if (await recoveryOption.isVisible({ timeout: 5000 }).catch(() => false)) {
+                        await recoveryOption.click();
+                        log('Đã click tùy chọn email khôi phục.');
+                    }
+                } catch (e) {}
 
-                await sleep(3000);
                 await page.waitForSelector('[name="knowledgePreregisteredEmailResponse"]', { state: 'visible', timeout: 10000 });
-                await page.locator('[name="knowledgePreregisteredEmailResponse"]').type(sheetRow.Recover, { delay: 10 });
-                await sleep(500);
-                await clickNextButton(page);
-            } else {
-                // ===== LUỒNG 2FA (Authenticator) =====
-                log('[2FA] Đang xử lý mã 2FA...');
+                const recoverField = page.locator('[name="knowledgePreregisteredEmailResponse"]').first();
+                await recoverField.type(sheetRow.Recover, { delay: 10 });
+                log('Đã nhập email khôi phục.');
+                await recoverField.press('Enter');
 
-                // 1. Kiểm tra xem ô nhập mã đã hiện sẵn chưa để bỏ qua bước chọn phương thức
+            } else {
+                // ===== 2FA (Authenticator) =====
+                log('[2FA] Xử lý 2FA...');
                 const inputSelector = 'input[type="tel"], input#totpPin, input[autocomplete="one-time-code"]';
-                const isInputVisible = await page.locator(inputSelector).first().isVisible({ timeout: 5000 }).catch(() => false);
+                const isInputVisible = await page.locator(inputSelector).first().isVisible({ timeout: 3000 }).catch(() => false);
 
                 if (!isInputVisible) {
-                    log('[2FA] Chưa thấy ô nhập mã, đang tìm phương thức xác thực...');
-                    try {
-                        const selectionResult = await page.evaluate(() => {
-                            const findAndClick = (selector) => {
-                                const elements = Array.from(document.querySelectorAll(selector));
-                                for (const el of elements) {
-                                    const text = el.textContent?.toLowerCase() || '';
-                                    const isAuth = text.includes('authenticator') || text.includes('app');
-                                    const isWrong = text.includes('offline') || text.includes('security code') || text.includes('sms');
-                                    if (isAuth && !isWrong) {
-                                        el.scrollIntoView({ block: 'center' });
-                                        el.click();
-                                        return true;
-                                    }
+                    const clicked = await page.evaluate(() => {
+                        const findAndClick = (selector) => {
+                            for (const el of document.querySelectorAll(selector)) {
+                                const txt = el.textContent?.toLowerCase() || '';
+                                if ((txt.includes('authenticator') || txt.includes('app')) &&
+                                    !txt.includes('offline') && !txt.includes('sms') && !txt.includes('security code')) {
+                                    el.scrollIntoView({ block: 'center' }); el.click(); return true;
                                 }
-                                return false;
-                            };
-
-                            // Ưu tiên 1: challengetype="6"
-                            if (findAndClick('[data-challengetype="6"]')) return 'type6';
-                            // Ưu tiên 2: challengeid="2"
-                            if (findAndClick('[data-challengeid="2"]')) return 'id2';
-                            // Ưu tiên 3: challengeid="3"
-                            if (findAndClick('[data-challengeid="3"]')) return 'id3';
-                            // Cuối cùng: tìm bất kỳ mục nào có text khớp
-                            if (findAndClick('li, div[role="link"], div[role="button"]')) return 'text_fallback';
-                            
-                            return null;
-                        });
-
-                        if (selectionResult) {
-                            log(`[2FA] Đã chọn phương thức (${selectionResult}), đợi chuyển trang...`);
-                            await sleep(2500);
-                        }
-                    } catch (e) {
-                        log('[2FA] Lỗi khi chọn phương thức: ' + e.message);
-                    }
+                            }
+                            return false;
+                        };
+                        return findAndClick('[data-challengetype="6"]') ||
+                               findAndClick('[data-challengeid="2"]') ||
+                               findAndClick('[data-challengeid="3"]') ||
+                               findAndClick('li, div[role="link"], div[role="button"]');
+                    }).catch(() => false);
+                    if (clicked) log('[2FA] Đã chọn phương thức Authenticator.');
                 }
 
-                // 2. Đợi ô nhập mã (type="tel" là chuẩn nhất)
                 await page.waitForSelector(inputSelector, { state: 'visible', timeout: 15000 });
-                
-                // 3. Sinh mã và nhập
                 const code = generate2FACode(sheetRow.Recover);
-                log(`[2FA] Mã sinh ra: ${code}`);
-            
+                log(`[2FA] Mã: ${code}`);
                 if (code && code.length === 6) {
                     const inputField = page.locator(inputSelector).first();
-                    await inputField.click();
-                    await inputField.fill(''); // Xóa trắng
-                    await inputField.type(code, { delay: 50 });
-                    await sleep(1000);
-                    log('[2FA] Đang nhấn Tiếp theo...');
-                    await clickNextButton(page);
+                    await inputField.fill(code);
+                    log('[2FA] Đã nhập mã, submit...');
+                    await inputField.press('Enter');
                 } else {
                     throw new Error(`Mã 2FA không hợp lệ: ${code}`);
                 }
             }
-        } catch (error) { 
-            log(`Info: Skip/Manual 2FA check (${error.message})`);
+        } catch (error) {
+            log(`Info: Skip/Manual verification (${error.message})`);
         }
 
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
 
-        // 5. Chờ đăng nhập thành công
-        try { await page.waitForNavigation({ waitUntil: 'networkidle', timeout: 60000 }); } catch { }
-        
+        // 5. Chờ đăng nhập xong
+        try { await page.waitForNavigation({ waitUntil: 'load', timeout: 30000 }); } catch {}
+
         log('✅ Đăng nhập xong!');
         return { profileId: job.profileId, success: true, data: { gmail: sheetRow.Gmail, message: 'Done!' } };
     } catch (error) {
