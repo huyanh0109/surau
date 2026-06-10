@@ -5,7 +5,7 @@ const { sleep, generate2FACode, isEmail, clickNextButton } = require('./helpers'
  * Neu bat ky buoc nao that bai -> return ngay, khong retry.
  * Nguoi dung co the tu giai bang nut SOLVE GESTURE neu can.
  */
-async function tryGestureCaptchaOnce(page, job, signal, logger) {
+async function tryGestureCaptchaOnce(page, job, signal, logger, step) {
     const log = (msg) => { logger?.(msg); console.log(`[P${job.profileId}] [Gesture] ${msg}`); };
     const { solveCaptchaProcess } = require('./solve-gesture-captcha');
 
@@ -18,24 +18,30 @@ async function tryGestureCaptchaOnce(page, job, signal, logger) {
     for (let i = 0; i < 30; i++) {
         if (signal?.aborted) return page;
         try {
-            // Check early exit if next step is already visible
-            const nextStepVisible = await page.evaluate(() => {
+            // Check early exit based on the step we are waiting for
+            const nextStepVisible = await page.evaluate((step) => {
                 const isVisible = (el) => {
                     return !!(el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getBoundingClientRect().width > 0));
                 };
-                const email = document.querySelector('input[type="email"]');
-                if (isVisible(email)) return true;
-                const pwd = document.querySelector('input[type="password"]');
-                if (isVisible(pwd)) return true;
-                const code2fa = document.querySelector('input[type="tel"], input#totpPin, input[autocomplete="one-time-code"]');
-                if (isVisible(code2fa)) return true;
-                const recovery = document.querySelector('[name="knowledgePreregisteredEmailResponse"]');
-                if (isVisible(recovery)) return true;
+                if (step === 'email') {
+                    const email = document.querySelector('input[type="email"]');
+                    if (isVisible(email)) return true;
+                }
+                if (step === 'password') {
+                    const pwd = document.querySelector('input[type="password"]');
+                    if (isVisible(pwd)) return true;
+                }
+                if (step === 'post-login') {
+                    const code2fa = document.querySelector('input[type="tel"], input#totpPin, input[autocomplete="one-time-code"]');
+                    if (isVisible(code2fa)) return true;
+                    const recovery = document.querySelector('[name="knowledgePreregisteredEmailResponse"]');
+                    if (isVisible(recovery)) return true;
+                }
                 return false;
-            }).catch(() => false);
+            }, step).catch(() => false);
 
             if (nextStepVisible) {
-                log('Next step input visible - no captcha.');
+                log(`Next step input (${step}) visible - no captcha.`);
                 break;
             }
 
@@ -126,15 +132,15 @@ async function run(page, job, signal, logger) {
         });
 
         // Thu giai Gesture Captcha neu xuat hien ngay khi load trang
-        page = await tryGestureCaptchaOnce(page, job, signal, logger);
+        page = await tryGestureCaptchaOnce(page, job, signal, logger, 'email');
 
         // 2. Nhap email
         await page.waitForSelector('input[type="email"]', { timeout: 30000 });
         await page.locator('input[type="email"]').type(sheetRow.Gmail, { delay: 10 });
         await page.locator('#identifierNext').click();
 
-        // Thu giai Gesture Captcha 1 lan (neu co). Neu that bai, nguoi dung tu giai bang tay.
-        page = await tryGestureCaptchaOnce(page, job, signal, logger);
+        // Thu giai Gesture Captcha 1 lan (neu co).
+        page = await tryGestureCaptchaOnce(page, job, signal, logger, 'password');
 
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
         if (signal?.aborted) return { profileId: job.profileId, success: false, error: 'Stopped' };
@@ -167,7 +173,7 @@ async function run(page, job, signal, logger) {
 
 
         // Thu giai Gesture Captcha sau password (neu co)
-        page = await tryGestureCaptchaOnce(page, job, signal, logger);
+        page = await tryGestureCaptchaOnce(page, job, signal, logger, 'post-login');
 
         await sleep(2000);
 
