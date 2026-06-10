@@ -111,10 +111,8 @@ async function findGestureFrame(page) {
 async function injectGestureOverlay(page) {
     try {
         await page.evaluate(() => {
-            // Da inject roi thi chi bao dam panel hien
+            // Da inject roi thi return luon, khong tu dong mo panel
             if (document.getElementById('__xsurau_toggle_btn')) {
-                const panel = document.getElementById('__xsurau_gesture_panel');
-                if (panel) panel.style.display = 'flex';
                 return;
             }
 
@@ -131,19 +129,19 @@ async function injectGestureOverlay(page) {
             const panel = document.createElement('div');
             panel.id = '__xsurau_gesture_panel';
             panel.style.cssText = [
-                'position:fixed', 'bottom:50px', 'right:16px', 'z-index:2147483647',
+                'position:fixed', 'bottom:60px', 'right:16px', 'z-index:2147483647',
                 'background:rgba(15,15,20,0.93)',
                 'border:1px solid rgba(124,92,191,0.6)',
-                'border-radius:10px', 'padding:8px 10px',
-                'display:flex', 'flex-direction:column', 'gap:6px',
+                'border-radius:10px', 'padding:6px 10px',
+                'display:none', 'flex-direction:row', 'align-items:center', 'gap:6px',
                 'box-shadow:0 4px 24px rgba(0,0,0,0.7)',
-                'backdrop-filter:blur(8px)', 'font-family:monospace', 'min-width:130px',
+                'backdrop-filter:blur(8px)', 'font-family:monospace',
             ].join(';');
 
             // Title
             const title = document.createElement('div');
             title.textContent = '🖐 CAM STEP 2';
-            title.style.cssText = 'color:#b08fff;font-size:10px;font-weight:bold;letter-spacing:1px;text-align:center;padding-bottom:4px;border-bottom:1px solid rgba(124,92,191,0.3);margin-bottom:2px;cursor:default;';
+            title.style.cssText = 'color:#b08fff;font-size:10px;font-weight:bold;letter-spacing:0.5px;padding-right:6px;border-right:1px solid rgba(124,92,191,0.3);margin-right:2px;white-space:nowrap;cursor:default;';
             panel.appendChild(title);
 
             let activeKey = null;
@@ -155,10 +153,10 @@ async function injectGestureOverlay(page) {
                 btn.textContent = `${g.label} ${g.name}`;
                 btn.style.cssText = [
                     'background:transparent', 'border:1px solid rgba(124,92,191,0.5)',
-                    'color:#b08fff', 'padding:5px 10px', 'border-radius:6px',
+                    'color:#b08fff', 'padding:5px 8px', 'border-radius:6px',
                     'cursor:pointer', 'font-size:11px', 'font-family:monospace',
                     'font-weight:bold', 'letter-spacing:0.5px',
-                    'text-align:left', 'transition:all 0.15s', 'width:100%',
+                    'text-align:center', 'transition:all 0.15s', 'white-space:nowrap',
                 ].join(';');
 
                 btn.onmouseover = () => { if (activeKey !== g.key) btn.style.background = 'rgba(124,92,191,0.25)'; };
@@ -199,9 +197,9 @@ async function injectGestureOverlay(page) {
             // Nut an (HIDE - khong xoa)
             const hideBtn = document.createElement('button');
             hideBtn.textContent = '▼ HIDE';
-            hideBtn.style.cssText = 'background:transparent;border:1px solid rgba(255,255,255,0.1);color:#555;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:10px;font-family:monospace;margin-top:2px;width:100%;';
+            hideBtn.style.cssText = 'background:transparent;border:1px solid rgba(255,255,255,0.1);color:#666;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:10px;font-family:monospace;white-space:nowrap;';
             hideBtn.onmouseover = () => hideBtn.style.color = '#888';
-            hideBtn.onmouseout  = () => hideBtn.style.color = '#555';
+            hideBtn.onmouseout  = () => hideBtn.style.color = '#666';
             hideBtn.onclick = () => { panel.style.display = 'none'; };
             panel.appendChild(hideBtn);
 
