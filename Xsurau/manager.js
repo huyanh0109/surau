@@ -64,8 +64,10 @@ class ProfileManager {
 
         // Bộ sinh vân tay
         this.fingerprintGenerator = new FingerprintGenerator({
-            browsers: ['chrome'],
-            operatingSystems: ['windows', 'macos'],
+            browsers: [
+                { name: 'chrome', minVersion: 120 }
+            ],
+            operatingSystems: ['windows'],
         });
 
         this._initDirectories();
