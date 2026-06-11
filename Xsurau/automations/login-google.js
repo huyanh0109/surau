@@ -52,12 +52,18 @@ async function run(page, job, signal, logger) {
             if (isEmailRecovery) {
                 // ===== EMAIL KHÔI PHỤC =====
                 try {
-                    const recoveryOption = page.locator('[data-challengetype="12"]').first();
-                    if (await recoveryOption.isVisible({ timeout: 5000 }).catch(() => false)) {
+                    const inputField = page.locator('[name="knowledgePreregisteredEmailResponse"]').first();
+                    const isInputDirectlyVisible = await inputField.isVisible().catch(() => false);
+                    
+                    if (!isInputDirectlyVisible) {
+                        const recoveryOption = page.locator('[data-challengetype="12"]').first();
+                        await recoveryOption.waitFor({ state: 'visible', timeout: 5000 });
                         await recoveryOption.click();
                         log('Đã click tùy chọn email khôi phục.');
                     }
-                } catch (e) {}
+                } catch (e) {
+                    log('Không thấy nút chọn email khôi phục, thử chờ ô nhập.');
+                }
 
                 await page.waitForSelector('[name="knowledgePreregisteredEmailResponse"]', { state: 'visible', timeout: 10000 });
                 const recoverField = page.locator('[name="knowledgePreregisteredEmailResponse"]').first();
