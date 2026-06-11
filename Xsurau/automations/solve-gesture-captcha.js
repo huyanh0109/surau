@@ -76,6 +76,15 @@ function getY4mPath(gesture) {
     return null;
 }
 
+function getProfileHandOpenPath(job) {
+    if (job && job.manager && job.profileId) {
+        const profileDir = path.join(job.manager.profilesDataPath, job.profileId);
+        const p = path.join(profileDir, 'fake_camera', 'hand_open.y4m');
+        if (fs.existsSync(p)) return p;
+    }
+    return getY4mPath('hand_open');
+}
+
 async function detectGestureChallengePresent(page) {
     try {
         const url = page.url();
@@ -108,9 +117,9 @@ async function findGestureFrame(page) {
  * Panel hien thi 5 nut tat ca gesture Step 2.
  * Co nut toggle nho luon hien de bat/tat panel bat cu luc nao.
  */
-async function injectGestureOverlay(page) {
+async function injectGestureOverlay(page, profileId) {
     try {
-        await page.evaluate(() => {
+        await page.evaluate((pId) => {
             // Da inject roi thi return luon, khong tu dong mo panel
             if (document.getElementById('__xsurau_toggle_btn')) {
                 return;
@@ -176,7 +185,7 @@ async function injectGestureOverlay(page) {
                         const res = await fetch(API, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ gesture: g.key })
+                            body: JSON.stringify({ gesture: g.key, profileId: pId })
                         });
                         const data = await res.json();
                         if (!data.success) console.warn('[Xsurau] Switch cam fail:', data.error);
@@ -237,7 +246,7 @@ async function injectGestureOverlay(page) {
                 p.style.display = visible ? 'none' : 'flex';
             };
             document.body.appendChild(toggle);
-        });
+        }, profileId);
     } catch (e) {
         // Cross-origin hoac page dang navigate, bo qua
     }
@@ -550,9 +559,9 @@ async function solveCaptchaProcess(currentPage, job, signal, log) {
         return { success: false, error: 'Missing hand_open.y4m' };
     }
 
-    // 1. Reset camera ve hand_open.y4m
+    // 1. Reset camera ve hand_open.y4m (profile-specific path)
     try {
-        const y4mPath = getY4mPath('hand_open');
+        const y4mPath = getProfileHandOpenPath(job);
         const switchFile = y4mPath + '.switch';
         fs.writeFileSync(switchFile, y4mPath, 'utf8');
         log('Reset camera ve hand_open...');
@@ -594,7 +603,7 @@ async function solveCaptchaProcess(currentPage, job, signal, log) {
     } catch (e) {}
 
     // Inject floating gesture panel vao trang de nguoi dung co the tu switch cam
-    await injectGestureOverlay(currentPage);
+    await injectGestureOverlay(currentPage, job.profileId);
 
     let captchaCompleted = false;
     let finalStep2Gesture = null;
@@ -697,7 +706,7 @@ async function solveCaptchaProcess(currentPage, job, signal, log) {
         const newY4mPath = getY4mPath(step2Gesture);
         if (!newY4mPath) return { success: false, error: `No Y4M for ${step2Gesture}` };
 
-        const handOpenPath = getY4mPath('hand_open');
+        const handOpenPath = getProfileHandOpenPath(job);
         const switchFile = handOpenPath + '.switch';
         log(`Switch camera: hand_open -> ${step2Gesture}`);
         fs.writeFileSync(switchFile, newY4mPath, 'utf8');
@@ -783,7 +792,7 @@ async function solveCaptchaProcess(currentPage, job, signal, log) {
         } finally {
             // Reset camera ve hand_open
             try {
-                const hp = getY4mPath('hand_open');
+                const hp = getProfileHandOpenPath(job);
                 if (hp) {
                     const sf = hp + '.switch';
                     fs.writeFileSync(sf, hp, 'utf8');

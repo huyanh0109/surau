@@ -472,7 +472,7 @@ app.get('/api/gesture-watch/status', (req, res) => {
  * Body: { gesture: "fist" | "thumbs_up" | "finger_1" | "finger_2" | "thumbs_down" | "hand_open" }
  */
 app.post('/api/gesture-watch/switch-cam', (req, res) => {
-    const { gesture } = req.body || {};
+    const { gesture, profileId } = req.body || {};
     const fs = require('fs');
     const path = require('path');
     const RECORDINGS_DIR = path.join(__dirname, 'recordings');
@@ -483,16 +483,28 @@ app.post('/api/gesture-watch/switch-cam', (req, res) => {
     }
 
     const targetPath = path.join(RECORDINGS_DIR, `${gesture}.y4m`);
-    const handOpenPath = path.join(RECORDINGS_DIR, 'hand_open.y4m');
-    const switchFile = handOpenPath + '.switch';
-
     if (!fs.existsSync(targetPath)) {
         return res.status(404).json({ success: false, error: `Khong tim thay ${gesture}.y4m` });
     }
 
+    let switchFile;
+    if (profileId) {
+        const profileDir = path.join(manager.profilesDataPath, profileId);
+        const profileHandOpen = path.join(profileDir, 'fake_camera', 'hand_open.y4m');
+        if (fs.existsSync(profileHandOpen)) {
+            switchFile = profileHandOpen + '.switch';
+        } else {
+            const handOpenPath = path.join(RECORDINGS_DIR, 'hand_open.y4m');
+            switchFile = handOpenPath + '.switch';
+        }
+    } else {
+        const handOpenPath = path.join(RECORDINGS_DIR, 'hand_open.y4m');
+        switchFile = handOpenPath + '.switch';
+    }
+
     try {
         fs.writeFileSync(switchFile, targetPath, 'utf8');
-        console.log(`[Server] Camera switched -> ${gesture}`);
+        console.log(`[Server] Camera switched -> ${gesture} (profile: ${profileId || 'global'})`);
         // Xoa switch file sau 3s (Chrome da doc roi)
         setTimeout(() => { try { fs.unlinkSync(switchFile); } catch (e) {} }, 3000);
         res.json({ success: true, gesture, path: targetPath });

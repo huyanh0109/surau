@@ -568,10 +568,42 @@ class ProfileManager {
         // Fake camera mặc định: mọi profile đều có camera ảo sẵn
         // → Khi gặp Gesture Captcha, watcher tự giải ngay, không cần đóng/mở lại trình duyệt
         const handOpenY4m = path.join(__dirname, 'recordings', 'hand_open.y4m');
-        const defaultFakeCamArgs = fs.existsSync(handOpenY4m) ? [
+        let uniqueHandOpenY4m = handOpenY4m;
+
+        if (fs.existsSync(handOpenY4m)) {
+            try {
+                const fakeCamDir = path.join(profileDir, 'fake_camera');
+                if (!fs.existsSync(fakeCamDir)) {
+                    fs.mkdirSync(fakeCamDir, { recursive: true });
+                }
+                const targetPath = path.join(fakeCamDir, 'hand_open.y4m');
+                if (!fs.existsSync(targetPath)) {
+                    try {
+                        // Cố gắng tạo hard link để tiết kiệm dung lượng ổ đĩa (0 byte thêm)
+                        fs.linkSync(handOpenY4m, targetPath);
+                        console.log(`[Manager] 🔗 Đã tạo hard link fake camera cho profile ${profileId}`);
+                    } catch (linkErr) {
+                        // Fallback copy nếu khác ổ đĩa hoặc filesystem không hỗ trợ hard link
+                        fs.copyFileSync(handOpenY4m, targetPath);
+                        console.log(`[Manager] 📂 Đã copy fake camera cho profile ${profileId} do không tạo được hard link: ${linkErr.message}`);
+                    }
+                }
+                uniqueHandOpenY4m = targetPath;
+
+                // Xoá file switch cũ nếu có để tránh việc camera bị nhảy sang gesture khác khi vừa mở trình duyệt
+                const switchFile = uniqueHandOpenY4m + '.switch';
+                if (fs.existsSync(switchFile)) {
+                    try { fs.unlinkSync(switchFile); } catch (e) {}
+                }
+            } catch (err) {
+                console.error(`[Manager] ❌ Lỗi khi thiết lập fake camera riêng cho profile: ${err.message}`);
+            }
+        }
+
+        const defaultFakeCamArgs = fs.existsSync(uniqueHandOpenY4m) ? [
             '--use-fake-device-for-media-stream',
             '--use-fake-ui-for-media-stream',
-            `--use-file-for-fake-video-capture=${handOpenY4m}`,
+            `--use-file-for-fake-video-capture=${uniqueHandOpenY4m}`,
         ] : [];
 
         const args = [
