@@ -137,9 +137,45 @@ async function run(page, job, signal, logger) {
         // Thu giai Gesture Captcha neu xuat hien ngay khi load trang
         page = await tryGestureCaptchaOnce(page, job, signal, logger, 'email');
 
+        // Đợi một chút xem có bị redirect do đã đăng nhập sẵn không
+        await sleep(2000);
+        const currentUrl = page.url();
+        try {
+            const parsedUrl = new URL(currentUrl);
+            if ((parsedUrl.hostname === 'one.google.com' && !parsedUrl.pathname.includes('/about')) || parsedUrl.hostname === 'myaccount.google.com') {
+                log('✅ Profile đã đăng nhập Google từ trước (Đang ở trang Google One/MyAccount).');
+                return { profileId: job.profileId, success: true, data: { gmail: sheetRow.Gmail, message: 'Already logged in' } };
+            }
+        } catch (e) {}
+
         // 2. Nhap email
-        await page.waitForSelector('input[type="email"]', { timeout: 30000 });
-        await page.locator('input[type="email"]').type(sheetRow.Gmail, { delay: 10 });
+        const emailSelector = 'input[type="email"], input[name="identifier"], input#identifierId';
+        try {
+            await page.waitForSelector(emailSelector, { timeout: 15000 });
+        } catch (err) {
+            const path = require('path');
+            const screenshotPath = path.join(process.cwd(), `screenshot_failed_${job.profileId}.png`);
+            try {
+                await page.screenshot({ path: screenshotPath });
+                log(`📸 Đã chụp ảnh lỗi lưu tại: ${screenshotPath}`);
+            } catch (ssErr) {
+                log(`Không thể chụp ảnh lỗi: ${ssErr.message}`);
+            }
+
+            const pageUrl = page.url();
+            const pageTitle = await page.title().catch(() => 'Không rõ');
+            log(`❌ Không tìm thấy ô nhập Email. URL hiện tại: ${pageUrl} | Tiêu đề: ${pageTitle}`);
+
+            if (pageUrl.includes('chrome-error://') || pageUrl.includes('neterror')) {
+                throw new Error('Không thể tải trang Google. Vui lòng kiểm tra lại kết nối mạng hoặc Proxy của profile.');
+            } else if (pageTitle.includes('secure') || pageTitle.includes('bảo mật') || pageTitle.toLowerCase().includes('signin')) {
+                throw new Error('Google chặn đăng nhập (Device/Browser not secure) hoặc yêu cầu giải captcha trước.');
+            } else {
+                throw new Error(`Lỗi tải trang Google Login: ${err.message}`);
+            }
+        }
+
+        await page.locator(emailSelector).first().type(sheetRow.Gmail, { delay: 10 });
         await page.locator('#identifierNext').click();
 
         // Thu giai Gesture Captcha 1 lan (neu co).
