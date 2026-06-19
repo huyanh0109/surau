@@ -111,6 +111,10 @@ async function run(page, job, signal, logger) {
                 // ===== 2FA (Authenticator) =====
                 log('[2FA] Xử lý 2FA...');
                 const inputSelector = 'input[type="tel"], input#totpPin, input[autocomplete="one-time-code"]';
+                // Đợi trang chọn phương thức hoặc ô nhập OTP hiển thị đầy đủ
+                const challengeSelector = `[data-challengetype], [data-challengeid], [data-challengeindex], ${inputSelector}`;
+                await page.waitForSelector(challengeSelector, { state: 'visible', timeout: 15000 }).catch(() => {});
+
                 const isInputVisible = await page.locator(inputSelector).first().isVisible({ timeout: 3000 }).catch(() => false);
 
                 if (!isInputVisible) {
