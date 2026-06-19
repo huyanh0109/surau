@@ -955,6 +955,34 @@ async function loadProfiles() {
             fdStatus.style.borderColor = isRunning ? 'var(--green)' : 'var(--border)';
         }
 
+        // Update Phone Queue status badge (replacing EMPTY)
+        try {
+            fetch(`${API}/phone/queue/status`)
+                .then(r => r.json())
+                .then(queueStatus => {
+                    const statsBadge = document.getElementById('fdStatsBadge');
+                    if (statsBadge) {
+                        if (queueStatus && queueStatus.total > 0) {
+                            const avail = queueStatus.available;
+                            const tot = queueStatus.total;
+                            statsBadge.textContent = `${avail}/${tot} PHONES`;
+                            if (avail > 0) {
+                                statsBadge.style.color = 'var(--green)';
+                                statsBadge.style.borderColor = 'var(--green)';
+                            } else {
+                                statsBadge.style.color = 'var(--orange)';
+                                statsBadge.style.borderColor = 'var(--orange)';
+                            }
+                        } else {
+                            statsBadge.textContent = 'EMPTY';
+                            statsBadge.style.color = 'var(--yellow)';
+                            statsBadge.style.borderColor = 'var(--yellow)';
+                        }
+                    }
+                })
+                .catch(() => {});
+        } catch (e) {}
+
         if (profiles.length === 0) {
             table.innerHTML = '';
             empty.style.display = 'block';

@@ -9,7 +9,7 @@ const ProfileManager = require('./manager');
 const AutomationEngine = require('./automation-engine');
 const proxyService = require('./proxy-service');
 const { registerSheetRoutes } = require('./google-sheet');
-const { registerPhoneRoutes } = require('./phone');
+const { registerPhoneRoutes, phoneQueue } = require('./phone');
 const { attachGestureWatcher, stopGestureWatcher, getActiveWatchers } = require('./gesture-watcher');
 
 // ============================================================
@@ -368,6 +368,16 @@ app.post('/api/automation/run', async (req, res) => {
     const { automation, profileIds, sheetData = [], concurrency = 5, blockImages = false, startUrl } = req.body;
     if (!automation) return res.status(400).json({ error: 'Thiếu tên automation' });
     if (!profileIds?.length) return res.status(400).json({ error: 'Thiếu profileIds' });
+
+    // Reset phone queue BEFORE running check-phone-verify so that it starts fresh
+    if (automation === 'check-phone-verify') {
+        try {
+            phoneQueue.reset();
+            console.log('[Queue] Reset phone queue before check-phone-verify run');
+        } catch (e) {
+            console.error('[Queue] Failed to reset queue:', e.message);
+        }
+    }
 
     // Trả về ngay để UI không bị block, chạy ngầm
     res.json({ success: true, message: `Đã bắt đầu [${automation}] trên ${profileIds.length} profile` });

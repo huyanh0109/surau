@@ -173,30 +173,14 @@ class PhoneQueue {
      * Load phones có LastUse > daysSinceLastUse ngày từ Google Sheet vào RAM
      */
     async load(daysSinceLastUse = 5, limit = 70) {
-        const allRows = await getAllPhoneRows();
-        const now = new Date();
+        let allRows = await getAllPhoneRows();
+        // Giới hạn trong 300 dòng đầu từ Google Sheet (dòng 2 đến 301)
+        allRows = allRows.slice(0, 300);
 
         const available = allRows.filter(row => {
             if (!row.PhoneNumber?.trim()) return false;
-            if (!row.LastUse?.trim()) return true; // Chưa dùng bao giờ → available
-
-            try {
-                const dateStr = row.LastUse.trim();
-                let lastUseDate;
-
-                // Parse DD/MM/YYYY hoặc YYYY-MM-DD
-                const dmyMatch = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-                if (dmyMatch) {
-                    const [, day, month, year, h = 0, m = 0, s = 0] = dmyMatch;
-                    lastUseDate = new Date(Number(year), Number(month) - 1, Number(day), Number(h), Number(m), Number(s));
-                } else {
-                    lastUseDate = new Date(dateStr);
-                }
-
-                if (isNaN(lastUseDate.getTime())) return false;
-                const diffDays = (now - lastUseDate) / (1000 * 60 * 60 * 24);
-                return diffDays > daysSinceLastUse;
-            } catch { return false; }
+            // Chỉ lấy số CHƯA có LastUse (để trống), có rồi thì bỏ qua
+            return !row.LastUse?.trim();
         });
 
         this.phones = available.slice(0, limit).map(row => ({
@@ -296,18 +280,12 @@ function registerPhoneRoutes(app) {
      */
     app.get('/api/phone/available', async (req, res) => {
         try {
-            const days = parseInt(req.query.days) || 5;
             const limit = parseInt(req.query.limit) || 70;
-            const allRows = await getAllPhoneRows();
-            const now = new Date();
+            let allRows = await getAllPhoneRows();
+            allRows = allRows.slice(0, 300);
             const available = allRows.filter(row => {
                 if (!row.PhoneNumber?.trim()) return false;
-                if (!row.LastUse?.trim()) return true;
-                try {
-                    const d = new Date(row.LastUse);
-                    if (isNaN(d.getTime())) return false;
-                    return (now - d) / (1000 * 60 * 60 * 24) > days;
-                } catch { return false; }
+                return !row.LastUse?.trim();
             }).slice(0, limit);
             res.json({ total: available.length, phones: available });
         } catch (e) { res.status(500).json({ error: e.message }); }
