@@ -282,6 +282,7 @@ async function run(page, job, signal, logger) {
                             return false;
                         };
                         return findAndClick('[data-challengetype="6"]') ||
+                               findAndClick('[data-challengeid="6"]') ||
                                findAndClick('[data-challengeid="2"]') ||
                                findAndClick('[data-challengeid="3"]') ||
                                findAndClick('li, div[role="link"], div[role="button"]');
