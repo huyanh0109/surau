@@ -24,6 +24,7 @@ const automationRegistry = {
     'verify-phone-sheet-check':    require('./automations/verify-phone-sheet-check'),
     'solve-2fa':                   require('./automations/solve-2fa'),
     'solve-gesture-captcha':       require('./automations/solve-gesture-captcha'),
+    'solve-gesture-captcha-copy':  require('./automations/solve-gesture-captcha-copy'),
 };
 
 class AutomationEngine extends EventEmitter {

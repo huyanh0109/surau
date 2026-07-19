@@ -7,7 +7,7 @@ const { sleep, generate2FACode, isEmail, clickNextButton } = require('./helpers'
  */
 async function tryGestureCaptchaOnce(page, job, signal, logger, step) {
     const log = (msg) => { logger?.(msg); console.log(`[P${job.profileId}] [Gesture] ${msg}`); };
-    const { solveCaptchaProcess } = require('./solve-gesture-captcha');
+    const solver = require('./solve-gesture-captcha-copy');
 
     // Cho trang on dinh
     await sleep(2000);
@@ -15,10 +15,89 @@ async function tryGestureCaptchaOnce(page, job, signal, logger, step) {
     // Phan loai captcha: Gesture hay v2 hay khong co
     let hasGesture = false;
     let hasV2Captcha = false;
+    let checkboxClicked = false;
     for (let i = 0; i < 30; i++) {
-        if (signal?.aborted) return page;
         try {
-            // Check early exit based on the step we are waiting for
+            const currentUrl = page.url();
+            try {
+                const parsedUrl = new URL(currentUrl);
+                if (parsedUrl.hostname === 'one.google.com' || parsedUrl.hostname === 'myaccount.google.com') {
+                    log(`Successfully logged in (${parsedUrl.hostname}) - no captcha.`);
+                    break;
+                }
+            } catch (e) {}
+
+            const frames = page.frames();
+            
+            // Check if any frame has hand-gestures or has text indicating gesture captcha
+            for (const f of frames) {
+                const url = f.url();
+                if (url.includes('hand-gestures')) {
+                    hasGesture = true;
+                    break;
+                }
+                if (url.includes('recaptcha')) {
+                    try {
+                        const text = await f.evaluate(() => {
+                            return (document.body?.innerText || '').toLowerCase();
+                        }).catch(() => '');
+                        // Cac tu khoa chi dien cua Gesture Captcha (bao gom tieng Anh va tieng Viet)
+                        if (text && (text.includes('gesture') || text.includes('hand') || text.includes('camera') || 
+                            text.includes('bàn tay') || text.includes('giơ') || text.includes('nắm') ||
+                            text.includes('ngón') || text.includes('vẫy') || text.includes('chỉ'))) {
+                            hasGesture = true;
+                            break;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // Fallback: check using native Playwright frameLocator (cross-origin safe)
+            if (!hasGesture) {
+                try {
+                    const hasIframe = await page.evaluate(() => {
+                        return !!document.querySelector('iframe[src*="recaptcha"], iframe[src*="hand-gestures"], iframe[src*="bframe"]');
+                    }).catch(() => false);
+                    if (hasIframe) {
+                        const bodyText = await page.frameLocator('iframe[src*="recaptcha"], iframe[src*="hand-gestures"], iframe[src*="bframe"]').locator('body').innerText({ timeout: 1000 }).catch(() => '');
+                        if (bodyText) {
+                            const text = bodyText.toLowerCase();
+                            if (text.includes('gesture') || text.includes('hand') || text.includes('camera') || 
+                                text.includes('bàn tay') || text.includes('giơ') || text.includes('nắm') ||
+                                text.includes('ngón') || text.includes('vẫy') || text.includes('chỉ')) {
+                                hasGesture = true;
+                                break;
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            if (hasGesture) {
+                log(`[detect] GESTURE CAPTCHA. Frames: ${frames.map(f => f.url().substring(0, 60)).join(' | ')}`);
+                break;
+            }
+
+            // Auto-click reCAPTCHA checkbox if visible and unchecked
+            try {
+                const checkbox = page.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
+                if (await checkbox.isVisible().catch(() => false)) {
+                    const ariaChecked = await checkbox.getAttribute('aria-checked').catch(() => 'false');
+                    if (ariaChecked !== 'true' && !checkboxClicked) {
+                        log('[detect] reCAPTCHA checkbox visible and unchecked. Clicking it...');
+                        await checkbox.click();
+                        checkboxClicked = true;
+                        await sleep(3000);
+                        continue; // Bỏ qua đoạn kiểm tra sớm ở dưới để quét lại frame mới xuất hiện
+                    }
+                }
+            } catch (e) {}
+
+            // reCAPTCHA v2: co iframe recaptcha
+            hasV2Captcha = (currentUrl.includes('challenge') || currentUrl.includes('recaptcha')) &&
+                frames.some(f => f.url().includes('recaptcha'));
+
+            // Check early exit based on the step we are waiting for (Chỉ thoát sớm khi không bị khóa bởi captcha)
             const nextStepVisible = await page.evaluate((step) => {
                 const isVisible = (el) => {
                     return !!(el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getBoundingClientRect().width > 0));
@@ -40,53 +119,12 @@ async function tryGestureCaptchaOnce(page, job, signal, logger, step) {
                 return false;
             }, step).catch(() => false);
 
-            if (nextStepVisible) {
+            if (nextStepVisible && !hasV2Captcha) {
                 log(`Next step input (${step}) visible - no captcha.`);
                 break;
             }
-
-            const currentUrl = page.url();
-            try {
-                const parsedUrl = new URL(currentUrl);
-                if (parsedUrl.hostname === 'one.google.com' || parsedUrl.hostname === 'myaccount.google.com') {
-                    log(`Successfully logged in (${parsedUrl.hostname}) - no captcha.`);
-                    break;
-                }
-            } catch (e) {}
-
-            const frames = page.frames();
-            
-            // Check if any frame has hand-gestures or has text indicating gesture captcha
-            for (const f of frames) {
-                if (f.url().includes('hand-gestures')) {
-                    hasGesture = true;
-                    break;
-                }
-                if (f.url().includes('recaptcha')) {
-                    try {
-                        const text = await f.evaluate(() => {
-                            return (document.body?.innerText || '').toLowerCase();
-                        });
-                        // Cac tu khoa chi dien cua Gesture Captcha (bao gom tieng Anh va tieng Viet)
-                        if (text.includes('gesture') || text.includes('hand') || text.includes('camera') || 
-                            text.includes('bàn tay') || text.includes('giơ') || text.includes('nắm') ||
-                            text.includes('ngón') || text.includes('vẫy') || text.includes('chỉ')) {
-                            hasGesture = true;
-                            break;
-                        }
-                    } catch (e) {}
-                }
-            }
-
-            if (hasGesture) {
-                log(`[detect] GESTURE CAPTCHA. Frames: ${frames.map(f => f.url().substring(0, 60)).join(' | ')}`);
-                break;
-            }
-
-            // reCAPTCHA v2: co iframe recaptcha
-            hasV2Captcha = (currentUrl.includes('challenge') || currentUrl.includes('recaptcha')) &&
-                frames.some(f => f.url().includes('recaptcha'));
         } catch (e) {}
+        if (signal?.aborted) return page;
         await sleep(500);
     }
 
@@ -96,14 +134,14 @@ async function tryGestureCaptchaOnce(page, job, signal, logger, step) {
         return page;
     }
 
-    log('Phat hien Gesture Captcha! Bat dau tu dong giai bang solveCaptchaProcess...');
+    log('Phat hien Gesture Captcha! Bat dau tu dong giai bang solve-gesture-captcha-copy...');
 
-    // Goi solveCaptchaProcess tu solve-gesture-captcha.js
-    const result = await solveCaptchaProcess(page, job, signal, log);
+    // Goi run tu solve-gesture-captcha-copy.js
+    const result = await solver.run(page, job, signal, log);
     if (result.success) {
-        log(`Gesture da giai thanh cong! (${result.gesture})`);
+        log(`Gesture da giai thanh cong!`);
     } else {
-        log(`Giai gesture that bai: ${result.error}`);
+        log(`Giai gesture that bai: ${result.error || ''}`);
     }
 
     // Tra ve page moi nhat
