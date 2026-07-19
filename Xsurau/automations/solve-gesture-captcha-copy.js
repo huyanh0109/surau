@@ -602,35 +602,9 @@ async function solveCaptchaProcess(currentPage, job, signal, log) {
 
     if (signal?.aborted) return { success: false, error: 'STOPPED' };
 
-    // Auto-click reCAPTCHA checkbox if visible and unchecked
-    try {
-        const hasAnchorIframe = await currentPage.evaluate(() => {
-            return !!document.querySelector('iframe[src*="anchor"]');
-        }).catch(() => false);
-        if (hasAnchorIframe) {
-            const checkbox = currentPage.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
-            if (await checkbox.isVisible({ timeout: 1000 }).catch(() => false)) {
-                const ariaChecked = await checkbox.getAttribute('aria-checked', { timeout: 1000 }).catch(() => 'false');
-                if (ariaChecked !== 'true') {
-                    log('reCAPTCHA checkbox visible and unchecked. Clicking it...');
-                    await checkbox.click();
-                    await sleep(2500);
-                }
-            }
-        }
-    } catch (e) {}
-
-    if (signal?.aborted) return { success: false, error: 'STOPPED' };
-
     // 2. Click Next (man hinh consent)
     log('Click Next...');
     for (let i = 0; i < 20 && !signal?.aborted; i++) {
-        // Neu da co gesture frame thi bo qua Click Next luon
-        const gf = await findGestureFrame(currentPage);
-        if (gf) {
-            break;
-        }
-
         if (await clickNextInAnyFrame(currentPage)) {
             log('Next clicked -> gesture challenge loading...');
             break;
@@ -887,55 +861,36 @@ async function run(page, job, signal, logger, options = {}) {
     let currentPage = page;
     await sleep(1000).catch(() => {});
 
-    let success = false;
-    while (!success && !signal?.aborted) {
-        try {
-            if (currentPage.isClosed()) {
-                log('Trang web da dong -> Dung kịch bản.');
-                break;
-            }
+    try {
+        if (currentPage.isClosed()) return { profileId, success: false, error: 'Page closed' };
 
-            // Cap nhat page moi nhat
-            const running = manager.runningProfiles?.get(profileId);
-            if (running) {
-                const pages = running.context?.pages?.() || [];
-                const livePage = pages.find(p => !p.isClosed());
-                if (livePage) currentPage = livePage;
-            }
-
-            const solveRes = await solveCaptchaProcess(currentPage, job, signal, log);
-            
-            if (signal?.aborted || solveRes.error === 'STOPPED') break;
-
-            if (solveRes.success) {
-                log(`Thanh cong! (${solveRes.gesture || ''})`);
-                success = true;
-            } else {
-                if (solveRes.error === "We couldn't verify your info" || solveRes.error === "Stuck at Step 2 Start") {
-                    log(`Phat hien loi (${solveRes.error}) -> F5/Reload trang va giai lai tu dau...`);
-                    try {
-                        await abortablePromise(currentPage.reload({ waitUntil: 'domcontentloaded', timeout: 15000 }), signal);
-                    } catch (e) {
-                        if (e.message === 'STOPPED' || signal?.aborted) throw e;
-                        log(`Loi khi reload: ${e.message}`);
-                    }
-                    await sleep(1500);
-                } else {
-                    log(`That bai (${solveRes.error}) -> Dung kịch bản.`);
-                    break;
-                }
-            }
-        } catch (err) {
-            if (signal?.aborted || err.message === 'STOPPED') break;
-            const msg = err?.message || '';
-            if (msg.includes('Target closed') || msg.includes('Session closed') || msg.includes('context destroyed')) break;
-            log(`Loi ngoai le: ${msg} -> Dung kịch bản.`);
-            break;
+        // Cap nhat page moi nhat
+        const running = manager.runningProfiles?.get(profileId);
+        if (running) {
+            const pages = running.context?.pages?.() || [];
+            const livePage = pages.find(p => !p.isClosed());
+            if (livePage) currentPage = livePage;
         }
-    }
 
-    log('Da dung.');
-    return { profileId, success };
+        const solveRes = await solveCaptchaProcess(currentPage, job, signal, log);
+        
+        if (solveRes.success) {
+            log(`Thanh cong! (${solveRes.gesture || ''})`);
+            log('Da dung.');
+            return { profileId, success: true, gesture: solveRes.gesture };
+        } else {
+            log(`That bai (${solveRes.error})`);
+            log('Da dung.');
+            return { profileId, success: false, error: solveRes.error };
+        }
+    } catch (err) {
+        const msg = err?.message || '';
+        if (!msg.includes('Target closed') && !msg.includes('Session closed') && !msg.includes('context destroyed') && msg !== 'STOPPED') {
+            log(`Loi: ${msg}`);
+        }
+        log('Da dung.');
+        return { profileId, success: false, error: msg };
+    }
 }
 
 module.exports = {
@@ -947,4 +902,5 @@ module.exports = {
     solveCaptchaProcess,
     detectGestureChallengePresent,
     injectGestureOverlay,
+    abortablePromise,
 };
