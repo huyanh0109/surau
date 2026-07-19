@@ -604,17 +604,23 @@ async function solveCaptchaProcess(currentPage, job, signal, log) {
 
     // Auto-click reCAPTCHA checkbox if visible and unchecked
     try {
-        const hasAnchorIframe = await currentPage.evaluate(() => {
-            return !!document.querySelector('iframe[src*="anchor"]');
+        const hasChallenge = await currentPage.evaluate(() => {
+            return !!document.querySelector('iframe[src*="bframe"], iframe[src*="hand-gestures"]');
         }).catch(() => false);
-        if (hasAnchorIframe) {
-            const checkbox = currentPage.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
-            if (await checkbox.isVisible({ timeout: 1000 }).catch(() => false)) {
-                const ariaChecked = await checkbox.getAttribute('aria-checked', { timeout: 1000 }).catch(() => 'false');
-                if (ariaChecked !== 'true') {
-                    log('reCAPTCHA checkbox visible and unchecked. Clicking it...');
-                    await checkbox.click();
-                    await sleep(2500);
+
+        if (!hasChallenge) {
+            const hasAnchorIframe = await currentPage.evaluate(() => {
+                return !!document.querySelector('iframe[src*="anchor"]');
+            }).catch(() => false);
+            if (hasAnchorIframe) {
+                const checkbox = currentPage.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
+                if (await checkbox.isVisible({ timeout: 1000 }).catch(() => false)) {
+                    const ariaChecked = await checkbox.getAttribute('aria-checked', { timeout: 1000 }).catch(() => 'false');
+                    if (ariaChecked !== 'true') {
+                        log('reCAPTCHA checkbox visible and unchecked. Clicking it...');
+                        await checkbox.click({ timeout: 2000 });
+                        await sleep(2500);
+                    }
                 }
             }
         }

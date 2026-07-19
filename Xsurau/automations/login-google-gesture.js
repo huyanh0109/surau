@@ -90,19 +90,25 @@ async function tryGestureCaptchaOnce(page, job, signal, logger, step) {
 
             // Auto-click reCAPTCHA checkbox if visible and unchecked
             try {
-                const hasAnchorIframe = await mainPage.evaluate(() => {
-                    return !!document.querySelector('iframe[src*="anchor"]');
+                const hasChallenge = await mainPage.evaluate(() => {
+                    return !!document.querySelector('iframe[src*="bframe"], iframe[src*="hand-gestures"]');
                 }).catch(() => false);
-                if (hasAnchorIframe) {
-                    const checkbox = mainPage.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
-                    if (await checkbox.isVisible({ timeout: 1000 }).catch(() => false)) {
-                        const ariaChecked = await checkbox.getAttribute('aria-checked', { timeout: 1000 }).catch(() => 'false');
-                        if (ariaChecked !== 'true' && !checkboxClicked) {
-                            log('[detect] reCAPTCHA checkbox visible and unchecked. Clicking it...');
-                            await checkbox.click();
-                            checkboxClicked = true;
-                            await sleep(3000);
-                            continue;
+
+                if (!hasChallenge) {
+                    const hasAnchorIframe = await mainPage.evaluate(() => {
+                        return !!document.querySelector('iframe[src*="anchor"]');
+                    }).catch(() => false);
+                    if (hasAnchorIframe) {
+                        const checkbox = mainPage.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
+                        if (await checkbox.isVisible({ timeout: 1000 }).catch(() => false)) {
+                            const ariaChecked = await checkbox.getAttribute('aria-checked', { timeout: 1000 }).catch(() => 'false');
+                            if (ariaChecked !== 'true' && !checkboxClicked) {
+                                log('[detect] reCAPTCHA checkbox visible and unchecked. Clicking it...');
+                                await checkbox.click({ timeout: 2000 });
+                                checkboxClicked = true;
+                                await sleep(3000);
+                                continue;
+                            }
                         }
                     }
                 }
