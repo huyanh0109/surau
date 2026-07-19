@@ -12,166 +12,150 @@ async function tryGestureCaptchaOnce(page, job, signal, logger, step) {
     // Cho trang on dinh
     await sleep(2000);
 
-    let success = false;
+    let hasGesture = false;
+    let hasV2Captcha = false;
+    let checkboxClicked = false;
     let mainPage = page;
 
-    while (!success && !signal?.aborted) {
-        let hasGesture = false;
-        let hasV2Captcha = false;
-        let checkboxClicked = false;
+    // Vong lap do tim captcha va click checkbox
+    for (let i = 0; i < 30; i++) {
+        if (signal?.aborted) return mainPage;
+        try {
+            // Update page moi nhat
+            const running = job.manager.runningProfiles.get(job.profileId);
+            if (running?.context) {
+                const pages = running.context.pages?.() || [];
+                const livePage = pages.find(p => !p.isClosed());
+                if (livePage) mainPage = livePage;
+            }
 
-        // Vong lap do tim captcha va click checkbox
-        for (let i = 0; i < 30; i++) {
-            if (signal?.aborted) return mainPage;
+            const currentUrl = mainPage.url();
             try {
-                // Update page moi nhat
-                const running = job.manager.runningProfiles.get(job.profileId);
-                if (running?.context) {
-                    const pages = running.context.pages?.() || [];
-                    const livePage = pages.find(p => !p.isClosed());
-                    if (livePage) mainPage = livePage;
-                }
-
-                const currentUrl = mainPage.url();
-                try {
-                    const parsedUrl = new URL(currentUrl);
-                    if (parsedUrl.hostname === 'one.google.com' || parsedUrl.hostname === 'myaccount.google.com') {
-                        log(`Successfully logged in (${parsedUrl.hostname}) - no captcha.`);
-                        break;
-                    }
-                } catch (e) {}
-
-                const frames = mainPage.frames();
-                
-                // Check if any frame has hand-gestures or has text indicating gesture captcha
-                for (const f of frames) {
-                    const url = f.url();
-                    if (url.includes('hand-gestures')) {
-                        hasGesture = true;
-                        break;
-                    }
-                    if (url.includes('recaptcha')) {
-                        try {
-                            const text = await f.evaluate(() => {
-                                return (document.body?.innerText || '').toLowerCase();
-                            }).catch(() => '');
-                            if (text && (text.includes('gesture') || text.includes('hand') || text.includes('camera') || 
-                                text.includes('bàn tay') || text.includes('giơ') || text.includes('nắm') ||
-                                text.includes('ngón') || text.includes('vẫy') || text.includes('chỉ'))) {
-                                hasGesture = true;
-                                break;
-                            }
-                        } catch (e) {}
-                    }
-                }
-
-                // Fallback: check using native Playwright frameLocator (cross-origin safe)
-                if (!hasGesture) {
-                    try {
-                        const hasIframe = await mainPage.evaluate(() => {
-                            return !!document.querySelector('iframe[src*="recaptcha"], iframe[src*="hand-gestures"], iframe[src*="bframe"]');
-                        }).catch(() => false);
-                        if (hasIframe) {
-                            const bodyText = await mainPage.frameLocator('iframe[src*="recaptcha"], iframe[src*="hand-gestures"], iframe[src*="bframe"]').locator('body').innerText({ timeout: 1000 }).catch(() => '');
-                            if (bodyText) {
-                                const text = bodyText.toLowerCase();
-                                if (text.includes('gesture') || text.includes('hand') || text.includes('camera') || 
-                                    text.includes('bàn tay') || text.includes('giơ') || text.includes('nắm') ||
-                                    text.includes('ngón') || text.includes('vẫy') || text.includes('chỉ')) {
-                                    hasGesture = true;
-                                    break;
-                                }
-                            }
-                        }
-                    } catch (e) {}
-                }
-
-                if (hasGesture) {
-                    log(`[detect] GESTURE CAPTCHA. Frames: ${frames.map(f => f.url().substring(0, 60)).join(' | ')}`);
-                    break;
-                }
-
-                // Auto-click reCAPTCHA checkbox if visible and unchecked
-                try {
-                    const hasAnchorIframe = await mainPage.evaluate(() => {
-                        return !!document.querySelector('iframe[src*="anchor"]');
-                    }).catch(() => false);
-                    if (hasAnchorIframe) {
-                        const checkbox = mainPage.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
-                        if (await checkbox.isVisible({ timeout: 1000 }).catch(() => false)) {
-                            const ariaChecked = await checkbox.getAttribute('aria-checked', { timeout: 1000 }).catch(() => 'false');
-                            if (ariaChecked !== 'true' && !checkboxClicked) {
-                                log('[detect] reCAPTCHA checkbox visible and unchecked. Clicking it...');
-                                await checkbox.click();
-                                checkboxClicked = true;
-                                await sleep(3000);
-                                continue;
-                            }
-                        }
-                    }
-                } catch (e) {}
-
-                // reCAPTCHA v2: co iframe recaptcha
-                hasV2Captcha = (currentUrl.includes('challenge') || currentUrl.includes('recaptcha')) &&
-                    frames.some(f => f.url().includes('recaptcha'));
-
-                // Check early exit based on the step we are waiting for (Chỉ thoát sớm khi không bị khóa bởi captcha)
-                const nextStepVisible = await mainPage.evaluate((step) => {
-                    const isVisible = (el) => {
-                        return !!(el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getBoundingClientRect().width > 0));
-                    };
-                    if (step === 'email') {
-                        const email = document.querySelector('input[type="email"]');
-                        if (isVisible(email)) return true;
-                    }
-                    if (step === 'password') {
-                        const pwd = document.querySelector('input[type="password"]');
-                        if (isVisible(pwd)) return true;
-                    }
-                    if (step === 'post-login') {
-                        const code2fa = document.querySelector('input[type="tel"], input#totpPin, input[autocomplete="one-time-code"]');
-                        if (isVisible(code2fa)) return true;
-                        const recovery = document.querySelector('[name="knowledgePreregisteredEmailResponse"]');
-                        if (isVisible(recovery)) return true;
-                    }
-                    return false;
-                }, step).catch(() => false);
-
-                if (nextStepVisible && !hasV2Captcha) {
-                    log(`Next step input (${step}) visible - no captcha.`);
+                const parsedUrl = new URL(currentUrl);
+                if (parsedUrl.hostname === 'one.google.com' || parsedUrl.hostname === 'myaccount.google.com') {
+                    log(`Successfully logged in (${parsedUrl.hostname}) - no captcha.`);
                     break;
                 }
             } catch (e) {}
-            await sleep(500);
-        }
 
-        if (!hasGesture) {
-            break; // Thoat ra de nhap tiep neu khong co gesture
-        }
-
-        log('Phat hien Gesture Captcha! Bat dau tu dong giai bang solve-gesture-captcha-copy...');
-
-        // Goi run tu solve-gesture-captcha-copy.js
-        const result = await solver.run(mainPage, job, signal, log);
-        if (result.success) {
-            log(`Gesture da giai thanh cong!`);
-            success = true;
-        } else {
-            if (result.error === "We couldn't verify your info" || result.error === "Stuck at Step 2 Start") {
-                log(`Phat hien loi (${result.error}) -> F5/Reload trang va giai lai tu dau...`);
-                try {
-                    const { abortablePromise } = require('./solve-gesture-captcha-copy');
-                    await abortablePromise(mainPage.reload({ waitUntil: 'domcontentloaded', timeout: 15000 }), signal);
-                } catch (e) {
-                    if (e.message === 'STOPPED' || signal?.aborted) throw e;
-                    log(`Loi khi reload: ${e.message}`);
+            const frames = mainPage.frames();
+            
+            // Check if any frame has hand-gestures or has text indicating gesture captcha
+            for (const f of frames) {
+                const url = f.url();
+                if (url.includes('hand-gestures')) {
+                    hasGesture = true;
+                    break;
                 }
-                await sleep(1500);
-            } else {
-                log(`Giai gesture that bai: ${result.error || ''} -> Dung kịch bản.`);
+                if (url.includes('recaptcha')) {
+                    try {
+                        const text = await f.evaluate(() => {
+                            return (document.body?.innerText || '').toLowerCase();
+                        }).catch(() => '');
+                        if (text && (text.includes('gesture') || text.includes('hand') || text.includes('camera') || 
+                            text.includes('bàn tay') || text.includes('giơ') || text.includes('nắm') ||
+                            text.includes('ngón') || text.includes('vẫy') || text.includes('chỉ'))) {
+                            hasGesture = true;
+                            break;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // Fallback: check using native Playwright frameLocator (cross-origin safe)
+            if (!hasGesture) {
+                try {
+                    const hasIframe = await mainPage.evaluate(() => {
+                        return !!document.querySelector('iframe[src*="recaptcha"], iframe[src*="hand-gestures"], iframe[src*="bframe"]');
+                    }).catch(() => false);
+                    if (hasIframe) {
+                        const bodyText = await mainPage.frameLocator('iframe[src*="recaptcha"], iframe[src*="hand-gestures"], iframe[src*="bframe"]').locator('body').innerText({ timeout: 1000 }).catch(() => '');
+                        if (bodyText) {
+                            const text = bodyText.toLowerCase();
+                            if (text.includes('gesture') || text.includes('hand') || text.includes('camera') || 
+                                text.includes('bàn tay') || text.includes('giơ') || text.includes('nắm') ||
+                                text.includes('ngón') || text.includes('vẫy') || text.includes('chỉ')) {
+                                hasGesture = true;
+                                break;
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            if (hasGesture) {
+                log(`[detect] GESTURE CAPTCHA. Frames: ${frames.map(f => f.url().substring(0, 60)).join(' | ')}`);
                 break;
             }
-        }
+
+            // Auto-click reCAPTCHA checkbox if visible and unchecked
+            try {
+                const hasAnchorIframe = await mainPage.evaluate(() => {
+                    return !!document.querySelector('iframe[src*="anchor"]');
+                }).catch(() => false);
+                if (hasAnchorIframe) {
+                    const checkbox = mainPage.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
+                    if (await checkbox.isVisible({ timeout: 1000 }).catch(() => false)) {
+                        const ariaChecked = await checkbox.getAttribute('aria-checked', { timeout: 1000 }).catch(() => 'false');
+                        if (ariaChecked !== 'true' && !checkboxClicked) {
+                            log('[detect] reCAPTCHA checkbox visible and unchecked. Clicking it...');
+                            await checkbox.click();
+                            checkboxClicked = true;
+                            await sleep(3000);
+                            continue;
+                        }
+                    }
+                }
+            } catch (e) {}
+
+            // reCAPTCHA v2: co iframe recaptcha
+            hasV2Captcha = (currentUrl.includes('challenge') || currentUrl.includes('recaptcha')) &&
+                frames.some(f => f.url().includes('recaptcha'));
+
+            // Check early exit based on the step we are waiting for (Chỉ thoát sớm khi không bị khóa bởi captcha)
+            const nextStepVisible = await mainPage.evaluate((step) => {
+                const isVisible = (el) => {
+                    return !!(el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getBoundingClientRect().width > 0));
+                };
+                if (step === 'email') {
+                    const email = document.querySelector('input[type="email"]');
+                    if (isVisible(email)) return true;
+                }
+                if (step === 'password') {
+                    const pwd = document.querySelector('input[type="password"]');
+                    if (isVisible(pwd)) return true;
+                }
+                if (step === 'post-login') {
+                    const code2fa = document.querySelector('input[type="tel"], input#totpPin, input[autocomplete="one-time-code"]');
+                    if (isVisible(code2fa)) return true;
+                    const recovery = document.querySelector('[name="knowledgePreregisteredEmailResponse"]');
+                    if (isVisible(recovery)) return true;
+                }
+                return false;
+            }, step).catch(() => false);
+
+            if (nextStepVisible && !hasV2Captcha) {
+                log(`Next step input (${step}) visible - no captcha.`);
+                break;
+            }
+        } catch (e) {}
+        await sleep(500);
+    }
+
+    if (!hasGesture) {
+        if (hasV2Captcha) log('reCAPTCHA v2 detected - khong tu dong giai, bo qua gesture solver.');
+        else log('Khong phat hien gesture captcha, tiep tuc.');
+        return mainPage;
+    }
+
+    log('Phat hien Gesture Captcha! Bat dau tu dong giai bang solve-gesture-captcha-copy...');
+
+    // Goi run tu solve-gesture-captcha-copy.js
+    const result = await solver.run(mainPage, job, signal, log);
+    if (result.success) {
+        log(`Gesture da giai thanh cong!`);
+    } else {
+        log(`Giai gesture that bai: ${result.error || ''}`);
     }
 
     // Tra ve page moi nhat
