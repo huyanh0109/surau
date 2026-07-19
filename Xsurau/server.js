@@ -279,10 +279,12 @@ app.delete('/api/extensions', (req, res) => {
 // ============================================================================
 
 app.post('/api/proxy/switch', async (req, res) => {
-    const { proxyUrl } = req.body;
+    const { proxyUrl, proxy } = req.body;
+    const targetProxy = proxy || proxyUrl;
+    if (!targetProxy) return res.status(400).json({ error: 'Thiếu proxy hoặc proxyUrl trong body' });
     try {
-        await proxyService.switchProxy(proxyUrl, manager);
-        res.json({ success: true, message: `Switched upstream to ${proxyUrl}` });
+        await proxyService.switchProxy(targetProxy, manager);
+        res.json({ success: true, message: `Switched upstream to ${targetProxy}` });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -524,6 +526,37 @@ app.post('/api/gesture-watch/switch-cam', (req, res) => {
 });
 
 registerSheetRoutes(app);
+
+// ============================================================================
+// PROXY API
+// ============================================================================
+
+/**
+ * Kiểm tra proxy có bị phát hiện không (datacenter/VPN/hosting).
+ * GET /api/proxy/geo?proxy=ip:port:user:pass
+ * Nếu không có query param, dùng global proxy hiện tại.
+ */
+app.get('/api/proxy/geo', async (req, res) => {
+    try {
+        const proxyStr = req.query.proxy || null;
+        const geo = await proxyService.getProxyGeoInfo(proxyStr);
+        if (!geo) {
+            return res.status(502).json({ error: 'Không thể lấy thông tin GeoIP. Proxy có thể down hoặc timeout.' });
+        }
+        res.json({
+            ...geo,
+            safe: !geo.isProxy && !geo.isHosting,
+            warning: geo.isProxy || geo.isHosting
+                ? '⚠️ IP này bị đánh dấu proxy/datacenter — financial sites sẽ chặn!'
+                : '✅ IP clean, không bị đánh dấu proxy/datacenter.'
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+
 
 // Phone Routes (RentPhone sheet + in-memory queue)
 registerPhoneRoutes(app);

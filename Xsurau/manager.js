@@ -635,6 +635,12 @@ class ProfileManager {
             `--spoof-cpu-cores=${hwConcurrency}`,
             `--spoof-device-memory=${devMemory}`,
 
+            // --- WEBRTC LEAK PREVENTION (Chrome chuẩn) ---
+            // Chỉ cho phép WebRTC dùng IP qua proxy, KHÔNG bao giờ dùng IP thật máy
+            '--webrtc-ip-handling-policy=disable_non_proxied_udp',
+            '--enforce-webrtc-ip-permission-check',
+            '--disable-features=WebRtcHideLocalIpsWithMdns',
+
             // --- FAKE CAMERA MỎC ĐỌNH (không cần relaunch) ---
             ...defaultFakeCamArgs,
 

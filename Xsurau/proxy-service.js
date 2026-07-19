@@ -12,10 +12,22 @@ class ProxyService {
         if (this.server) return;
         this.server = new ProxyChain.Server({
             port: this.localPort,
-            prepareRequestFunction: () => {
+            prepareRequestFunction: ({ request }) => {
+                // Strip các header tiết lộ proxy (forward từ client lên upstream)
+                const leakHeaders = ['x-forwarded-for', 'via', 'proxy-connection', 'x-real-ip', 'forwarded'];
+                leakHeaders.forEach(h => { delete request.headers[h]; });
+
                 if (!this.activeUpstream) return {};
                 return { upstreamProxyUrl: this.toProxyUrl(this.activeUpstream) };
-            }
+            },
+            // Strip các header tiết lộ proxy trong response từ upstream về client
+            customResponseFunction: ({ response }) => {
+                if (response && response.headers) {
+                    const leakHeaders = ['via', 'x-forwarded-for', 'x-cache', 'x-cache-hits', 'x-served-by'];
+                    leakHeaders.forEach(h => { delete response.headers[h]; });
+                }
+                return response;
+            },
         });
         await this.server.listen();
         console.log(`[ProxyService] Gateway running on 127.0.0.1:${this.localPort}`);
@@ -142,6 +154,59 @@ class ProxyService {
         } catch (e) {
             console.error(`[ProxyService] Critical error in getCurrentIP: ${e.message}`);
             return `ERROR: ${e.message}`;
+        }
+    }
+
+    /**
+     * Lấy thông tin Geo của proxy IP: country, timezone, countryCode, ISP
+     * Trả về object { ip, country, countryCode, timezone, isp, isProxy, isHosting }
+     * hoặc null nếu lỗi
+     */
+    async getProxyGeoInfo(proxyUrl) {
+        const url = proxyUrl || this.activeUpstream;
+        if (!url) return null;
+
+        try {
+            const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+            const { HttpsProxyAgent } = require('https-proxy-agent');
+
+            const formattedProxy = this.toProxyUrl(url);
+            const agent = new HttpsProxyAgent(formattedProxy);
+
+            // ipwho.is hỗ trợ HTTPS và có thông tin proxy/hosting/vpn/tor đầy đủ
+            console.log(`[ProxyService] Checking GeoInfo via https://ipwho.is/ ...`);
+            const res = await fetch('https://ipwho.is/', { agent, timeout: 7000 });
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+
+            const data = await res.json();
+            if (!data.success) {
+                console.warn(`[ProxyService] ipwho.is returned success=false: ${data.message || 'Unknown error'}`);
+                return null;
+            }
+
+            const isProxyOrVpn = data.security && (data.security.proxy || data.security.vpn || data.security.tor);
+            const isHosting = data.security && data.security.hosting;
+
+            console.log(`[ProxyService] 🌍 Proxy Geo: IP=${data.ip} | ${data.country} (${data.country_code}) | TZ=${data.timezone?.id} | ISP=${data.connection?.isp} | isProxy/VPN=${isProxyOrVpn} | isHosting=${isHosting}`);
+
+            if (isProxyOrVpn || isHosting) {
+                console.warn(`[ProxyService] ⚠️ CẢNH BÁO: IP này bị đánh dấu là proxy/hosting/VPN! Site sẽ phát hiện.`);
+            }
+
+            return {
+                ip: data.ip,
+                country: data.country,
+                countryCode: data.country_code,
+                timezone: data.timezone?.id || 'UTC', // VD: "America/New_York"
+                isp: data.connection?.isp || data.connection?.asn || 'Unknown',
+                isProxy: !!isProxyOrVpn,
+                isHosting: !!isHosting,
+            };
+        } catch (e) {
+            console.error(`[ProxyService] Không lấy được GeoInfo: ${e.message}`);
+            return null;
         }
     }
 }

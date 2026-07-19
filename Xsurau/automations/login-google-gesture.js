@@ -80,15 +80,20 @@ async function tryGestureCaptchaOnce(page, job, signal, logger, step) {
 
             // Auto-click reCAPTCHA checkbox if visible and unchecked
             try {
-                const checkbox = page.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
-                if (await checkbox.isVisible().catch(() => false)) {
-                    const ariaChecked = await checkbox.getAttribute('aria-checked').catch(() => 'false');
-                    if (ariaChecked !== 'true' && !checkboxClicked) {
-                        log('[detect] reCAPTCHA checkbox visible and unchecked. Clicking it...');
-                        await checkbox.click();
-                        checkboxClicked = true;
-                        await sleep(3000);
-                        continue; // Bỏ qua đoạn kiểm tra sớm ở dưới để quét lại frame mới xuất hiện
+                const hasAnchorIframe = await page.evaluate(() => {
+                    return !!document.querySelector('iframe[src*="anchor"]');
+                }).catch(() => false);
+                if (hasAnchorIframe) {
+                    const checkbox = page.frameLocator('iframe[src*="anchor"]').locator('#recaptcha-anchor');
+                    if (await checkbox.isVisible({ timeout: 1000 }).catch(() => false)) {
+                        const ariaChecked = await checkbox.getAttribute('aria-checked', { timeout: 1000 }).catch(() => 'false');
+                        if (ariaChecked !== 'true' && !checkboxClicked) {
+                            log('[detect] reCAPTCHA checkbox visible and unchecked. Clicking it...');
+                            await checkbox.click();
+                            checkboxClicked = true;
+                            await sleep(3000);
+                            continue; // Bỏ qua đoạn kiểm tra sớm ở dưới để quét lại frame mới xuất hiện
+                        }
                     }
                 }
             } catch (e) {}
