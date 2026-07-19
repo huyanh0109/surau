@@ -625,6 +625,12 @@ async function solveCaptchaProcess(currentPage, job, signal, log) {
     // 2. Click Next (man hinh consent)
     log('Click Next...');
     for (let i = 0; i < 20 && !signal?.aborted; i++) {
+        // Neu da co gesture frame thi bo qua Click Next luon
+        const gf = await findGestureFrame(currentPage);
+        if (gf) {
+            break;
+        }
+
         if (await clickNextInAnyFrame(currentPage)) {
             log('Next clicked -> gesture challenge loading...');
             break;
