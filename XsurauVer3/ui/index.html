@@ -2192,6 +2192,8 @@
         // =======================
         // CORE PROFILES
         // =======================
+        let _lastProfilesRenderCache = '';
+
         async function loadProfiles() {
             try {
                 const res = await fetch(`${API}/profiles`);
@@ -2202,8 +2204,9 @@
                 const total = document.getElementById('totalCount');
                 const running = document.getElementById('runningCount');
 
+                const runningCountVal = profiles.filter(p => p.status === 'running').length;
                 total.textContent = profiles.length;
-                running.textContent = profiles.filter(p => p.status === 'running').length;
+                running.textContent = runningCountVal;
 
                 // Update Synced Count from global data
                 const synced = document.getElementById('syncedCount');
@@ -2214,11 +2217,19 @@
                 // Update Fast Dashboard Badges
                 const fdStatus = document.getElementById('fdBrowserStatus');
                 if (fdStatus) {
-                    const isRunning = parseInt(running.textContent) > 0;
+                    const isRunning = runningCountVal > 0;
                     fdStatus.textContent = isRunning ? 'RUNNING' : 'INACTIVE';
                     fdStatus.style.color = isRunning ? 'var(--green)' : 'var(--text-muted)';
                     fdStatus.style.borderColor = isRunning ? 'var(--green)' : 'var(--border)';
                 }
+
+                const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
+                const currentCacheKey = profiles.map(p => `${p.id}:${p.status}:${p.name}:${p.proxy}`).join('|') + `|pm:${proxyMode}`;
+
+                if (_lastProfilesRenderCache === currentCacheKey) {
+                    return; // Không có thay đổi danh sách/trạng thái -> bỏ qua re-render DOM
+                }
+                _lastProfilesRenderCache = currentCacheKey;
 
                 // Update Phone Queue status badge & Top Stat Box
                 try {
@@ -2260,8 +2271,6 @@
                     return;
                 }
                 empty.style.display = 'none';
-
-                const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
 
                 table.innerHTML = profiles.map(p => {
                     let displayProxy = p.proxy || '<span style="color:var(--text-muted)">NONE</span>';

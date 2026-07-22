@@ -79,10 +79,14 @@ let cachedScreens = [
     { id: '\\\\.\\DISPLAY2', name: 'Màn hình 2 (Phụ) - 1080x1920', primary: false, x: -1080, y: 138, width: 1080, height: 1920 }
 ];
 let isCheckingScreens = false;
+let lastScreenCheckTime = 0;
 
-function refreshWindowsScreensAsync() {
+function refreshWindowsScreensAsync(force = false) {
+    const now = Date.now();
+    if (!force && (now - lastScreenCheckTime < 60000)) return; // Cache 60 giây
     if (isCheckingScreens) return;
     isCheckingScreens = true;
+    lastScreenCheckTime = now;
     try {
         const { exec } = require('child_process');
         const cmd = `powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::AllScreens | ForEach-Object { @{ DeviceName = \`$_.DeviceName; Primary = \`$_.Primary; X = \`$_.Bounds.X; Y = \`$_.Bounds.Y; Width = \`$_.Bounds.Width; Height = \`$_.Bounds.Height } } | ConvertTo-Json"`;
@@ -107,10 +111,10 @@ function refreshWindowsScreensAsync() {
         isCheckingScreens = false;
     }
 }
-refreshWindowsScreensAsync();
+refreshWindowsScreensAsync(true);
 
 app.get('/api/screens', (req, res) => {
-    refreshWindowsScreensAsync();
+    refreshWindowsScreensAsync(req.query.force === 'true');
     res.json({ success: true, screens: cachedScreens });
 });
 

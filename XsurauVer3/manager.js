@@ -70,8 +70,27 @@ class ProfileManager {
             operatingSystems: ['windows'],
         });
 
+        this.profilesCache = new Map(); // profileId -> profileData RAM cache
+
         this._initDirectories();
         this._initSettings();
+        this._loadProfilesCache();
+    }
+
+    _loadProfilesCache() {
+        this.profilesCache.clear();
+        if (!fs.existsSync(this.profilesMetaPath)) return;
+        try {
+            const files = fs.readdirSync(this.profilesMetaPath).filter(f => f.endsWith('.json'));
+            for (const f of files) {
+                try {
+                    const data = JSON.parse(fs.readFileSync(path.join(this.profilesMetaPath, f), 'utf8'));
+                    this.profilesCache.set(data.id, data);
+                } catch (e) {}
+            }
+        } catch (e) {
+            console.error('[Manager] Error loading profiles cache:', e.message);
+        }
     }
 
     _initDirectories() {
@@ -426,6 +445,7 @@ class ProfileManager {
 
         const metaFile = path.join(this.profilesMetaPath, `${id}.json`);
         fs.writeFileSync(metaFile, JSON.stringify(profileData, null, 2));
+        this.profilesCache.set(id, profileData);
         console.log(`[Manager] ✅ Profile: ${profileData.name} | GPU: ${profileData.gpu.renderer.substring(0, 40)}... | Screen: ${profileData.screen.width}x${profileData.screen.height} | Cores: ${profileData.hardwareConcurrency}`);
         return profileData;
     }
@@ -445,28 +465,33 @@ class ProfileManager {
 
     /** Lấy thông tin 1 profile */
     getProfile(profileId) {
-        const metaFile = path.join(this.profilesMetaPath, `${profileId}.json`);
-        if (!fs.existsSync(metaFile)) return null;
-        const data = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
-        data.status = this.runningProfiles.has(profileId) ? 'running' : 'stopped';
-        return data;
+        let data = this.profilesCache.get(profileId);
+        if (!data) {
+            const metaFile = path.join(this.profilesMetaPath, `${profileId}.json`);
+            if (!fs.existsSync(metaFile)) return null;
+            data = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+            this.profilesCache.set(profileId, data);
+        }
+        return {
+            ...data,
+            status: this.runningProfiles.has(profileId) ? 'running' : 'stopped'
+        };
     }
 
-    /** Liệt kê tất cả profile */
+    /** Liệt kê tất cả profile (Trả về từ RAM Cache instant) */
     listProfiles() {
-        const files = fs.readdirSync(this.profilesMetaPath).filter(f => f.endsWith('.json'));
-        return files.map(f => {
-            const data = JSON.parse(fs.readFileSync(path.join(this.profilesMetaPath, f), 'utf8'));
-            data.status = this.runningProfiles.has(data.id) ? 'running' : 'stopped';
-            return data;
-        });
+        return Array.from(this.profilesCache.values()).map(data => ({
+            ...data,
+            status: this.runningProfiles.has(data.id) ? 'running' : 'stopped'
+        }));
     }
 
     /** Cập nhật profile (proxy, extensions, name, notes) */
     updateProfile(profileId, updates) {
         const metaFile = path.join(this.profilesMetaPath, `${profileId}.json`);
         if (!fs.existsSync(metaFile)) throw new Error(`Profile ${profileId} không tồn tại`);
-        const data = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+        let data = this.profilesCache.get(profileId);
+        if (!data) data = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
 
         if (updates.name !== undefined) data.name = updates.name;
         if (updates.proxy !== undefined) data.proxy = updates.proxy;
@@ -474,18 +499,30 @@ class ProfileManager {
         if (updates.notes !== undefined) data.notes = updates.notes;
 
         fs.writeFileSync(metaFile, JSON.stringify(data, null, 2));
+        this.profilesCache.set(profileId, data);
         return data;
     }
 
     /** Xóa profile (xóa cả data trình duyệt) */
     deleteProfile(profileId) {
+        stopGestureWatcher(profileId);
         if (this.runningProfiles.has(profileId)) {
-            throw new Error('Không thể xóa profile đang chạy! Hãy đóng trước.');
+            this.closeProfile(profileId).catch(() => {});
         }
+        this.profilesCache.delete(profileId);
+
         const metaFile = path.join(this.profilesMetaPath, `${profileId}.json`);
         const dataDir = path.join(this.profilesDataPath, profileId);
-        if (fs.existsSync(metaFile)) fs.unlinkSync(metaFile);
-        if (fs.existsSync(dataDir)) fs.rmSync(dataDir, { recursive: true, force: true });
+        if (fs.existsSync(metaFile)) {
+            try { fs.unlinkSync(metaFile); } catch(e) {}
+        }
+        if (fs.existsSync(dataDir)) {
+            try {
+                fs.rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+            } catch(e) {
+                console.warn(`[Manager] ⚠️ Dọn dẹp folder ${profileId}: ${e.message}`);
+            }
+        }
         console.log(`[Manager] 🗑️ Đã xóa profile: ${profileId}`);
     }
 
@@ -495,23 +532,23 @@ class ProfileManager {
         await this.closeAll();
         
         // 2. Chờ một chút để giải phóng lock
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 500));
 
-        let count = 0;
+        let count = this.profilesCache.size;
+        this.profilesCache.clear();
+
         try {
             // Xóa sạch folder meta
             if (fs.existsSync(this.profilesMetaPath)) {
-                const files = fs.readdirSync(this.profilesMetaPath);
-                count = files.filter(f => f.endsWith('.json')).length;
-                fs.rmSync(this.profilesMetaPath, { recursive: true, force: true });
+                fs.rmSync(this.profilesMetaPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
                 fs.mkdirSync(this.profilesMetaPath, { recursive: true });
             }
             // Xóa sạch folder data
             if (fs.existsSync(this.profilesDataPath)) {
-                fs.rmSync(this.profilesDataPath, { recursive: true, force: true });
+                fs.rmSync(this.profilesDataPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
                 fs.mkdirSync(this.profilesDataPath, { recursive: true });
             }
-            console.log(`[Manager] 🔥 ĐÃ XÓA CỰC MẠNH: ${count} profile và toàn bộ dữ liệu trình duyệt. (Lưu trữ vẫn an toàn)`);
+            console.log(`[Manager] 🔥 ĐÃ XÓA CỰC MẠNH: ${count} profile và toàn bộ dữ liệu trình duyệt.`);
         } catch (err) {
             console.error(`[Manager] ❌ Lỗi khi xóa cực mạnh: ${err.message}`);
         }
@@ -1043,8 +1080,9 @@ class ProfileManager {
             }
         }
 
-        // Lưu vào bộ theo dõi
-        this.runningProfiles.set(profileId, { context, page });
+        // Lưu vào bộ theo dõi (Bao gồm cả PID của Chrome)
+        const pid = context.browser() ? context.browser().process()?.pid : null;
+        this.runningProfiles.set(profileId, { context, page, pid });
 
         // Khi profile bị đóng (user đóng cửa sổ), tự dọn dẹp
         context.on('close', () => {
@@ -1076,7 +1114,7 @@ class ProfileManager {
             console.warn(`[Manager] ⚠️ Không đọc được DevToolsActivePort: ${e.message}`);
         }
 
-        console.log(`[Manager] ✅ Profile [${profileData.name}] đang chạy.`);
+        console.log(`[Manager] ✅ Profile [${profileData.name}] đang chạy (PID: ${pid || 'N/A'}).`);
         return { context, page, profileData, wsEndpoint, debugPort };
         } finally {
             // Luôn giải phóng khóa dù thành công hay thất bại
@@ -1087,7 +1125,9 @@ class ProfileManager {
 
     /** Đóng 1 profile mạnh mẽ */
     async closeProfile(profileId, skipWmic = false) {
+        stopGestureWatcher(profileId); // Dừng watcher ngay lập tức trước khi close context
         const running = this.runningProfiles.get(profileId);
+        const pid = running?.pid || (running?.context?.browser?.()?.process?.()?.pid);
         
         // 1. Dọn khỏi RAM ngay lập tức để UI nhận phản hồi
         if (running) {
@@ -1095,32 +1135,36 @@ class ProfileManager {
             try {
                 await Promise.race([
                     running.context.close(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Close Timeout')), 2000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Close Timeout')), 1500))
                 ]);
             } catch (e) {
-                console.warn(`[Manager] ⚠️ Đóng profile ${profileId} chậm, bỏ qua chờ...`);
+                console.warn(`[Manager] ⚠️ Đóng profile ${profileId} chậm, tiến hành diệt bằng taskkill...`);
             }
         }
         
-        // 2. BULLETPROOF: Nếu không skip, bắn bỏ process mồ côi bằng powershell
+        // 2. Nhanh & Nhẹ CPU: Dùng taskkill native của Windows (5ms, 0% CPU overhead)
         if (!skipWmic) {
             const { exec } = require('child_process');
-            exec(`powershell -Command "Get-WmiObject Win32_Process -Filter 'Name=''chrome.exe''' | Where-Object { $_.CommandLine -match '${profileId}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`, () => {});
+            if (pid) {
+                exec(`taskkill /F /T /PID ${pid}`, () => {});
+            }
+            exec(`taskkill /F /FI "COMMANDLINE eq *${profileId}*"`, () => {});
         }
     }
 
     /** Đóng tất cả đồng thời và mạnh mẽ */
     async closeAll() {
         const ids = [...this.runningProfiles.keys()];
+        ids.forEach(id => stopGestureWatcher(id));
         
         // Gọi closeProfile nhưng BỎ QUA kill lẻ để dồn vào 1 lệnh cuối
         await Promise.allSettled(ids.map(id => this.closeProfile(id, true)));
 
-        // Dùng powershell quét và Force Kill toàn bộ cực mạnh.
+        // Dùng taskkill diệt toàn bộ tiến trình Chrome rác ngầm nhanh chóng
         const { exec } = require('child_process');
         return new Promise((resolve) => {
-            exec(`powershell -Command "Get-WmiObject Win32_Process -Filter 'Name=''chrome.exe''' | Where-Object { $_.CommandLine -match 'profiles_data' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`, () => {
-                console.log(`[Manager] 🧹 Đã dọn dẹp toàn bộ tiến trình Chrome rác.`);
+            exec(`taskkill /F /FI "COMMANDLINE eq *profiles_data*"`, () => {
+                console.log(`[Manager] 🧹 Đã dọn dẹp toàn bộ tiến trình Chrome rác bằng taskkill.`);
                 resolve();
             });
         });
