@@ -1,0 +1,13 @@
+node_modules/
+profiles_data/
+profiles_meta/
+profiles/
+recordings/
+dist_FINAL/
+camera_test_dshow.mp4
+archives/
+.env
+.env3
+*.lnk
+*.log
+vbs_scripts/
