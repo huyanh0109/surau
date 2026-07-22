@@ -128,7 +128,7 @@ async function checkIfPhoneInvalid(page) {
 }
 
 async function getVerificationCode(phoneNumber, profileId) {
-    const apiUrl = `http://127.0.0.1:${process.env.API_PORT || 3333}/api/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
+    const apiUrl = `http://127.0.0.1:${process.env.API_PORT || 3334}/api/phone/lookup?number=${encodeURIComponent(phoneNumber)}`;
     const maxRetries = 45;
     for (let i = 1; i <= maxRetries; i++) {
         try {

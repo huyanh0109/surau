@@ -52,7 +52,7 @@ startVideoServer();
 const app = express();
 const manager = new ProfileManager();
 const automationEngine = new AutomationEngine(manager);
-const PORT = process.env.API_PORT || 3333;
+const PORT = process.env.API_PORT || 3334;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -711,10 +711,18 @@ registerPhoneRoutes(app);
 app.use(express.static(path.join(__dirname, 'ui')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'ui', 'index.html')));
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`╔══════════════════════════════════════════════════╗`);
     console.log(`║   🔥 LOOPY ANTIDETECT MANAGER v3.0.0            ║`);
-    console.log(`║   Server đang chạy tại: http://localhost:3333   ║`);
+    console.log(`║   Server đang chạy tại: http://localhost:${PORT}   ║`);
     console.log(`║   Mở trình duyệt để quản lý profile!            ║`);
     console.log(`╚══════════════════════════════════════════════════╝\n`);
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.log(`[Server] Port ${PORT} already in use, reusing active server instance.`);
+    } else {
+        console.error('[Server Error]', err);
+    }
 });

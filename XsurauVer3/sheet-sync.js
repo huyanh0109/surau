@@ -20,7 +20,7 @@ function registerSheetRoutes(app, automationEngine) {
             const { status, limit = 100, sheetType = 'main' } = req.query;
 
             // Gọi Surau Sheet API
-            let url = `http://localhost:${process.env.API_PORT || 3333}/sheet/rows?limit=${limit}`;
+            let url = `http://localhost:${process.env.API_PORT || 3334}/sheet/rows?limit=${limit}`;
             if (status) url += `&status=${encodeURIComponent(status)}`;
             if (sheetType) url += `&sheetType=${sheetType}`;
 
@@ -48,7 +48,7 @@ function registerSheetRoutes(app, automationEngine) {
             if (!profileIds?.length) return res.status(400).json({ error: 'Thiếu profileIds' });
 
             // Lấy rows từ sheet
-            let url = `http://localhost:${process.env.API_PORT || 3333}/sheet/rows?limit=${limit || profileIds.length}`;
+            let url = `http://localhost:${process.env.API_PORT || 3334}/sheet/rows?limit=${limit || profileIds.length}`;
             if (status) url += `&status=${encodeURIComponent(status)}`;
 
             const response = await fetch(url);

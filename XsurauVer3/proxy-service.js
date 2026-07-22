@@ -10,15 +10,23 @@ class ProxyService {
 
     async startServer() {
         if (this.server) return;
-        this.server = new ProxyChain.Server({
-            port: this.localPort,
-            prepareRequestFunction: () => {
-                if (!this.activeUpstream) return {};
-                return { upstreamProxyUrl: this.toProxyUrl(this.activeUpstream) };
+        try {
+            this.server = new ProxyChain.Server({
+                port: this.localPort,
+                prepareRequestFunction: () => {
+                    if (!this.activeUpstream) return {};
+                    return { upstreamProxyUrl: this.toProxyUrl(this.activeUpstream) };
+                }
+            });
+            await this.server.listen();
+            console.log(`[ProxyService] Gateway running on 127.0.0.1:${this.localPort}`);
+        } catch (e) {
+            if (e.code === 'EADDRINUSE') {
+                console.log(`[ProxyService] Port ${this.localPort} already in use, reusing active gateway.`);
+            } else {
+                console.error('[ProxyService Error]', e.message);
             }
-        });
-        await this.server.listen();
-        console.log(`[ProxyService] Gateway running on 127.0.0.1:${this.localPort}`);
+        }
     }
 
     toProxyUrl(raw) {

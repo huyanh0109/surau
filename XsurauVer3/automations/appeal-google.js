@@ -1,6 +1,6 @@
 const { sleep } = require('./helpers');
 
-const API_BASE = `http://127.0.0.1:${process.env.API_PORT || 3333}`;
+const API_BASE = `http://127.0.0.1:${process.env.API_PORT || 3334}`;
 
 // Helper function to click buttons robustly by filtering out back buttons, email/language selectors, etc.
 async function clickAppealButton(page, allowedTexts) {

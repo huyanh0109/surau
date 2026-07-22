@@ -143,7 +143,7 @@ async function injectGestureOverlay(page, profileId) {
                 return;
             }
 
-            const API = 'http://localhost:3333/api/gesture-watch/switch-cam';
+            const API = `http://localhost:${window.__XSURAU_API_PORT || 3334}/api/gesture-watch/switch-cam`;
             const GESTURES = [
                 { key: 'fist',        label: '✊', name: 'FIST' },
                 { key: 'thumbs_up',   label: '👍', name: 'LIKE' },

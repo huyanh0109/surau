@@ -1,6 +1,5 @@
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
 const fs = require('fs');
 
 // Vô hiệu hóa Proxy hoàn toàn cho ứng dụng này để tránh lỗi 426
@@ -30,26 +29,30 @@ if (!gotTheLock) {
 }
 
 let mainWindow;
-let serverProcess;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1500,
     height: 950,
-    // icon: path.join(__dirname, 'icon.png'), // Removed missing icon
+    icon: path.join(__dirname, 'icon.png'),
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#090909',
+      symbolColor: '#f5b000',
+      height: 34
+    },
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
-    title: "Xsurau Antidetect Manager",
+    title: "Loopy Manager",
     backgroundColor: '#050505',
   });
 
   const loadApp = () => {
-    // Chuyển sang Port 3333 để tránh bị chặn
-    mainWindow.loadURL('http://127.0.0.1:3333').catch(() => {
-      logToFile('Dashboard load failed, retrying...');
-      setTimeout(loadApp, 2000);
+    mainWindow.loadFile(path.join(__dirname, 'ui', 'index.html')).catch((err) => {
+      logToFile(`Dashboard load failed: ${err.message}, retrying...`);
+      mainWindow.loadURL('http://127.0.0.1:3334').catch(() => setTimeout(loadApp, 500));
     });
   };
 
@@ -63,39 +66,22 @@ function createWindow() {
 }
 
 function startServer() {
-  logToFile('Starting server on port 3333...');
-  
-  serverProcess = spawn('node', ['server.js'], {
-    cwd: __dirname,
-    env: { ...process.env, NODE_ENV: 'production' }
-  });
-
-  serverProcess.stdout.on('data', (data) => {
-    logToFile(`STDOUT: ${data}`);
-  });
-
-  serverProcess.stderr.on('data', (data) => {
-    logToFile(`STDERR: ${data}`);
-  });
-
-  serverProcess.on('error', (err) => {
-    logToFile(`ERROR: ${err.message}`);
-  });
-
-  serverProcess.on('exit', (code) => {
-    logToFile(`Server exited with code ${code}`);
-  });
+  logToFile('Starting embedded server.js...');
+  try {
+    require('./server.js');
+    logToFile('Embedded server.js started successfully');
+  } catch (e) {
+    logToFile(`Server error: ${e.stack || e.message}`);
+  }
 }
 
 app.on('ready', () => {
-  logToFile('--- App Started (Port 3333) ---');
-  
+  logToFile('--- App Started (Port 3334) ---');
   startServer();
   createWindow();
 });
 
 app.on('window-all-closed', function () {
-  if (serverProcess) serverProcess.kill();
   if (process.platform !== 'darwin') app.quit();
 });
 

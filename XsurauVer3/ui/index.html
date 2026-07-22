@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="shortcut icon" type="image/svg+xml" href="favicon.svg">
     <title>Loopy Manager</title>
     <style>
         :root {
@@ -50,10 +50,16 @@
         .header {
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border);
-            padding: 16px 32px;
+            padding: 10px 24px;
+            padding-right: 140px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            -webkit-app-region: drag;
+        }
+
+        .header button, .header input, .header select, .header a, .header-stats {
+            -webkit-app-region: no-drag;
         }
 
         .header-left {
@@ -1140,7 +1146,7 @@
 
     <div class="header">
         <div class="header-left">
-            <img src="/favicon.svg" alt="Loopy v3 Logo" class="logo-img">
+            <img src="favicon.svg" alt="Loopy v3 Logo" class="logo-img">
             <h1>Loopy <span class="version-tag">v3.0.0</span></h1>
         </div>
         <div class="header-stats">
@@ -2014,7 +2020,9 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        const API = `${window.location.origin}/api`;
+        const API = (window.location.protocol && window.location.protocol.startsWith('http')) 
+            ? `${window.location.origin}/api` 
+            : 'http://127.0.0.1:3334/api';
 
         // TABS
         function switchTab(tabId) {

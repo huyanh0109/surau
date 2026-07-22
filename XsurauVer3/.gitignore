@@ -4,6 +4,7 @@ profiles_meta/
 profiles/
 recordings/
 dist_FINAL/
+dist_LOOPY_V3/
 camera_test_dshow.mp4
 archives/
 .env
