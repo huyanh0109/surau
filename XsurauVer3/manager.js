@@ -1080,9 +1080,8 @@ class ProfileManager {
             }
         }
 
-        // Lưu vào bộ theo dõi (Bao gồm cả PID của Chrome)
-        const pid = context.browser() ? context.browser().process()?.pid : null;
-        this.runningProfiles.set(profileId, { context, page, pid });
+        // Lưu vào bộ theo dõi
+        this.runningProfiles.set(profileId, { context, page });
 
         // Khi profile bị đóng (user đóng cửa sổ), tự dọn dẹp
         context.on('close', () => {
@@ -1114,7 +1113,7 @@ class ProfileManager {
             console.warn(`[Manager] ⚠️ Không đọc được DevToolsActivePort: ${e.message}`);
         }
 
-        console.log(`[Manager] ✅ Profile [${profileData.name}] đang chạy (PID: ${pid || 'N/A'}).`);
+        console.log(`[Manager] ✅ Profile [${profileData.name}] đang chạy.`);
         return { context, page, profileData, wsEndpoint, debugPort };
         } finally {
             // Luôn giải phóng khóa dù thành công hay thất bại
@@ -1123,11 +1122,10 @@ class ProfileManager {
     }
 
 
-    /** Đóng 1 profile mạnh mẽ */
+    /** Đóng 1 profile */
     async closeProfile(profileId, skipWmic = false) {
         stopGestureWatcher(profileId); // Dừng watcher ngay lập tức trước khi close context
         const running = this.runningProfiles.get(profileId);
-        const pid = running?.pid || (running?.context?.browser?.()?.process?.()?.pid);
         
         // 1. Dọn khỏi RAM ngay lập tức để UI nhận phản hồi
         if (running) {
@@ -1138,21 +1136,18 @@ class ProfileManager {
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Close Timeout')), 1500))
                 ]);
             } catch (e) {
-                console.warn(`[Manager] ⚠️ Đóng profile ${profileId} chậm, tiến hành diệt bằng taskkill...`);
+                console.warn(`[Manager] ⚠️ Đóng profile ${profileId} chậm...`);
             }
         }
         
-        // 2. Nhanh & Nhẹ CPU: Dùng taskkill native của Windows (5ms, 0% CPU overhead)
+        // 2. Dọn tiến trình Chrome mồ côi nếu có (không block)
         if (!skipWmic) {
             const { exec } = require('child_process');
-            if (pid) {
-                exec(`taskkill /F /T /PID ${pid}`, () => {});
-            }
-            exec(`taskkill /F /FI "COMMANDLINE eq *${profileId}*"`, () => {});
+            exec(`powershell -Command "Get-CimInstance Win32_Process -Filter \\"Name='chrome.exe'\\" | Where-Object { $_.CommandLine -like '*${profileId}*' } | Stop-Process -Force"`, () => {});
         }
     }
 
-    /** Đóng tất cả đồng thời và mạnh mẽ */
+    /** Đóng tất cả đồng thời */
     async closeAll() {
         const ids = [...this.runningProfiles.keys()];
         ids.forEach(id => stopGestureWatcher(id));
@@ -1160,11 +1155,11 @@ class ProfileManager {
         // Gọi closeProfile nhưng BỎ QUA kill lẻ để dồn vào 1 lệnh cuối
         await Promise.allSettled(ids.map(id => this.closeProfile(id, true)));
 
-        // Dùng taskkill diệt toàn bộ tiến trình Chrome rác ngầm nhanh chóng
+        // Dọn tiến trình Chrome rác ngầm
         const { exec } = require('child_process');
         return new Promise((resolve) => {
-            exec(`taskkill /F /FI "COMMANDLINE eq *profiles_data*"`, () => {
-                console.log(`[Manager] 🧹 Đã dọn dẹp toàn bộ tiến trình Chrome rác bằng taskkill.`);
+            exec(`powershell -Command "Get-CimInstance Win32_Process -Filter \\"Name='chrome.exe'\\" | Where-Object { $_.CommandLine -like '*profiles_data*' } | Stop-Process -Force"`, () => {
+                console.log(`[Manager] 🧹 Đã dọn dẹp toàn bộ tiến trình Chrome rác.`);
                 resolve();
             });
         });
