@@ -12,6 +12,17 @@ const { registerSheetRoutes } = require('./google-sheet');
 const { registerPhoneRoutes, phoneQueue } = require('./phone');
 const { attachGestureWatcher, stopGestureWatcher, getActiveWatchers } = require('./gesture-watcher');
 
+// Tự động bỏ qua lỗi gỡ frame / hủy kết nối vô hại của Chromium trong quá trình automation
+process.on('uncaughtException', (err) => {
+    const msg = err?.message || String(err);
+    console.warn('[Server Handled UncaughtException]:', msg);
+});
+
+process.on('unhandledRejection', (reason) => {
+    const msg = reason?.message || String(reason);
+    console.warn('[Server Handled UnhandledRejection]:', msg);
+});
+
 // ============================================================
 // VIDEO SERVER — serve gesture captcha videos (port 17773)
 // ============================================================

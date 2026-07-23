@@ -11,6 +11,19 @@ function logToFile(data) {
   try { fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${data}\n`); } catch(e) {}
 }
 
+// Bắt và xử lý ngoại lệ ngầm từ Patchright/Playwright (tránh làm hiện bảng thông báo lỗi)
+process.on('uncaughtException', (err) => {
+    const msg = err?.stack || err?.message || String(err);
+    logToFile(`[UncaughtException] ${msg}`);
+    console.warn('[Main Process Handled Error]:', err?.message || String(err));
+});
+
+process.on('unhandledRejection', (reason) => {
+    const msg = reason?.stack || reason?.message || String(reason);
+    logToFile(`[UnhandledRejection] ${msg}`);
+    console.warn('[Main Process Handled Rejection]:', reason?.message || String(reason));
+});
+
 logToFile('Script loaded at top level');
 
 // KHÓA DUY NHẤT 1 BẢN CHẠY
