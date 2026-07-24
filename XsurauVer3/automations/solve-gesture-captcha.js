@@ -866,12 +866,15 @@ async function solveCaptchaProcess(currentPage, job, signal, log) {
         }
 
         if (captchaCompleted) break;
-        if (resetDetected) continue solve_loop;
+        if (resetDetected) {
+            log('Google rejected gesture / reset to Step 1 -> Instant F5 reload!');
+            return { success: false, error: "Stuck at Step 2 Start" };
+        }
         break;
     }
 
     if (captchaCompleted) return { success: true, gesture: finalStep2Gesture };
-    return { success: false, error: 'Step 2 timeout/failure' };
+    return { success: false, error: "Stuck at Step 2 Start" };
 }
 
 // ============================================================================
