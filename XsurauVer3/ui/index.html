@@ -4422,23 +4422,35 @@
 
         async function updateAutomationOutputMappingSource(autoName, sourceIndex, key, colName) {
             const autoConfig = globalSettings.automations[autoName];
-            if (!autoConfig || !autoConfig.sources || !autoConfig.sources[sourceIndex]) return;
-            const source = autoConfig.sources[sourceIndex];
-            if (!source.outputMapping) source.outputMapping = {};
+            if (!autoConfig) return;
+            if (!autoConfig.outputMapping) autoConfig.outputMapping = {};
             if (!colName) {
-                delete source.outputMapping[key];
+                delete autoConfig.outputMapping[key];
             } else {
-                source.outputMapping[key] = colName;
+                autoConfig.outputMapping[key] = colName;
+            }
+            if (autoConfig.sources && autoConfig.sources[sourceIndex]) {
+                const source = autoConfig.sources[sourceIndex];
+                if (!source.outputMapping) source.outputMapping = {};
+                if (!colName) {
+                    delete source.outputMapping[key];
+                } else {
+                    source.outputMapping[key] = colName;
+                }
             }
             await autoSaveAllSettings();
         }
 
         async function updateAutomationOutputValueSource(autoName, sourceIndex, key, value) {
             const autoConfig = globalSettings.automations[autoName];
-            if (!autoConfig || !autoConfig.sources || !autoConfig.sources[sourceIndex]) return;
-            const source = autoConfig.sources[sourceIndex];
-            if (!source.outputValues) source.outputValues = {};
-            source.outputValues[key] = value;
+            if (!autoConfig) return;
+            if (!autoConfig.outputValues) autoConfig.outputValues = {};
+            autoConfig.outputValues[key] = value;
+            if (autoConfig.sources && autoConfig.sources[sourceIndex]) {
+                const source = autoConfig.sources[sourceIndex];
+                if (!source.outputValues) source.outputValues = {};
+                source.outputValues[key] = value;
+            }
             await autoSaveAllSettings();
         }
 

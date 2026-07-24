@@ -145,8 +145,8 @@ class AutomationEngine extends EventEmitter {
                                     _sheetId: srcSheetId, 
                                     _tabName: srcTab, 
                                     _matchKey: srcMatchKey,
-                                    _outputMapping: src.outputMapping || {},
-                                    _outputValues: src.outputValues || {}
+                                    _outputMapping: { ...(autoConfig?.outputMapping || {}), ...(src.outputMapping || {}) },
+                                    _outputValues: { ...(autoConfig?.outputValues || {}), ...(src.outputValues || {}) }
                                 };
                                 for (const [paramName, sourceFieldName] of Object.entries(srcMapping)) {
                                     mappedRow[paramName] = rawRow[sourceFieldName] || '';
@@ -195,11 +195,12 @@ class AutomationEngine extends EventEmitter {
                             matchedRow = sheetData[globalIdx] || {};
                         }
 
+                        const autoConfig = this.getSettings()?.automations?.[automationName];
                         const job = {
                             profileId,
                             sheetRow: matchedRow,
-                            outputMapping: matchedRow._outputMapping || {},
-                            outputValues: matchedRow._outputValues || {},
+                            outputMapping: { ...(autoConfig?.outputMapping || {}), ...(matchedRow._outputMapping || {}) },
+                            outputValues: { ...(autoConfig?.outputValues || {}), ...(matchedRow._outputValues || {}) },
                             blockImages: options.blockImages || false,
                             startUrl: options.startUrl || null,
                             manager: this.manager, // cho phép automation close/relaunch profile

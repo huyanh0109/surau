@@ -330,12 +330,19 @@ async function updateTabFieldByMatch(matchField, matchValue, targetField, target
             const row = rows.find(r => String(r[matchedKeyInRows] || '').trim().toLowerCase() === String(matchValue).trim().toLowerCase());
 
             if (row) {
+                let finalTargetValue = targetValue;
+                if (targetField === 'Note' && automationName) {
+                    const autoConfig = settings.automations?.[automationName];
+                    const configuredNote = src.outputValues?.Note || autoConfig?.outputValues?.Note || autoConfig?.sources?.[0]?.outputValues?.Note;
+                    if (configuredNote) finalTargetValue = configuredNote;
+                }
+
                 const sheets = createSheetsClient();
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: curSpreadsheetId,
-                    range: `'${src.tab}'!${targetColLetter}${row.rowIndex}`,
+                    range: `'${activeTabName}'!${targetColLetter}${row.rowIndex}`,
                     valueInputOption: dateFormat ? 'USER_ENTERED' : 'RAW',
-                    requestBody: { values: [[targetValue]] },
+                    requestBody: { values: [[finalTargetValue]] },
                 });
                 
                 if (global._tabRowsCache) {
