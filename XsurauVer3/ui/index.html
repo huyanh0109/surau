@@ -4927,10 +4927,18 @@
                 const monitoredSources = getAllMonitoredSyncSources();
                 if (monitoredSources.length === 0) return;
 
+                // Deduplicate unique sources by sheetId + tab + filterValue
+                const uniqueMap = new Map();
+                for (const src of monitoredSources) {
+                    const key = `${src.sheetId || ''}|${src.tab}|${src.filterValue || '*'}`;
+                    if (!uniqueMap.has(key)) uniqueMap.set(key, src);
+                }
+                const uniqueSources = Array.from(uniqueMap.values());
+
                 let aggregatedRows = [];
                 let totalFetched = 0;
 
-                await Promise.all(monitoredSources.map(async (src) => {
+                await Promise.all(uniqueSources.map(async (src) => {
                     try {
                         const sheetIdParam = src.sheetId ? `&sheetId=${encodeURIComponent(src.sheetId)}` : '';
                         const res = await fetch(`${API}/sheet/rows/${encodeURIComponent(src.tab)}?note=${encodeURIComponent(src.filterValue)}${sheetIdParam}`);
@@ -4994,13 +5002,20 @@
                 let totalFetched = 0;
 
                 if (monitoredSources.length > 0) {
-                    await Promise.all(monitoredSources.map(async (src) => {
+                    // Deduplicate unique sources by sheetId + tab + filterValue + isPhoneVerify
+                    const uniqueMap = new Map();
+                    for (const src of monitoredSources) {
+                        const isPhoneVerify = src.autoName === 'check-phone-verify' || src.tab.toLowerCase().includes('phone') || src.tab.toLowerCase().includes('rent');
+                        const key = `${src.sheetId || ''}|${src.tab}|${src.filterValue || '*'}|${isPhoneVerify ? '500' : 'all'}`;
+                        if (!uniqueMap.has(key)) uniqueMap.set(key, src);
+                    }
+                    const uniqueSources = Array.from(uniqueMap.values());
+
+                    await Promise.all(uniqueSources.map(async (src) => {
                         try {
                             const sheetIdParam = src.sheetId ? `&sheetId=${encodeURIComponent(src.sheetId)}` : '';
                             const filterParam = (src.filterValue && src.filterValue !== '*') ? `&note=${encodeURIComponent(src.filterValue)}` : '';
                             
-                            // Riêng kịch bản check-phone-verify hoặc tab RentPhone mới áp dụng giới hạn 500 dòng
-                            // Tất cả các kịch bản/nguồn khác KHÔNG GIỚI HẠN số dòng
                             const isPhoneVerify = src.autoName === 'check-phone-verify' || src.tab.toLowerCase().includes('phone') || src.tab.toLowerCase().includes('rent');
                             const limitParam = isPhoneVerify ? '&limit=500' : '';
 

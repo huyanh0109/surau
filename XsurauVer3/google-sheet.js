@@ -184,44 +184,57 @@ async function getRowsFromTab(tabName, sheetId = null) {
     
     const cacheKey = `${spreadsheetId}|${tabName}`;
     if (!global._tabRowsCache) global._tabRowsCache = new Map();
+    if (!global._pendingTabFetches) global._pendingTabFetches = new Map();
+
     const cachedEntry = global._tabRowsCache.get(cacheKey);
     const now = Date.now();
 
-    if (cachedEntry && (now - cachedEntry.time < 3000)) {
+    if (cachedEntry && (now - cachedEntry.time < 5000)) {
         return cachedEntry.data;
     }
 
-    const columns = tab.columns || {};
-    const maxCol = getMaxColLetter(columns, 'I');
-    
-    try {
-        const res = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: `'${tabName}'!A2:${maxCol}5000`,
-        });
-        
-        const values = res.data.values || [];
-        const result = values.map((row, index) => {
-            const obj = { rowIndex: index + 2, _sheetId: sheetId, _spreadsheetId: spreadsheetId, _tabName: tabName };
-            for (const [colName, colLetter] of Object.entries(columns)) {
-                const idx = colLetterToIndex(colLetter);
-                obj[colName] = (idx !== -1 && idx < row.length) ? row[idx] || '' : '';
-            }
-            return obj;
-        });
-
-        global._tabRowsCache.set(cacheKey, { time: Date.now(), data: result });
-        return result;
-    } catch (e) {
-        if (cachedEntry && cachedEntry.data) {
-            console.warn(`[GoogleSheet] API Quota/Error for tab [${tabName}], serving cached data:`, e.message);
-            return cachedEntry.data;
-        }
-        if (e.message && (e.message.includes('Unable to parse range') || e.message.includes('not found') || e.message.includes('400'))) {
-            throw new Error(`Không tìm thấy Tab tên là "${tabName}" trong Google Sheet của bạn.`);
-        }
-        throw e;
+    if (global._pendingTabFetches.has(cacheKey)) {
+        return await global._pendingTabFetches.get(cacheKey);
     }
+
+    const fetchPromise = (async () => {
+        try {
+            const columns = tab.columns || {};
+            const maxCol = getMaxColLetter(columns, 'I');
+            
+            const res = await sheets.spreadsheets.values.get({
+                spreadsheetId,
+                range: `'${tabName}'!A2:${maxCol}5000`,
+            });
+            
+            const values = res.data.values || [];
+            const result = values.map((row, index) => {
+                const obj = { rowIndex: index + 2, _sheetId: sheetId, _spreadsheetId: spreadsheetId, _tabName: tabName };
+                for (const [colName, colLetter] of Object.entries(columns)) {
+                    const idx = colLetterToIndex(colLetter);
+                    obj[colName] = (idx !== -1 && idx < row.length) ? row[idx] || '' : '';
+                }
+                return obj;
+            });
+
+            global._tabRowsCache.set(cacheKey, { time: Date.now(), data: result });
+            return result;
+        } catch (e) {
+            if (cachedEntry && cachedEntry.data) {
+                console.warn(`[GoogleSheet] API Quota/Error for tab [${tabName}], serving cached data:`, e.message);
+                return cachedEntry.data;
+            }
+            if (e.message && (e.message.includes('Unable to parse range') || e.message.includes('not found') || e.message.includes('400'))) {
+                throw new Error(`Không tìm thấy Tab tên là "${tabName}" trong Google Sheet của bạn.`);
+            }
+            throw e;
+        } finally {
+            global._pendingTabFetches.delete(cacheKey);
+        }
+    })();
+
+    global._pendingTabFetches.set(cacheKey, fetchPromise);
+    return await fetchPromise;
 }
 
 async function updateTabFieldByMatch(matchField, matchValue, targetField, targetValue, dateFormat = false, automationName = null) {
