@@ -271,28 +271,45 @@ async function updateTabFieldByMatch(matchField, matchValue, targetField, target
     for (const src of targetSources) {
         let curSpreadsheetId = spreadsheetId;
         let curTabObj = null;
+        let activeTabName = src.tab;
 
-        if (settings.sheets && settings.sheets.length > 0) {
+        // Xử lý Target Output Tab nếu được cài đặt ở Step 03
+        if (src.outputTab) {
+            const parts = src.outputTab.split('|');
+            if (parts.length === 2) {
+                const outputSheetId = parts[0];
+                activeTabName = parts[1];
+                const foundOutputSheet = settings.sheets?.find(s => s.id === outputSheetId || s.spreadsheetId === outputSheetId);
+                if (foundOutputSheet && foundOutputSheet.spreadsheetId) {
+                    curSpreadsheetId = foundOutputSheet.spreadsheetId;
+                    curTabObj = foundOutputSheet.tabs?.find(t => (typeof t === 'string' ? t === activeTabName : t.name === activeTabName));
+                }
+            }
+        }
+
+        if (!curTabObj && settings.sheets && settings.sheets.length > 0) {
             let foundSheet = settings.sheets.find(s => s.id === src.sheetId || s.spreadsheetId === src.sheetId);
             if (!foundSheet) {
-                foundSheet = settings.sheets.find(s => s.tabs && Array.isArray(s.tabs) && s.tabs.some(t => (typeof t === 'string' ? t === src.tab : t.name === src.tab)));
+                foundSheet = settings.sheets.find(s => s.tabs && Array.isArray(s.tabs) && s.tabs.some(t => (typeof t === 'string' ? t === activeTabName : t.name === activeTabName)));
             }
             if (foundSheet && foundSheet.spreadsheetId) {
                 curSpreadsheetId = foundSheet.spreadsheetId;
-                curTabObj = foundSheet.tabs?.find(t => (typeof t === 'string' ? t === src.tab : t.name === src.tab));
+                curTabObj = foundSheet.tabs?.find(t => (typeof t === 'string' ? t === activeTabName : t.name === activeTabName));
             }
         }
 
         if (!curTabObj && settings.tabs) {
-            curTabObj = settings.tabs.find(t => t.name === src.tab);
+            curTabObj = settings.tabs.find(t => t.name === activeTabName);
         }
 
-        if (!curTabObj) continue;
+        if (!curTabObj) {
+            curTabObj = { name: activeTabName, columns: {} };
+        }
 
         const columns = curTabObj.columns || {};
         
         let mappedMatchField = src.mapping?.[matchField] || matchField;
-        let mappedTargetField = src.mapping?.[targetField] || targetField;
+        let mappedTargetField = src.outputMapping?.[targetField] || src.mapping?.[targetField] || targetField;
 
         if (automationName && settings.automations?.[automationName]?.mapping) {
             const globalMapping = settings.automations[automationName].mapping;
@@ -303,10 +320,12 @@ async function updateTabFieldByMatch(matchField, matchValue, targetField, target
         const matchedKey = Object.keys(columns).find(k => k.toLowerCase() === mappedMatchField.toLowerCase()) || mappedMatchField;
         const targetKey = Object.keys(columns).find(k => k.toLowerCase() === mappedTargetField.toLowerCase()) || mappedTargetField;
 
-        const targetColLetter = columns[targetKey] || columns[targetField];
+        // Fallback mặc định cho các cột phổ biến nếu chưa scan được chữ cái cột
+        const DEFAULT_COLUMNS = { Note: 'F', DateRestore: 'I', DateAppeal: 'H', Phone: 'D', Gmail: 'A', PassWord: 'B', Recover: 'C' };
+        const targetColLetter = columns[targetKey] || columns[targetField] || DEFAULT_COLUMNS[targetField] || 'F';
 
         if (targetColLetter) {
-            const rows = await getRowsFromTab(src.tab, src.sheetId);
+            const rows = await getRowsFromTab(activeTabName, src.sheetId);
             const matchedKeyInRows = Object.keys(rows[0] || {}).find(k => k.toLowerCase() === matchedKey.toLowerCase()) || 'Gmail';
             const row = rows.find(r => String(r[matchedKeyInRows] || '').trim().toLowerCase() === String(matchValue).trim().toLowerCase());
 

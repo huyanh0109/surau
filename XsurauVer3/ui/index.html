@@ -4312,12 +4312,13 @@
             // Danh sách tất cả các Sheet & Tab sẵn có
             const allTabOptions = [];
             (globalSettings.sheets || []).forEach(s => {
-                (s.tabs || []).forEach(t => {
-                    const tabName = typeof t === 'string' ? t : t.name;
+                const tabsList = (s.tabs && s.tabs.length > 0) ? s.tabs : (s.scannedTabs && s.scannedTabs.length > 0 ? s.scannedTabs : ['FactoryAccount']);
+                tabsList.forEach(t => {
+                    const tabName = typeof t === 'string' ? t : (t.name || 'FactoryAccount');
                     allTabOptions.push({
                         key: `${s.id}|${tabName}`,
                         sheetId: s.id,
-                        sheetName: s.name,
+                        sheetName: s.name || 'Sheet',
                         tabName: tabName,
                         tabObj: typeof t === 'object' ? t : { name: tabName, columns: {} }
                     });
@@ -4394,7 +4395,7 @@
                 const customTextInputHtml = def.hasCustomText ? `
                     <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
                         <span style="font-size: 9px; font-weight: bold; color: var(--accent); text-transform: uppercase;">NỘI DUNG TỰ ĐỊNH NGHĨA (TEXT VALUE):</span>
-                        <input type="text" class="settings-input" style="padding: 6px 10px; font-size: 11px;" value="${escHtml(customTextVal)}" placeholder="${escHtml(def.placeholder || '')}" onchange="updateAutomationOutputValueSource('${autoName}', ${sourceIndex}, '${def.key}', this.value)">
+                        <input type="text" class="settings-input" style="padding: 6px 10px; font-size: 11px;" value="${escHtml(customTextVal)}" placeholder="${escHtml(def.placeholder || '')}" oninput="updateAutomationOutputValueSource('${autoName}', ${sourceIndex}, '${def.key}', this.value)" onchange="updateAutomationOutputValueSource('${autoName}', ${sourceIndex}, '${def.key}', this.value)">
                     </div>
                 ` : `<div style="font-size: 9px; color: var(--text-muted); font-style: italic;">${escHtml(def.info || '')}</div>`;
 
