@@ -1411,12 +1411,33 @@
 
         <!-- Modals -->
         <div class="modal-overlay" id="modalOverlay">
-            <div class="modal">
+            <div class="modal" style="max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto;">
                 <h2 id="modalTitle">CREATE PROFILE</h2>
                 <input type="hidden" id="editProfileId">
-                <div class="form-group"><label>NAME</label><input type="text" id="inputName"></div>
-                <div class="form-group"><label>PROXY</label><input type="text" id="inputProxy"></div>
-                <div class="form-group"><label>EXTENSIONS</label><textarea id="inputExtensions"></textarea></div>
+                <div class="form-group"><label>NAME</label><input type="text" id="inputName" placeholder="Tên Profile"></div>
+                <div class="form-group"><label>PROXY</label><input type="text" id="inputProxy" placeholder="127.0.0.1:1080 hoặc user:pass@ip:port"></div>
+                <div class="form-group"><label>EXTENSIONS</label><textarea id="inputExtensions" placeholder="Mỗi đường dẫn extension 1 dòng..."></textarea></div>
+                
+                <div class="form-group" id="createProfileModeGroup">
+                    <label>FINGERPRINT MODE</label>
+                    <select id="createProfileModeSelect" class="settings-input" style="width: 100%; font-weight: bold; color: var(--accent);" onchange="toggleCreateModalCustomFieldsUI()">
+                        <option value="random">RANDOM (TỰ ĐỘNG NGẪU NHIÊN VÂN TAY)</option>
+                        <option value="custom">CUSTOM (TỰ CHỌN THÔNG SỐ VÂN TAY)</option>
+                    </select>
+                </div>
+
+                <div id="createModalCustomFieldsArea" style="display: none; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); padding: 14px; margin-bottom: 15px;">
+                    <div style="font-size: 10px; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 1px;">CUSTOM FINGERPRINT CONFIG:</div>
+                    <div class="form-group"><label style="font-size: 10px; color: var(--text-secondary);">USER AGENT / CHROME VERSION</label><select id="createCustomUA" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    <div class="form-group"><label style="font-size: 10px; color: var(--text-secondary);">GPU RENDERER</label><select id="createCustomGpu" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">RESOLUTION</label><select id="createCustomScreen" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">CPU CORES</label><select id="createCustomCpu" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">RAM (GB)</label><select id="createCustomRam" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">TIMEZONE</label><select id="createCustomTimezone" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    </div>
+                </div>
+
                 <div class="modal-actions">
                     <button class="btn btn-ghost" onclick="closeModal('modalOverlay')">CANCEL</button>
                     <button class="btn btn-primary" onclick="saveProfile()">SAVE</button>
@@ -1425,12 +1446,32 @@
         </div>
 
         <div class="modal-overlay" id="bulkModalOverlay">
-            <div class="modal">
+            <div class="modal" style="max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto;">
                 <h2>BULK CREATE</h2>
-                <div class="form-group"><label>COUNT</label><input type="number" id="bulkCount" min="1" max="500"
-                        value="10"></div>
+                <div class="form-group"><label>COUNT</label><input type="number" id="bulkCount" min="1" max="500" value="10"></div>
                 <div class="form-group"><label>PREFIX</label><input type="text" id="bulkPrefix" value="Profile"></div>
-                <div class="form-group"><label>PROXIES</label><textarea id="bulkCreateProxies"></textarea></div>
+                <div class="form-group"><label>PROXIES</label><textarea id="bulkCreateProxies" placeholder="Mỗi dòng 1 proxy..."></textarea></div>
+                
+                <div class="form-group">
+                    <label>FINGERPRINT MODE</label>
+                    <select id="bulkProfileModeSelect" class="settings-input" style="width: 100%; font-weight: bold; color: var(--accent);" onchange="toggleBulkModalCustomFieldsUI()">
+                        <option value="random">RANDOM (MỖI PROFILE 1 VÂN TAY NGẪU NHIÊN)</option>
+                        <option value="custom">CUSTOM (ÁP DỤNG CẤU HÌNH CỐ ĐỊNH CHO TẤT CẢ)</option>
+                    </select>
+                </div>
+
+                <div id="bulkModalCustomFieldsArea" style="display: none; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); padding: 14px; margin-bottom: 15px;">
+                    <div style="font-size: 10px; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 1px;">BULK CUSTOM FINGERPRINT CONFIG:</div>
+                    <div class="form-group"><label style="font-size: 10px; color: var(--text-secondary);">USER AGENT / CHROME VERSION</label><select id="bulkCustomUA" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    <div class="form-group"><label style="font-size: 10px; color: var(--text-secondary);">GPU RENDERER</label><select id="bulkCustomGpu" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">RESOLUTION</label><select id="bulkCustomScreen" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">CPU CORES</label><select id="bulkCustomCpu" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">RAM (GB)</label><select id="bulkCustomRam" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">TIMEZONE</label><select id="bulkCustomTimezone" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    </div>
+                </div>
+
                 <div class="modal-actions">
                     <button class="btn btn-ghost" onclick="closeModal('bulkModalOverlay')">CANCEL</button>
                     <button class="btn btn-orange" onclick="bulkCreate()">CREATE</button>
@@ -1602,6 +1643,59 @@
                         <select id="fdTargetMonitor" class="settings-input" style="flex: 1; padding: 8px 12px; font-size: 12px; font-weight: bold; color: var(--cyan); background: #000; border: 1px solid rgba(0, 170, 170, 0.4); border-radius: 4px; font-family: 'JetBrains Mono', monospace;" onchange="saveFastSettings()">
                             <option value="primary">Màn hình 1 (Chính - X=0)</option>
                         </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROFILE CREATION DEFAULTS -->
+            <div class="settings-section">
+                <div class="settings-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="settings-title" style="color: var(--cyan); font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">
+                        PROFILE CREATION DEFAULTS
+                    </div>
+                    <button class="btn btn-run btn-sm" onclick="saveProfileCreationDefaultsUI()">SAVE CREATION CONFIG</button>
+                </div>
+                <div class="settings-body" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 11px; font-weight: 800; font-family: monospace; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase;">
+                            CREATION FINGERPRINT MODE:
+                        </div>
+                        <select id="settingsCreationMode" class="settings-input" style="width: 380px; padding: 8px 12px; font-weight: bold; color: var(--accent); background: #000; border: 1px solid var(--border);" onchange="toggleCreationModeFieldsUI()">
+                            <option value="random">RANDOM (TỰ ĐỘNG NGẪU NHIÊN VÂN TAY)</option>
+                            <option value="custom">CUSTOM (TỰ CHỌN THÔNG SỐ CỐ ĐỊNH)</option>
+                        </select>
+                    </div>
+
+                    <div id="settingsCustomFieldsContainer" style="display: none; flex-direction: column; gap: 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); padding: 16px; margin-top: 10px;">
+                        <div style="font-size: 10px; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 1px;">
+                            DEFAULT FINGERPRINT PARAMETERS:
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                            <div>
+                                <span class="settings-sublabel" style="display: block; margin-bottom: 4px; font-size: 10px; color: var(--text-secondary); text-transform: uppercase;">USER AGENT / CHROME VERSION:</span>
+                                <select id="settingsDefUserAgent" class="settings-input" style="width: 100%; font-size: 11px;"></select>
+                            </div>
+                            <div>
+                                <span class="settings-sublabel" style="display: block; margin-bottom: 4px; font-size: 10px; color: var(--text-secondary); text-transform: uppercase;">GPU RENDERER:</span>
+                                <select id="settingsDefGpu" class="settings-input" style="width: 100%; font-size: 11px;"></select>
+                            </div>
+                            <div>
+                                <span class="settings-sublabel" style="display: block; margin-bottom: 4px; font-size: 10px; color: var(--text-secondary); text-transform: uppercase;">SCREEN RESOLUTION:</span>
+                                <select id="settingsDefScreen" class="settings-input" style="width: 100%; font-size: 11px;"></select>
+                            </div>
+                            <div>
+                                <span class="settings-sublabel" style="display: block; margin-bottom: 4px; font-size: 10px; color: var(--text-secondary); text-transform: uppercase;">CPU CORES:</span>
+                                <select id="settingsDefCpu" class="settings-input" style="width: 100%; font-size: 11px;"></select>
+                            </div>
+                            <div>
+                                <span class="settings-sublabel" style="display: block; margin-bottom: 4px; font-size: 10px; color: var(--text-secondary); text-transform: uppercase;">RAM (DEVICE MEMORY):</span>
+                                <select id="settingsDefRam" class="settings-input" style="width: 100%; font-size: 11px;"></select>
+                            </div>
+                            <div>
+                                <span class="settings-sublabel" style="display: block; margin-bottom: 4px; font-size: 10px; color: var(--text-secondary); text-transform: uppercase;">TIMEZONE:</span>
+                                <select id="settingsDefTimezone" class="settings-input" style="width: 100%; font-size: 11px;"></select>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2037,6 +2131,9 @@
             }
             if (tabId === 'archives') {
                 loadArchives();
+            }
+            if (tabId === 'settings') {
+                loadProfileCreationDefaultsUI();
             }
         }
 
@@ -2515,15 +2612,172 @@
             loadProfiles(); // Refresh table to show correct proxy format
         }
 
+        // ============================================================
+        // RANDOM vs CUSTOM FINGERPRINT CREATION LOGIC
+        // ============================================================
+        let _fingerprintOptionsCache = null;
+
+        async function fetchFingerprintOptionsUI() {
+            if (_fingerprintOptionsCache) return _fingerprintOptionsCache;
+            try {
+                const res = await fetch(`${API}/fingerprint-options`);
+                _fingerprintOptionsCache = await res.json();
+                populateFingerprintSelectsUI();
+                return _fingerprintOptionsCache;
+            } catch (e) {
+                console.error('Error fetching fingerprint options:', e);
+                return null;
+            }
+        }
+
+        function populateFingerprintSelectsUI() {
+            if (!_fingerprintOptionsCache) return;
+            const { userAgents, gpus, screens, hardwareConcurrency, deviceMemory, timezones } = _fingerprintOptionsCache;
+
+            const randomOpt = `<option value="random">RANDOM (NGẪU NHIÊN)</option>`;
+
+            const uaOptions = randomOpt + userAgents.map(u => `<option value="${escHtml(u.value)}">${escHtml(u.label)}</option>`).join('');
+            const gpuOptions = randomOpt + gpus.map(g => `<option value="${escHtml(JSON.stringify(g))}">${escHtml(g.renderer.split('Direct3D11')[0])}</option>`).join('');
+            const screenOptions = randomOpt + screens.map(s => `<option value="${escHtml(JSON.stringify(s))}">${s.width} x ${s.height}</option>`).join('');
+            const cpuOptions = randomOpt + hardwareConcurrency.map(c => `<option value="${c}">${c} Cores</option>`).join('');
+            const ramOptions = randomOpt + deviceMemory.map(r => `<option value="${r}">${r} GB RAM</option>`).join('');
+            const tzOptions = randomOpt + timezones.map(t => `<option value="${t}">${t}</option>`).join('');
+
+            // Settings tab dropdowns
+            const sUa = document.getElementById('settingsDefUserAgent');
+            const sGpu = document.getElementById('settingsDefGpu');
+            const sScreen = document.getElementById('settingsDefScreen');
+            const sCpu = document.getElementById('settingsDefCpu');
+            const sRam = document.getElementById('settingsDefRam');
+            const sTz = document.getElementById('settingsDefTimezone');
+
+            if (sUa && sUa.children.length === 0) sUa.innerHTML = uaOptions;
+            if (sGpu && sGpu.children.length === 0) sGpu.innerHTML = gpuOptions;
+            if (sScreen && sScreen.children.length === 0) sScreen.innerHTML = screenOptions;
+            if (sCpu && sCpu.children.length === 0) sCpu.innerHTML = cpuOptions;
+            if (sRam && sRam.children.length === 0) sRam.innerHTML = ramOptions;
+            if (sTz && sTz.children.length === 0) sTz.innerHTML = tzOptions;
+
+            // Create Modal dropdowns
+            const cUa = document.getElementById('createCustomUA');
+            const cGpu = document.getElementById('createCustomGpu');
+            const cScreen = document.getElementById('createCustomScreen');
+            const cCpu = document.getElementById('createCustomCpu');
+            const cRam = document.getElementById('createCustomRam');
+            const cTz = document.getElementById('createCustomTimezone');
+
+            if (cUa && cUa.children.length === 0) cUa.innerHTML = uaOptions;
+            if (cGpu && cGpu.children.length === 0) cGpu.innerHTML = gpuOptions;
+            if (cScreen && cScreen.children.length === 0) cScreen.innerHTML = screenOptions;
+            if (cCpu && cCpu.children.length === 0) cCpu.innerHTML = cpuOptions;
+            if (cRam && cRam.children.length === 0) cRam.innerHTML = ramOptions;
+            if (cTz && cTz.children.length === 0) cTz.innerHTML = tzOptions;
+
+            // Bulk Modal dropdowns
+            const bUa = document.getElementById('bulkCustomUA');
+            const bGpu = document.getElementById('bulkCustomGpu');
+            const bScreen = document.getElementById('bulkCustomScreen');
+            const bCpu = document.getElementById('bulkCustomCpu');
+            const bRam = document.getElementById('bulkCustomRam');
+            const bTz = document.getElementById('bulkCustomTimezone');
+
+            if (bUa && bUa.children.length === 0) bUa.innerHTML = uaOptions;
+            if (bGpu && bGpu.children.length === 0) bGpu.innerHTML = gpuOptions;
+            if (bScreen && bScreen.children.length === 0) bScreen.innerHTML = screenOptions;
+            if (bCpu && bCpu.children.length === 0) bCpu.innerHTML = cpuOptions;
+            if (bRam && bRam.children.length === 0) bRam.innerHTML = ramOptions;
+            if (bTz && bTz.children.length === 0) bTz.innerHTML = tzOptions;
+        }
+
+        function toggleCreationModeFieldsUI() {
+            const mode = document.getElementById('settingsCreationMode').value;
+            const container = document.getElementById('settingsCustomFieldsContainer');
+            if (container) container.style.display = mode === 'custom' ? 'flex' : 'none';
+        }
+
+        function toggleCreateModalCustomFieldsUI() {
+            const mode = document.getElementById('createProfileModeSelect').value;
+            const container = document.getElementById('createModalCustomFieldsArea');
+            if (container) container.style.display = mode === 'custom' ? 'flex' : 'none';
+        }
+
+        function toggleBulkModalCustomFieldsUI() {
+            const mode = document.getElementById('bulkProfileModeSelect').value;
+            const container = document.getElementById('bulkModalCustomFieldsArea');
+            if (container) container.style.display = mode === 'custom' ? 'flex' : 'none';
+        }
+
+        async function loadProfileCreationDefaultsUI() {
+            await fetchFingerprintOptionsUI();
+            try {
+                const res = await fetch(`${API}/settings`);
+                const settings = await res.json();
+                const defaults = settings.profileCreationDefaults || { mode: 'random' };
+
+                const modeSelect = document.getElementById('settingsCreationMode');
+                if (modeSelect) {
+                    modeSelect.value = defaults.mode || 'random';
+                    toggleCreationModeFieldsUI();
+                }
+
+                if (defaults.userAgent && document.getElementById('settingsDefUserAgent')) document.getElementById('settingsDefUserAgent').value = defaults.userAgent;
+                if (defaults.gpu && document.getElementById('settingsDefGpu')) document.getElementById('settingsDefGpu').value = typeof defaults.gpu === 'string' ? defaults.gpu : JSON.stringify(defaults.gpu);
+                if (defaults.screen && document.getElementById('settingsDefScreen')) document.getElementById('settingsDefScreen').value = typeof defaults.screen === 'string' ? defaults.screen : JSON.stringify(defaults.screen);
+                if (defaults.hardwareConcurrency && document.getElementById('settingsDefCpu')) document.getElementById('settingsDefCpu').value = defaults.hardwareConcurrency;
+                if (defaults.deviceMemory && document.getElementById('settingsDefRam')) document.getElementById('settingsDefRam').value = defaults.deviceMemory;
+                if (defaults.timezone && document.getElementById('settingsDefTimezone')) document.getElementById('settingsDefTimezone').value = defaults.timezone;
+            } catch (e) {}
+        }
+
+        async function saveProfileCreationDefaultsUI() {
+            const mode = document.getElementById('settingsCreationMode').value;
+            const profileCreationDefaults = {
+                mode,
+                userAgent: document.getElementById('settingsDefUserAgent').value,
+                gpu: document.getElementById('settingsDefGpu').value,
+                screen: document.getElementById('settingsDefScreen').value,
+                hardwareConcurrency: parseInt(document.getElementById('settingsDefCpu').value, 10),
+                deviceMemory: parseInt(document.getElementById('settingsDefRam').value, 10),
+                timezone: document.getElementById('settingsDefTimezone').value
+            };
+
+            try {
+                await fetch(`${API}/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileCreationDefaults })
+                });
+                showToast('SAVED PROFILE CREATION CONFIG');
+            } catch (e) {
+                showToast('Failed to save profile creation config');
+            }
+        }
+
         // =======================
         // MODALS LOGIC
         // =======================
-        function openCreateModal() {
+        async function openCreateModal() {
+            await fetchFingerprintOptionsUI();
             document.getElementById('modalTitle').textContent = 'CREATE PROFILE';
             document.getElementById('editProfileId').value = '';
             document.getElementById('inputName').value = '';
             document.getElementById('inputProxy').value = '';
             document.getElementById('inputExtensions').value = '';
+
+            const modeGroup = document.getElementById('createProfileModeGroup');
+            if (modeGroup) modeGroup.style.display = 'block';
+
+            try {
+                const res = await fetch(`${API}/settings`);
+                const settings = await res.json();
+                const defaults = settings.profileCreationDefaults || {};
+                const modeSelect = document.getElementById('createProfileModeSelect');
+                if (modeSelect) {
+                    modeSelect.value = defaults.mode || 'random';
+                    toggleCreateModalCustomFieldsUI();
+                }
+            } catch (e) {}
+
             document.getElementById('modalOverlay').classList.add('active');
         }
 
@@ -2535,6 +2789,12 @@
             document.getElementById('inputName').value = p.name || '';
             document.getElementById('inputProxy').value = p.proxy || '';
             document.getElementById('inputExtensions').value = (p.extensions || []).join('\n');
+
+            const modeGroup = document.getElementById('createProfileModeGroup');
+            const customArea = document.getElementById('createModalCustomFieldsArea');
+            if (modeGroup) modeGroup.style.display = 'none';
+            if (customArea) customArea.style.display = 'none';
+
             document.getElementById('modalOverlay').classList.add('active');
         }
 
@@ -2561,10 +2821,21 @@
                 });
                 showToast('UPDATED.');
             } else {
+                const mode = document.getElementById('createProfileModeSelect').value;
+                const options = { mode };
+                if (mode === 'custom') {
+                    options.userAgent = document.getElementById('createCustomUA').value;
+                    options.gpu = document.getElementById('createCustomGpu').value;
+                    options.screen = document.getElementById('createCustomScreen').value;
+                    options.hardwareConcurrency = parseInt(document.getElementById('createCustomCpu').value, 10);
+                    options.deviceMemory = parseInt(document.getElementById('createCustomRam').value, 10);
+                    options.timezone = document.getElementById('createCustomTimezone').value;
+                }
+
                 await fetch(`${API}/profiles`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, proxy, extensions })
+                    body: JSON.stringify({ name, proxy, extensions, options })
                 });
                 showToast('CREATED!');
             }
@@ -2572,7 +2843,21 @@
             loadProfiles();
         }
 
-        function openBulkModal() { document.getElementById('bulkModalOverlay').classList.add('active'); }
+        async function openBulkModal() {
+            await fetchFingerprintOptionsUI();
+            const modeSelect = document.getElementById('bulkProfileModeSelect');
+            if (modeSelect) {
+                try {
+                    const res = await fetch(`${API}/settings`);
+                    const settings = await res.json();
+                    const defaults = settings.profileCreationDefaults || {};
+                    modeSelect.value = defaults.mode || 'random';
+                    toggleBulkModalCustomFieldsUI();
+                } catch (e) {}
+            }
+            document.getElementById('bulkModalOverlay').classList.add('active');
+        }
+
         function openBulkProxyModal() { document.getElementById('bulkProxyModalOverlay').classList.add('active'); }
         function openLayoutModal() { document.getElementById('layoutModalOverlay').classList.add('active'); }
 
@@ -2581,10 +2866,21 @@
             const prefix = document.getElementById('bulkPrefix').value;
             const proxies = document.getElementById('bulkCreateProxies').value.split('\n').map(s => s.trim()).filter(Boolean);
 
+            const mode = document.getElementById('bulkProfileModeSelect').value;
+            const options = { mode };
+            if (mode === 'custom') {
+                options.userAgent = document.getElementById('bulkCustomUA').value;
+                options.gpu = document.getElementById('bulkCustomGpu').value;
+                options.screen = document.getElementById('bulkCustomScreen').value;
+                options.hardwareConcurrency = parseInt(document.getElementById('bulkCustomCpu').value, 10);
+                options.deviceMemory = parseInt(document.getElementById('bulkCustomRam').value, 10);
+                options.timezone = document.getElementById('bulkCustomTimezone').value;
+            }
+
             await fetch(`${API}/profiles/bulk`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ count, prefix, proxies })
+                body: JSON.stringify({ count, prefix, proxies, options })
             });
             showToast(`CREATED ${count} PROFILES`);
             closeModal('bulkModalOverlay');

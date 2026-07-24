@@ -141,9 +141,11 @@ app.get('/api/profiles/:id', (req, res) => {
     res.json(profile);
 });
 
+app.get('/api/fingerprint-options', (req, res) => res.json(manager.getFingerprintOptions()));
+
 app.post('/api/profiles', (req, res) => {
-    const { name, proxy, extensions } = req.body;
-    res.json(manager.createProfile(name, proxy, extensions));
+    const { name, proxy, extensions, options } = req.body;
+    res.json(manager.createProfile(name, proxy, extensions, options));
 });
 
 app.put('/api/profiles/:id', (req, res) => {
@@ -272,9 +274,9 @@ app.delete('/api/archives/:groupName', (req, res) => {
 });
 
 app.post('/api/profiles/bulk', (req, res) => {
-    const { count, namePrefix, proxies } = req.body;
+    const { count, namePrefix, proxies, options } = req.body;
     if (!count || count < 1 || count > 500) return res.status(400).json({ error: 'Số lượng từ 1-500' });
-    const profiles = manager.bulkCreateProfiles(count, namePrefix || 'Profile', proxies || []);
+    const profiles = manager.bulkCreateProfiles(count, namePrefix || 'Profile', proxies || [], options);
     res.json({ success: true, count: profiles.length, profiles });
 });
 

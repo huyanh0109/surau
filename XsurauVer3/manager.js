@@ -273,6 +273,20 @@ class ProfileManager {
             settings.smartBandwidthSaver = false;
             changed = true;
         }
+
+        if (!settings.profileCreationDefaults) {
+            settings.profileCreationDefaults = {
+                mode: 'random',
+                userAgent: '',
+                gpu: '',
+                screen: '',
+                hardwareConcurrency: 8,
+                deviceMemory: 8,
+                timezone: 'Asia/Ho_Chi_Minh',
+                locale: 'vi-VN'
+            };
+            changed = true;
+        }
         
         if (changed || !fs.existsSync(this.settingsFile)) {
             fs.writeFileSync(this.settingsFile, JSON.stringify(settings, null, 2));
@@ -299,9 +313,32 @@ class ProfileManager {
         if (config.realtimeSync !== undefined) settings.realtimeSync = config.realtimeSync;
         if (config.multiProxy !== undefined) settings.multiProxy = config.multiProxy;
         if (config.smartBandwidthSaver !== undefined) settings.smartBandwidthSaver = config.smartBandwidthSaver;
+        if (config.profileCreationDefaults !== undefined) settings.profileCreationDefaults = config.profileCreationDefaults;
         
         fs.writeFileSync(this.settingsFile, JSON.stringify(settings, null, 2));
         return settings;
+    }
+
+    getFingerprintOptions() {
+        return {
+            gpus: GPU_DATABASE,
+            screens: SCREEN_DATABASE,
+            hardwareConcurrency: HARDWARE_CONCURRENCY,
+            deviceMemory: DEVICE_MEMORY,
+            timezones: TIMEZONES,
+            locales: LOCALES,
+            userAgents: [
+                { label: 'Chrome 149 (Lõi Custom Chromium 149.0.7812.0 - Đề xuất)', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7812.0 Safari/537.36' },
+                { label: 'Chrome 150 (Windows - Latest Stable)', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.7871.187 Safari/537.36' },
+                { label: 'Chrome 148 (Windows)', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36' },
+                { label: 'Chrome 137 (Windows)', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36' },
+                { label: 'Chrome 136 (Windows)', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36' },
+                { label: 'Chrome 135 (Windows)', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36' },
+                { label: 'Chrome 134 (Windows)', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36' },
+                { label: 'Chrome 133 (Windows)', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36' },
+                { label: 'Chrome 149 (Macintosh)', value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7812.0 Safari/537.36' }
+            ]
+        };
     }
 
     getGoogleSheetConfig() {
@@ -414,17 +451,78 @@ class ProfileManager {
     // ========================================================================
 
     /** Tạo profile mới */
-    createProfile(name, proxy = null, extensions = []) {
+    createProfile(name, proxy = null, extensions = [], customOptions = {}) {
         const id = 'profile_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex');
         const noiseSeed = crypto.randomBytes(16).toString('hex');
         const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-        // Sinh vân tay mới để lấy User-Agent ngẫu nhiên (Windows hoặc Mac)
-        const fp = this.fingerprintGenerator.getFingerprint();
-        let userAgent = fp.fingerprint.navigator.userAgent;
-        let screen = pick(SCREEN_DATABASE);
-        let hardwareConcurrency = pick(HARDWARE_CONCURRENCY);
-        let deviceMemory = pick(DEVICE_MEMORY);
+        const settings = this.getSettings();
+        const globalDefaults = settings.profileCreationDefaults || {};
+        const mode = customOptions.mode || globalDefaults.mode || 'random';
+
+        let userAgent;
+        if (mode === 'custom' && customOptions.userAgent && customOptions.userAgent !== 'random') {
+            userAgent = customOptions.userAgent;
+        } else if (mode === 'custom' && globalDefaults.userAgent && globalDefaults.userAgent !== 'random') {
+            userAgent = globalDefaults.userAgent;
+        } else {
+            const fp = this.fingerprintGenerator.getFingerprint();
+            userAgent = fp.fingerprint.navigator.userAgent;
+        }
+
+        let gpu;
+        if (mode === 'custom' && customOptions.gpu && customOptions.gpu !== 'random') {
+            gpu = typeof customOptions.gpu === 'string' ? JSON.parse(customOptions.gpu) : customOptions.gpu;
+        } else if (mode === 'custom' && globalDefaults.gpu && globalDefaults.gpu !== 'random') {
+            gpu = typeof globalDefaults.gpu === 'string' ? JSON.parse(globalDefaults.gpu) : globalDefaults.gpu;
+        } else {
+            gpu = pick(GPU_DATABASE);
+        }
+
+        let screen;
+        if (mode === 'custom' && customOptions.screen && customOptions.screen !== 'random') {
+            screen = typeof customOptions.screen === 'string' ? JSON.parse(customOptions.screen) : customOptions.screen;
+        } else if (mode === 'custom' && globalDefaults.screen && globalDefaults.screen !== 'random') {
+            screen = typeof globalDefaults.screen === 'string' ? JSON.parse(globalDefaults.screen) : globalDefaults.screen;
+        } else {
+            screen = pick(SCREEN_DATABASE);
+        }
+
+        let hardwareConcurrency;
+        if (mode === 'custom' && customOptions.hardwareConcurrency && customOptions.hardwareConcurrency !== 'random' && !isNaN(parseInt(customOptions.hardwareConcurrency, 10))) {
+            hardwareConcurrency = parseInt(customOptions.hardwareConcurrency, 10);
+        } else if (mode === 'custom' && globalDefaults.hardwareConcurrency && globalDefaults.hardwareConcurrency !== 'random' && !isNaN(parseInt(globalDefaults.hardwareConcurrency, 10))) {
+            hardwareConcurrency = parseInt(globalDefaults.hardwareConcurrency, 10);
+        } else {
+            hardwareConcurrency = pick(HARDWARE_CONCURRENCY);
+        }
+
+        let deviceMemory;
+        if (mode === 'custom' && customOptions.deviceMemory && customOptions.deviceMemory !== 'random' && !isNaN(parseInt(customOptions.deviceMemory, 10))) {
+            deviceMemory = parseInt(customOptions.deviceMemory, 10);
+        } else if (mode === 'custom' && globalDefaults.deviceMemory && globalDefaults.deviceMemory !== 'random' && !isNaN(parseInt(globalDefaults.deviceMemory, 10))) {
+            deviceMemory = parseInt(globalDefaults.deviceMemory, 10);
+        } else {
+            deviceMemory = pick(DEVICE_MEMORY);
+        }
+
+        let timezone;
+        if (mode === 'custom' && customOptions.timezone && customOptions.timezone !== 'random') {
+            timezone = customOptions.timezone;
+        } else if (mode === 'custom' && globalDefaults.timezone && globalDefaults.timezone !== 'random') {
+            timezone = globalDefaults.timezone;
+        } else {
+            timezone = pick(TIMEZONES);
+        }
+
+        let locale;
+        if (mode === 'custom' && customOptions.locale && customOptions.locale !== 'random') {
+            locale = customOptions.locale;
+        } else if (mode === 'custom' && globalDefaults.locale && globalDefaults.locale !== 'random') {
+            locale = globalDefaults.locale;
+        } else {
+            locale = pick(LOCALES);
+        }
 
         const profileData = {
             id,
@@ -434,29 +532,30 @@ class ProfileManager {
             extensions,
             noiseSeed,
             userAgent,
-            gpu: pick(GPU_DATABASE),
+            gpu,
             screen,
             hardwareConcurrency,
             deviceMemory,
-            timezone: pick(TIMEZONES),
-            locale: pick(LOCALES),
-            notes: ''
+            timezone,
+            locale,
+            notes: '',
+            creationMode: mode
         };
 
         const metaFile = path.join(this.profilesMetaPath, `${id}.json`);
         fs.writeFileSync(metaFile, JSON.stringify(profileData, null, 2));
         this.profilesCache.set(id, profileData);
-        console.log(`[Manager] ✅ Profile: ${profileData.name} | GPU: ${profileData.gpu.renderer.substring(0, 40)}... | Screen: ${profileData.screen.width}x${profileData.screen.height} | Cores: ${profileData.hardwareConcurrency}`);
+        console.log(`[Manager] ✅ Profile: ${profileData.name} (${mode.toUpperCase()}) | GPU: ${profileData.gpu.renderer.substring(0, 40)}... | Screen: ${profileData.screen.width}x${profileData.screen.height} | Cores: ${profileData.hardwareConcurrency}`);
         return profileData;
     }
 
     /** Tạo hàng loạt profile */
-    bulkCreateProfiles(count, namePrefix = 'Profile', proxies = []) {
+    bulkCreateProfiles(count, namePrefix = 'Profile', proxies = [], customOptions = {}) {
         const created = [];
         for (let i = 0; i < count; i++) {
             const num = String(i + 1).padStart(3, '0');
             const proxy = proxies[i] || null;
-            const profile = this.createProfile(`${namePrefix} ${num}`, proxy, []);
+            const profile = this.createProfile(`${namePrefix} ${num}`, proxy, [], customOptions);
             created.push(profile);
         }
         console.log(`[Manager] ✅ Đã tạo ${count} profile hàng loạt!`);
