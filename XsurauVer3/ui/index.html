@@ -4309,29 +4309,53 @@
             if (!currentSource.outputMapping) currentSource.outputMapping = {};
             if (!currentSource.outputValues) currentSource.outputValues = {};
 
-            // Danh sách tất cả các Sheet & Tab sẵn có
+            // Lấy Sheet đại diện cho Nguồn đã chọn ở Step 01 & Step 02
+            const currentSheet = (globalSettings.sheets || []).find(s => s.id === currentSource.sheetId || s.spreadsheetId === currentSource.sheetId) || (globalSettings.sheets || [])[0];
+            const currentSheetId = currentSheet?.id || currentSource.sheetId || 'default';
+            const currentSheetName = currentSheet?.name || 'Sheet';
+
+            // Danh sách các Tab thuộc về Sheet nguồn ở Step 01 / Step 02
             const allTabOptions = [];
-            (globalSettings.sheets || []).forEach(s => {
-                const tabsList = (s.tabs && s.tabs.length > 0) ? s.tabs : (s.scannedTabs && s.scannedTabs.length > 0 ? s.scannedTabs : ['FactoryAccount']);
-                tabsList.forEach(t => {
-                    const tabName = typeof t === 'string' ? t : (t.name || 'FactoryAccount');
+            const rawTabs = (currentSheet && currentSheet.tabs && currentSheet.tabs.length > 0) 
+                ? currentSheet.tabs 
+                : ((currentSheet && currentSheet.scannedTabs && currentSheet.scannedTabs.length > 0) ? currentSheet.scannedTabs : [currentSource.tab || 'FactoryAccount']);
+
+            rawTabs.forEach(t => {
+                const tabName = typeof t === 'string' ? t : (t.name || currentSource.tab || 'FactoryAccount');
+                if (tabName) {
                     allTabOptions.push({
-                        key: `${s.id}|${tabName}`,
-                        sheetId: s.id,
-                        sheetName: s.name || 'Sheet',
+                        key: `${currentSheetId}|${tabName}`,
+                        sheetId: currentSheetId,
+                        sheetName: currentSheetName,
                         tabName: tabName,
                         tabObj: typeof t === 'object' ? t : { name: tabName, columns: {} }
                     });
-                });
+                }
             });
 
-            // Target output tab đã chọn (mặc định trùng với source tab nếu chưa chọn)
-            const defaultTargetKey = `${currentSource.sheetId}|${currentSource.tab}`;
+            // Nếu Tab nguồn chưa có trong danh sách options thì tự thêm vào
+            if (!allTabOptions.some(o => o.tabName === currentSource.tab)) {
+                allTabOptions.unshift({
+                    key: `${currentSheetId}|${currentSource.tab}`,
+                    sheetId: currentSheetId,
+                    sheetName: currentSheetName,
+                    tabName: currentSource.tab || 'FactoryAccount',
+                    tabObj: { name: currentSource.tab || 'FactoryAccount', columns: {} }
+                });
+            }
+
+            // Target output tab đã chọn (mặc định trùng với source tab ở Step 01 nếu chưa chọn khác)
+            const defaultTargetKey = `${currentSheetId}|${currentSource.tab}`;
             const selectedTargetKey = currentSource.outputTab || defaultTargetKey;
             
             let targetTabOpt = allTabOptions.find(o => o.key === selectedTargetKey) || allTabOptions.find(o => o.key === defaultTargetKey) || allTabOptions[0];
 
-            const sheet = (globalSettings.sheets || []).find(s => s.id === targetTabOpt?.sheetId) || globalSettings.sheets?.[0];
+            if (!currentSource.outputTab && targetTabOpt) {
+                currentSource.outputTab = targetTabOpt.key;
+                didAutofill = true;
+            }
+
+            const sheet = currentSheet;
             const tabName = targetTabOpt?.tabName || currentSource.tab;
             let tab = sheet?.tabs?.find(t => (typeof t === 'string' ? t === tabName : t.name === tabName));
             if (!tab && sheet) {
@@ -4354,8 +4378,6 @@
 
             const columns = (typeof tab === 'object' ? tab?.columns : {}) || {};
             const colKeys = Object.keys(columns);
-
-            let didAutofill = false;
 
             const targetTabSelectHtml = `
                 <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(0, 170, 170, 0.06); padding: 10px 14px; border: 1px solid rgba(0, 170, 170, 0.25); margin-bottom: 10px; width: 100%;">
