@@ -195,7 +195,15 @@ class AutomationEngine extends EventEmitter {
                             matchedRow = sheetData[globalIdx] || {};
                         }
 
-                        const autoConfig = this.getSettings()?.automations?.[automationName];
+                        let settings = {};
+                        try {
+                            const settingsPath = 'G:\\XsurauDataVer3\\settings.json';
+                            if (fs.existsSync(settingsPath)) {
+                                settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+                            }
+                        } catch (e) {}
+
+                        const autoConfig = settings?.automations?.[automationName];
                         const job = {
                             profileId,
                             sheetRow: matchedRow,
