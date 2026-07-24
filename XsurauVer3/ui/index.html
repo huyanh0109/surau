@@ -4313,50 +4313,23 @@
             const currentSheet = (globalSettings.sheets || []).find(s => s.id === currentSource.sheetId || s.spreadsheetId === currentSource.sheetId) || (globalSettings.sheets || [])[0];
             const currentSheetId = currentSheet?.id || currentSource.sheetId || 'default';
             const currentSheetName = currentSheet?.name || 'Sheet';
+            const currentTabName = currentSource.tab || 'FactoryAccount';
 
-            // Danh sách các Tab thuộc về Sheet nguồn ở Step 01 / Step 02
-            const allTabOptions = [];
-            const rawTabs = (currentSheet && currentSheet.tabs && currentSheet.tabs.length > 0) 
-                ? currentSheet.tabs 
-                : ((currentSheet && currentSheet.scannedTabs && currentSheet.scannedTabs.length > 0) ? currentSheet.scannedTabs : [currentSource.tab || 'FactoryAccount']);
+            // Chỉ hiển thị đúng Tab đã chọn ở Step 01 & Step 02
+            const allTabOptions = [{
+                key: `${currentSheetId}|${currentTabName}`,
+                sheetId: currentSheetId,
+                sheetName: currentSheetName,
+                tabName: currentTabName,
+                tabObj: { name: currentTabName, columns: {} }
+            }];
 
-            rawTabs.forEach(t => {
-                const tabName = typeof t === 'string' ? t : (t.name || currentSource.tab || 'FactoryAccount');
-                if (tabName) {
-                    allTabOptions.push({
-                        key: `${currentSheetId}|${tabName}`,
-                        sheetId: currentSheetId,
-                        sheetName: currentSheetName,
-                        tabName: tabName,
-                        tabObj: typeof t === 'object' ? t : { name: tabName, columns: {} }
-                    });
-                }
-            });
-
-            // Nếu Tab nguồn chưa có trong danh sách options thì tự thêm vào
-            if (!allTabOptions.some(o => o.tabName === currentSource.tab)) {
-                allTabOptions.unshift({
-                    key: `${currentSheetId}|${currentSource.tab}`,
-                    sheetId: currentSheetId,
-                    sheetName: currentSheetName,
-                    tabName: currentSource.tab || 'FactoryAccount',
-                    tabObj: { name: currentSource.tab || 'FactoryAccount', columns: {} }
-                });
-            }
-
-            // Target output tab đã chọn (mặc định trùng với source tab ở Step 01 nếu chưa chọn khác)
-            const defaultTargetKey = `${currentSheetId}|${currentSource.tab}`;
-            const selectedTargetKey = currentSource.outputTab || defaultTargetKey;
-            
-            let targetTabOpt = allTabOptions.find(o => o.key === selectedTargetKey) || allTabOptions.find(o => o.key === defaultTargetKey) || allTabOptions[0];
-
-            if (!currentSource.outputTab && targetTabOpt) {
-                currentSource.outputTab = targetTabOpt.key;
-                didAutofill = true;
-            }
+            const defaultTargetKey = `${currentSheetId}|${currentTabName}`;
+            currentSource.outputTab = defaultTargetKey;
+            let targetTabOpt = allTabOptions[0];
 
             const sheet = currentSheet;
-            const tabName = targetTabOpt?.tabName || currentSource.tab;
+            const tabName = currentTabName;
             let tab = sheet?.tabs?.find(t => (typeof t === 'string' ? t === tabName : t.name === tabName));
             if (!tab && sheet) {
                 tab = { name: tabName, columns: {} };
@@ -4384,7 +4357,7 @@
                     <span style="font-weight: 800; color: #fff; font-family: monospace; font-size: 10px; text-transform: uppercase;">📍 CHỌN TAB NƠI GHI KẾT QUẢ (TARGET OUTPUT TAB):</span>
                     <select class="settings-input" style="width: 100%; padding: 8px 10px; font-size: 11px; font-weight: bold; color: var(--cyan);" onchange="updateAutomationTargetOutputTab('${autoName}', ${sourceIndex}, this.value)">
                         ${allTabOptions.map(opt => `
-                            <option value="${opt.key}" ${opt.key === targetTabOpt?.key ? 'selected' : ''}>Sheet [${escHtml(opt.sheetName)}] ➔ Tab [${escHtml(opt.tabName)}]</option>
+                            <option value="${opt.key}" selected>Sheet [${escHtml(opt.sheetName)}] ➔ Tab [${escHtml(opt.tabName)}]</option>
                         `).join('')}
                     </select>
                 </div>
