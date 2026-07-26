@@ -1348,9 +1348,15 @@
                     <div class="fd-panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <div class="fd-panel-title">LIVE RESULTS</div>
                         <div style="display: flex; align-items: center; gap: 8px;">
+                            <button id="toggleLiveConsoleBtn" class="btn btn-sm" onclick="toggleLiveConsoleUI()" style="font-size: 9px; padding: 2px 8px; font-weight: bold; font-family: monospace; border: 1px solid var(--accent); color: var(--accent); background: rgba(245, 176, 0, 0.1);">LIVE: ON</button>
                             <button class="btn btn-ghost btn-sm" onclick="clearLiveConsole()" style="font-size: 9px; padding: 2px 8px; font-weight: bold; font-family: monospace; border: 1px solid rgba(255,255,255,0.1);">CLEAR</button>
-                            <div class="fd-status-badge" style="border-color: var(--accent); color: var(--accent); font-size: 10px;">LIVE</div>
+                            <div class="fd-status-badge" id="liveConsoleBadge" style="border-color: var(--accent); color: var(--accent); font-size: 10px;">LIVE</div>
                         </div>
+                    </div>
+                    <div id="liveConsolePausedBanner" style="display: none; height: 650px; padding: 40px 20px; text-align: center; color: var(--text-muted); font-family: monospace; font-size: 11px; text-transform: uppercase; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border); box-sizing: border-box;">
+                        <div style="color: var(--red); font-size: 12px; font-weight: bold; margin-bottom: 8px;">PAUSED (LOG RENDERING DISABLED)</div>
+                        <div>Đã tắt hiển thị log live để chống nhảy & chống lag trình duyệt.</div>
+                        <div style="margin-top: 12px; color: var(--cyan);">Bấm nút [LIVE: OFF] ở góc trên để bật lại theo dõi log.</div>
                     </div>
                     <div class="fd-console-output" id="fdLogConsole"
                         style="height: 650px; overflow-y: auto; scrollbar-width: thin;">
@@ -3106,6 +3112,68 @@
             }
         }
 
+        let _isLiveConsoleEnabled = true;
+
+        function initLiveConsoleToggleUI() {
+            const saved = localStorage.getItem('loopy_live_log_enabled');
+            if (saved !== null) {
+                _isLiveConsoleEnabled = saved === 'true';
+            }
+            renderLiveConsoleToggleUI();
+        }
+
+        function toggleLiveConsoleUI() {
+            _isLiveConsoleEnabled = !_isLiveConsoleEnabled;
+            localStorage.setItem('loopy_live_log_enabled', _isLiveConsoleEnabled);
+            renderLiveConsoleToggleUI();
+            if (_isLiveConsoleEnabled) {
+                fdLogMsg('LIVE LOGS RESUMED', 'info');
+            }
+        }
+
+        function renderLiveConsoleToggleUI() {
+            const btn = document.getElementById('toggleLiveConsoleBtn');
+            const consoleEl = document.getElementById('fdLogConsole');
+            const banner = document.getElementById('liveConsolePausedBanner');
+            const badge = document.getElementById('liveConsoleBadge');
+
+            if (btn) {
+                if (_isLiveConsoleEnabled) {
+                    btn.textContent = 'LIVE: ON';
+                    btn.style.borderColor = 'var(--accent)';
+                    btn.style.color = 'var(--accent)';
+                    btn.style.background = 'rgba(245, 176, 0, 0.1)';
+                } else {
+                    btn.textContent = 'LIVE: OFF';
+                    btn.style.borderColor = 'var(--red)';
+                    btn.style.color = 'var(--red)';
+                    btn.style.background = 'rgba(255, 0, 0, 0.1)';
+                }
+            }
+
+            if (badge) {
+                if (_isLiveConsoleEnabled) {
+                    badge.textContent = 'LIVE';
+                    badge.style.borderColor = 'var(--accent)';
+                    badge.style.color = 'var(--accent)';
+                } else {
+                    badge.textContent = 'PAUSED';
+                    badge.style.borderColor = 'var(--text-muted)';
+                    badge.style.color = 'var(--text-muted)';
+                }
+            }
+
+            if (consoleEl && banner) {
+                if (_isLiveConsoleEnabled) {
+                    consoleEl.style.display = 'block';
+                    banner.style.display = 'none';
+                } else {
+                    consoleEl.style.display = 'none';
+                    banner.style.display = 'block';
+                }
+            }
+        }
+
         let _lastLogData = { cleanedMsg: '', type: '', profiles: [], count: 1, element: null };
 
         function clearLiveConsole() {
@@ -3115,6 +3183,7 @@
         }
 
         function fdLogMsg(msg, type = 'info') {
+            if (!_isLiveConsoleEnabled) return;
             const consoleEl = document.getElementById('fdLogConsole');
             if (!consoleEl) return;
 
@@ -5510,6 +5579,7 @@
         loadFastSettingsUI();
         loadGlobalExts();
         loadGoogleSheetSettings();
+        initLiveConsoleToggleUI();
 
         // =======================
         // SOLVE GESTURE + PAUSE
