@@ -31,10 +31,21 @@ class ProxyService {
 
     toProxyUrl(raw) {
         if (!raw) return '';
-        const t = raw.trim();
-        if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('socks5://')) return t;
+        let t = raw.trim();
+        if (!t) return '';
+
+        if (t.includes('://')) return t;
+
         const p = t.split(':');
-        if (p.length === 4) return `http://${p[2]}:${p[3]}@${p[0]}:${p[1]}`;
+        if (p.length === 4) {
+            if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(p[0]) || (p[0].includes('.') && /^\d+$/.test(p[1]))) {
+                // ip:port:user:pass
+                return `http://${encodeURIComponent(p[2])}:${encodeURIComponent(p[3])}@${p[0]}:${p[1]}`;
+            } else {
+                // user:pass:ip:port
+                return `http://${encodeURIComponent(p[0])}:${encodeURIComponent(p[1])}@${p[2]}:${p[3]}`;
+            }
+        }
         if (p.length === 2) return `http://${p[0]}:${p[1]}`;
         return `http://${t}`;
     }

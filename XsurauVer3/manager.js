@@ -868,45 +868,81 @@ class ProfileManager {
         const ip4 = ((seedInt >> 8) % 254) + 1;
         const fakeLocalIp = `192.168.${ip3}.${ip4}`;
 
-        // Helper: convert ip:port:user:pass OR ip:port -> standard http proxy URL
-        const toProxyUrl = (raw) => {
+        // Helper: Parse proxy string (ip:port, ip:port:user:pass, user:pass:ip:port, http://user:pass@ip:port)
+        const parseProxy = (raw) => {
             if (!raw) return null;
-            const t = raw.trim();
-            if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('socks5://')) return t;
+            let t = raw.trim();
+            if (!t) return null;
+
+            let server = '';
+            let username = '';
+            let password = '';
+
+            if (t.includes('://')) {
+                try {
+                    const u = new URL(t);
+                    server = `${u.protocol}//${u.host}`;
+                    username = decodeURIComponent(u.username || '');
+                    password = decodeURIComponent(u.password || '');
+                    return { server, username, password };
+                } catch (e) {
+                    t = t.replace(/^(http|https|socks5):\/\//i, '');
+                }
+            }
+
             const p = t.split(':');
-            if (p.length === 4) return `http://${p[2]}:${p[3]}@${p[0]}:${p[1]}`;
-            if (p.length === 2) return `http://${p[0]}:${p[1]}`;
-            return `http://${t}`;
+            if (p.length === 4) {
+                // Check if p[0] is IP/host or username
+                if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(p[0]) || (p[0].includes('.') && /^\d+$/.test(p[1]))) {
+                    // ip:port:user:pass
+                    server = `http://${p[0]}:${p[1]}`;
+                    username = p[2];
+                    password = p[3];
+                } else {
+                    // user:pass:ip:port
+                    username = p[0];
+                    password = p[1];
+                    server = `http://${p[2]}:${p[3]}`;
+                }
+            } else if (p.length === 2) {
+                // ip:port
+                server = `http://${p[0]}:${p[1]}`;
+            } else {
+                server = `http://${t}`;
+            }
+
+            return { server, username, password };
         };
 
         // Determine effective proxy (global mode = gateway, individual or multi-proxy = profile's own)
-        const effectiveProxy = (options.proxyMode === 'global' && !isMultiProxyEnabled)
+        const effectiveProxyRaw = (options.proxyMode === 'global' && !isMultiProxyEnabled)
             ? 'http://127.0.0.1:8888'
-            : toProxyUrl(profileData.proxy);
+            : profileData.proxy;
+        const effectiveProxyObj = parseProxy(effectiveProxyRaw);
 
         // Resolve proxy OUTGOING IP for WebRTC spoofing
         let webrtcIp = fakeLocalIp; // fallback when no proxy
-        const proxyForIpCheck = toProxyUrl(profileData.proxy); // always use real proxy for IP check
-        if (proxyForIpCheck && (options.proxyMode !== 'global' || isMultiProxyEnabled)) {
+        const parsedIpCheckProxy = parseProxy(profileData.proxy); // always use real proxy for IP check
+        if (parsedIpCheckProxy && parsedIpCheckProxy.server && (options.proxyMode !== 'global' || isMultiProxyEnabled)) {
             try {
                 const http = require('http');
                 const { URL } = require('url');
-                const proxyUrl = new URL(proxyForIpCheck);
+                const proxyUrl = new URL(parsedIpCheckProxy.server);
 
                 // Dùng fetch qua proxy để lấy IP outgoing thực tế
                 const outgoingIp = await new Promise((resolve, reject) => {
                     const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
-                    const options = {
+                    const reqOptions = {
                         hostname: proxyUrl.hostname,
                         port: proxyUrl.port,
                         path: 'http://api.ipify.org',
                         method: 'GET',
                         headers: { 'Host': 'api.ipify.org' },
                     };
-                    if (proxyUrl.username) {
-                        options.headers['Proxy-Authorization'] = 'Basic ' + Buffer.from(`${decodeURIComponent(proxyUrl.username)}:${decodeURIComponent(proxyUrl.password || '')}`).toString('base64');
+                    if (parsedIpCheckProxy.username) {
+                        reqOptions.headers['Proxy-Authorization'] = 'Basic ' + Buffer.from(`${parsedIpCheckProxy.username}:${parsedIpCheckProxy.password || ''}`).toString('base64');
                     }
-                    const req = http.request(options, (res) => {
+                    const req = http.request(reqOptions, (res) => {
                         let data = '';
                         res.on('data', chunk => data += chunk);
                         res.on('end', () => {
@@ -1058,8 +1094,10 @@ class ProfileManager {
             // timezoneId/locale gây fail Turnstile (Cloudflare detect CDP override)
         };
 
-        if (effectiveProxy) {
-            launchConfig.proxy = { server: effectiveProxy };
+        if (effectiveProxyObj && effectiveProxyObj.server) {
+            launchConfig.proxy = { server: effectiveProxyObj.server };
+            if (effectiveProxyObj.username) launchConfig.proxy.username = effectiveProxyObj.username;
+            if (effectiveProxyObj.password) launchConfig.proxy.password = effectiveProxyObj.password;
         }
 
         console.log(`[Manager] 🚀 Đang mở profile [${profileData.name}]...`);
