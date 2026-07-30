@@ -862,7 +862,7 @@ class ProfileManager {
         }
 
         let proxyStr = profileData.proxy;
-        if (options.proxyMode !== 'individual' && !isMultiProxyEnabled) {
+        if (!isMultiProxyEnabled) {
             proxyStr = 'http://127.0.0.1:8888';
         }
         
@@ -931,10 +931,10 @@ class ProfileManager {
             return { server, username, password };
         };
 
-        // Determine effective proxy (global mode = gateway, individual or multi-proxy = profile's own)
-        const effectiveProxyRaw = (options.proxyMode !== 'individual' && !isMultiProxyEnabled)
-            ? 'http://127.0.0.1:8888'
-            : profileData.proxy;
+        // Determine effective proxy (gateway mode when multi-proxy disabled, profile proxy when multi-proxy enabled)
+        const effectiveProxyRaw = isMultiProxyEnabled
+            ? profileData.proxy
+            : 'http://127.0.0.1:8888';
         const effectiveProxyObj = parseProxy(effectiveProxyRaw);
 
         // Resolve proxy OUTGOING IP for WebRTC spoofing
