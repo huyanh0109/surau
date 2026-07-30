@@ -862,7 +862,7 @@ class ProfileManager {
         }
 
         let proxyStr = profileData.proxy;
-        if (options.proxyMode === 'global' && !isMultiProxyEnabled) {
+        if (options.proxyMode !== 'individual' && !isMultiProxyEnabled) {
             proxyStr = 'http://127.0.0.1:8888';
         }
         
@@ -932,7 +932,7 @@ class ProfileManager {
         };
 
         // Determine effective proxy (global mode = gateway, individual or multi-proxy = profile's own)
-        const effectiveProxyRaw = (options.proxyMode === 'global' && !isMultiProxyEnabled)
+        const effectiveProxyRaw = (options.proxyMode !== 'individual' && !isMultiProxyEnabled)
             ? 'http://127.0.0.1:8888'
             : profileData.proxy;
         const effectiveProxyObj = parseProxy(effectiveProxyRaw);

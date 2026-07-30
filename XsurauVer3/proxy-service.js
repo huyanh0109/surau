@@ -52,19 +52,16 @@ class ProxyService {
 
     async switchProxy(upstream, manager) {
         this.activeUpstream = upstream;
-        console.log(`[ProxyService] Switched upstream to ${upstream}`);
+        console.log(`[ProxyService] Switched upstream dynamically to: ${upstream || 'DIRECT (NO PROXY)'}`);
         
-        // Restart proxy chain to cut existing connections
-        if (this.server) {
-            await this.server.close(true);
-            this.server = null;
+        // Đảm bảo Proxy Gateway đang chạy trên port 8888
+        if (!this.server) {
+            await this.startServer();
         }
-        await new Promise(r => setTimeout(r, 200));
-        await this.startServer();
 
-        // Drop CDP connections to force chromium to reload proxy
+        // Drop CDP connection & reload all browser profiles
         if (manager) {
-            console.log(`[ProxyService] Manager found, triggering reload for ${manager.runningProfiles.size} profiles`);
+            console.log(`[ProxyService] Manager found, triggering reload for ${manager.runningProfiles?.size || 0} profiles`);
             await this.forceDropChromeConnections(manager);
         } else {
             console.warn(`[ProxyService] No manager provided to switchProxy, cannot reload browsers.`);
