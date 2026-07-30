@@ -70,7 +70,10 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'ui')));
 
-// Khởi động proxy gateway global
+// Khởi động proxy gateway global với mặc định P1
+if (!proxyService.activeUpstream) {
+    proxyService.activeUpstream = '160.250.166.17:10873';
+}
 proxyService.startServer().catch(console.error);
 
 // SSE clients cho log streaming real-time

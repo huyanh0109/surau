@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { stopGestureWatcher } = require('./gesture-watcher');
+const proxyService = require('./proxy-service');
 
 // ============================================================================
 // CƠ SỞ DỮ LIỆU GPU ĐỂ RANDOMIZE WEBGL CHO MỖI PROFILE
@@ -864,6 +865,11 @@ class ProfileManager {
         let proxyStr = profileData.proxy;
         if (!isMultiProxyEnabled) {
             proxyStr = 'http://127.0.0.1:8888';
+            if (!proxyService.activeUpstream) {
+                const initialProxy = profileData.proxy || '160.250.166.17:10873';
+                proxyService.activeUpstream = initialProxy;
+                console.log(`[Manager] Auto-initialized gateway activeUpstream to P1 default: ${initialProxy}`);
+            }
         }
         
         const profileDir = path.join(this.profilesDataPath, profileId);
