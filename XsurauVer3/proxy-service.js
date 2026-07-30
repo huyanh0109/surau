@@ -57,6 +57,11 @@ class ProxyService {
         // Đảm bảo Proxy Gateway đang chạy trên port 8888
         if (!this.server) {
             await this.startServer();
+        } else if (typeof this.server.closeConnections === 'function') {
+            try {
+                this.server.closeConnections();
+                console.log(`[ProxyService] Closed all active ProxyChain gateway connections.`);
+            } catch (e) { }
         }
 
         // Drop CDP connection & reload all browser profiles
@@ -89,24 +94,20 @@ class ProxyService {
 
                 for (const [pageIndex, page] of pages.entries()) {
                     try {
-                        // "Bóp" kết nối cũ bằng CDP flicker (chỉ cần làm trên 1 page đại diện của context là đủ, nhưng làm hết cũng được)
                         const cdp = await page.context().newCDPSession(page);
                         await cdp.send('Network.enable');
+                        await cdp.send('Network.clearBrowserCache').catch(() => {});
                         await cdp.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
-                        await new Promise(r => setTimeout(r, 100));
+                        await new Promise(r => setTimeout(r, 250));
                         await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
                         await cdp.detach();
 
-                        // Force reload tab
                         console.log(`[ProxyService] Profile #${profileIndex + 1} - Tab #${pageIndex + 1}: Reloading...`);
                         
-                        // Sử dụng cả page.reload và evaluate để đảm bảo trình duyệt thực hiện
-                        await Promise.race([
-                            page.reload({ waitUntil: 'domcontentloaded', timeout: 5000 }),
-                            page.evaluate(() => window.location.reload())
-                        ]).catch(err => {
-                            console.warn(`[ProxyService] Tab reload warning: ${err.message}`);
-                        });
+                        await page.evaluate(() => {
+                            window.location.reload(true);
+                        }).catch(() => {});
+                        await page.reload({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
                     } catch (err) {
                         console.warn(`[ProxyService] Error on Tab #${pageIndex + 1}: ${err.message}`);
                     }

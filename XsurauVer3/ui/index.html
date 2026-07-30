@@ -2566,9 +2566,10 @@
 
         function loadFastSettingsUI() {
             const s = getFastSettings();
-            if (document.getElementById('fdProxyMode')) document.getElementById('fdProxyMode').value = s.proxyMode || 'individual';
+            if (document.getElementById('fdProxyMode')) document.getElementById('fdProxyMode').value = s.proxyMode || 'global';
 
-            document.getElementById('fdDefProxy').value = s.defProxy || '';
+            const p1Val = s.proxy1 || (document.getElementById('fdProxy1') ? document.getElementById('fdProxy1').value : '');
+            document.getElementById('fdDefProxy').value = s.defProxy || p1Val || '';
             document.getElementById('fdGridCols').value = s.gridCols || '5';
             document.getElementById('fdGridRows').value = s.gridRows || '3';
             document.getElementById('fdGridScale').value = s.gridScale || '80';
@@ -2898,10 +2899,12 @@
         // =======================
         async function fdBulkCreate() {
             const count = parseInt(document.getElementById('fdBulkCount').value) || 5;
+            const p1Value = document.getElementById('fdProxy1') ? document.getElementById('fdProxy1').value.trim() : '';
             const settings = getFastSettings();
-            const proxies = settings.defProxy ? Array(count).fill(settings.defProxy) : [];
+            const defaultProxy = p1Value || settings.defProxy || settings.proxy1 || '';
+            const proxies = defaultProxy ? Array(count).fill(defaultProxy) : [];
 
-            fdLogMsg(`BULK CREATE: ${count} profiles (Default Proxy: ${settings.defProxy || 'None'})`, 'info');
+            fdLogMsg(`BULK CREATE: ${count} profiles (Default Proxy P1: ${defaultProxy || 'None'})`, 'info');
             await fetch(`${API}/profiles/bulk`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
