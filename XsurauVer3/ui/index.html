@@ -2326,7 +2326,7 @@
                     fdStatus.style.borderColor = isRunning ? 'var(--green)' : 'var(--border)';
                 }
 
-                const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
+                const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'global';
                 const currentCacheKey = profiles.map(p => `${p.id}:${p.status}:${p.name}:${p.proxy}`).join('|') + `|pm:${proxyMode}`;
 
                 if (_lastProfilesRenderCache === currentCacheKey) {
@@ -2411,7 +2411,7 @@
 
         async function launchProfile(id) {
             showToast('LAUNCHING...');
-            const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
+            const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'global';
             const res = await fetch(`${API}/profiles/${id}/launch`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2493,7 +2493,7 @@
             const winW = Math.floor(screenW / cols);
             const winH = Math.floor(screenH / rows);
 
-            const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual';
+            const proxyMode = document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'global';
 
             const promises = toLaunch.map((p, i) => {
                 const col = i % cols;
@@ -2544,7 +2544,7 @@
         // =======================
         function saveFastSettings() {
             const settings = {
-                proxyMode: document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'individual',
+                proxyMode: document.getElementById('fdProxyMode') ? document.getElementById('fdProxyMode').value : 'global',
                 defProxy: document.getElementById('fdDefProxy').value,
                 gridCols: document.getElementById('fdGridCols').value,
                 gridRows: document.getElementById('fdGridRows').value,
@@ -2561,7 +2561,7 @@
         function getFastSettings() {
             const saved = localStorage.getItem('xsurau_fast_settings');
             if (saved) return JSON.parse(saved);
-            return { proxyMode: 'individual', defProxy: '', gridCols: '5', gridRows: '3', gridScale: '80', targetMonitor: 'primary', proxy1: '', proxy2: '', xoayApi: '', fdBulkCount: '5' };
+            return { proxyMode: 'global', defProxy: '', gridCols: '5', gridRows: '3', gridScale: '80', targetMonitor: 'primary', proxy1: '', proxy2: '', xoayApi: '', fdBulkCount: '5' };
         }
 
         function loadFastSettingsUI() {
