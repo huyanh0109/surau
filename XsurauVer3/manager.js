@@ -226,6 +226,15 @@ class ProfileManager {
 
         // Migrate automation sources if needed
         if (settings.automations) {
+            if (!settings.automations["check-double"]) {
+                settings.automations["check-double"] = {
+                    tab: "RentPhone",
+                    matchKey: "PhoneNumber",
+                    mapping: { PhoneNumber: "PhoneNumber", Api: "Api", DateTime: "DateTime", LastUse: "LastUse", Owner: "Owner" }
+                };
+                changed = true;
+            }
+
             const defaultSheetId = settings.sheets[0].id;
             for (const [autoName, autoConfig] of Object.entries(settings.automations)) {
                 if (!autoConfig.sources || !Array.isArray(autoConfig.sources) || autoConfig.sources.length === 0) {
@@ -242,6 +251,9 @@ class ProfileManager {
 
         if (!settings.dashboardAutomations || !Array.isArray(settings.dashboardAutomations)) {
             settings.dashboardAutomations = Object.keys(settings.automations || {});
+            changed = true;
+        } else if (!settings.dashboardAutomations.includes("check-double")) {
+            settings.dashboardAutomations.push("check-double");
             changed = true;
         }
 

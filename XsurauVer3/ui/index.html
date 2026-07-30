@@ -4996,7 +4996,10 @@
             const container = document.getElementById('fastDashboardAutomationButtonsList');
             if (!container) return;
 
-            const enabled = globalSettings.dashboardAutomations || Object.keys(globalSettings.automations || {});
+            let enabled = globalSettings.dashboardAutomations ? [...globalSettings.dashboardAutomations] : Object.keys(globalSettings.automations || {});
+            if (Array.isArray(enabled) && !enabled.includes('check-double')) {
+                enabled.push('check-double');
+            }
 
             if (enabled.length === 0) {
                 container.innerHTML = '<div style="color:var(--text-muted); font-size:11px; text-align:center; padding:10px 0; width:100%;">NO AUTOMATIONS PINNED TO DASHBOARD (Configure in Settings)</div>';
