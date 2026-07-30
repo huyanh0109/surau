@@ -2963,8 +2963,8 @@
         async function runAutomationFast(name) {
             fdLogMsg(`AUTO START: [${name}]`, 'warning');
             try {
-                // Nếu là kịch bản check-phone-verify: Tự nạp 500 SĐT đầu tiên từ Tab quy định vào Queue & Cập nhật thẻ PHONES
-                if (name === 'check-phone-verify') {
+                // Nếu là kịch bản check-phone-verify / check-double: Tự nạp 500 SĐT đầu tiên từ Tab quy định vào Queue & Cập nhật thẻ PHONES
+                if (name === 'check-phone-verify' || name === 'check-double') {
                     try {
                         showToast('🔄 LOADING PHONE QUEUE...');
                         fdLogMsg('Loading Phone Queue (300 rows max)...', 'info');
@@ -4642,6 +4642,9 @@
             'check-phone-verify': [
                 { key: 'Phone', label: 'Cột Ghi Số Điện Thoại (Phone)', defaultVal: '', hasCustomText: false, info: 'Tự động điền SĐT sau khi check thành công' }
             ],
+            'check-double': [
+                { key: 'Phone', label: 'Cột Ghi Số Điện Thoại (Phone)', defaultVal: '', hasCustomText: false, info: 'Tự động điền SĐT sau khi check thành công' }
+            ],
             'setup-2fa': [
                 { key: 'Recover', label: 'Cột Ghi Mã 2FA Secret Key (Recover)', defaultVal: '', hasCustomText: false, info: 'Tự động điền chuỗi Secret Key 2FA vừa tạo' }
             ],
@@ -4985,6 +4988,7 @@
             'solve-gesture-captcha': { class: 'btn', style: 'border-color: #ff9900; color: #ff9900;', label: 'SOLVE GESTURE' },
             'logout-google': { class: 'btn btn-danger', label: 'LOGOUT GOOGLE' },
             'check-phone-verify': { class: 'btn btn-run', label: 'CHECK PHONE VERIFY' },
+            'check-double': { class: 'btn btn-run', label: 'CHECK DOUBLE' },
             'register-google-one': { class: 'btn btn-yellow', label: 'REGISTER GOOGLE ONE' }
         };
 
@@ -5104,8 +5108,8 @@
             const sheets = globalSettings.sheets || [];
 
             for (const [autoName, autoConfig] of Object.entries(automations)) {
-                // Bỏ qua hoàn toàn kịch bản check-phone-verify khỏi Sync Sheet tài khoản
-                if (autoName === 'check-phone-verify') continue;
+                // Bỏ qua hoàn toàn kịch bản check-phone-verify / check-double khỏi Sync Sheet tài khoản
+                if (autoName === 'check-phone-verify' || autoName === 'check-double') continue;
 
                 const autoSources = autoConfig?.sources || [];
                 for (const src of autoSources) {

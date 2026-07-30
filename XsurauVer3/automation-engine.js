@@ -20,6 +20,7 @@ const automationRegistry = {
     'solve-captcha-continuous':    require('./automations/solve-captcha-continuous'),
     'setup-2fa':                   require('./automations/setup-2fa'),
     'check-phone-verify':          require('./automations/check-phone-verify'),
+    'check-double':                require('./automations/check-double'),
     'verify-phone-sheet':          require('./automations/verify-phone-sheet'),
     'verify-phone-sheet-check':    require('./automations/verify-phone-sheet-check'),
     'solve-2fa':                   require('./automations/solve-2fa'),

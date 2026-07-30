@@ -195,6 +195,11 @@ class ProfileManager {
                     matchKey: "PhoneNumber",
                     mapping: { PhoneNumber: "PhoneNumber", Api: "Api", DateTime: "DateTime", LastUse: "LastUse", Owner: "Owner" }
                 },
+                "check-double": {
+                    tab: "RentPhone",
+                    matchKey: "PhoneNumber",
+                    mapping: { PhoneNumber: "PhoneNumber", Api: "Api", DateTime: "DateTime", LastUse: "LastUse", Owner: "Owner" }
+                },
                 "register-google-one": {
                     tab: "FactoryAccount",
                     matchKey: "Gmail",

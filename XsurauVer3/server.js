@@ -472,7 +472,8 @@ app.get('/api/automation/:name/parameters', (req, res) => {
         const content = fs.readFileSync(filePath, 'utf8');
         const params = new Set();
         const customParamsMap = {
-            'check-phone-verify': ['PhoneNumber', 'Api', 'LastUse']
+            'check-phone-verify': ['PhoneNumber', 'Api', 'LastUse'],
+            'check-double': ['PhoneNumber', 'Api', 'LastUse']
         };
         if (customParamsMap[name]) {
             return res.json({ parameters: customParamsMap[name] });
@@ -483,6 +484,7 @@ app.get('/api/automation/:name/parameters', (req, res) => {
             'verify-phone-sheet': ['Note', 'DateRestore'],
             'appeal-google': ['Note', 'DateAppeal'],
             'check-phone-verify': ['Phone'],
+            'check-double': ['Phone'],
             'register-google-one': ['Note']
         };
         const outputParams = new Set(outputParamsMap[name] || []);
@@ -562,11 +564,11 @@ app.post('/api/automation/run', async (req, res) => {
     if (!automation) return res.status(400).json({ error: 'Thiếu tên automation' });
     if (!profileIds?.length) return res.status(400).json({ error: 'Thiếu profileIds' });
 
-    // Reset phone queue BEFORE running check-phone-verify so that it starts fresh
-    if (automation === 'check-phone-verify') {
+    // Reset phone queue BEFORE running check-phone-verify / check-double so that it starts fresh
+    if (automation === 'check-phone-verify' || automation === 'check-double') {
         try {
             phoneQueue.reset();
-            console.log('[Queue] Reset phone queue before check-phone-verify run');
+            console.log(`[Queue] Reset phone queue before ${automation} run`);
         } catch (e) {
             console.error('[Queue] Failed to reset queue:', e.message);
         }
