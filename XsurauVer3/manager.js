@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { stopGestureWatcher } = require('./gesture-watcher');
 const proxyService = require('./proxy-service');
+const geoService = require('./geo-service');
 
 // ============================================================================
 // CƠ SỞ DỮ LIỆU GPU ĐỂ RANDOMIZE WEBGL CHO MỖI PROFILE
@@ -36,7 +37,7 @@ const SCREEN_DATABASE = [
     { width: 1680, height: 1050 }, { width: 1600, height: 900 },
 ];
 const HARDWARE_CONCURRENCY = [2, 4, 6, 8, 12, 16];
-const DEVICE_MEMORY = [2, 4, 8];
+const DEVICE_MEMORY = [4, 8];
 const TIMEZONES = [
     'Asia/Ho_Chi_Minh', 'America/New_York', 'America/Chicago',
     'America/Los_Angeles', 'Europe/London', 'Europe/Berlin',
@@ -306,6 +307,17 @@ class ProfileManager {
             changed = true;
         }
         
+        if (!settings.autoGeoProxy) {
+            settings.autoGeoProxy = {
+                enabled: true,            // Master switch: Tự động đổi theo IP Proxy
+                autoTimezone: true,       // Tự động đổi Múi giờ
+                autoGeolocation: true,    // Tự động đổi Tọa độ GPS
+                autoLocale: true,         // Tự động đổi Ngôn ngữ / Locale
+                realisticJitter: true     // Tạo độ lệch ngẫu nhiên 500m-1.5km
+            };
+            changed = true;
+        }
+
         if (changed || !fs.existsSync(this.settingsFile)) {
             fs.writeFileSync(this.settingsFile, JSON.stringify(settings, null, 2));
         }
@@ -332,6 +344,7 @@ class ProfileManager {
         if (config.multiProxy !== undefined) settings.multiProxy = config.multiProxy;
         if (config.smartBandwidthSaver !== undefined) settings.smartBandwidthSaver = config.smartBandwidthSaver;
         if (config.profileCreationDefaults !== undefined) settings.profileCreationDefaults = config.profileCreationDefaults;
+        if (config.autoGeoProxy !== undefined) settings.autoGeoProxy = config.autoGeoProxy;
         
         fs.writeFileSync(this.settingsFile, JSON.stringify(settings, null, 2));
         return settings;
@@ -530,7 +543,7 @@ class ProfileManager {
         } else if (mode === 'custom' && globalDefaults.timezone && globalDefaults.timezone !== 'random') {
             timezone = globalDefaults.timezone;
         } else {
-            timezone = pick(TIMEZONES);
+            timezone = 'auto';
         }
 
         let locale;
@@ -614,6 +627,11 @@ class ProfileManager {
         if (updates.proxy !== undefined) data.proxy = updates.proxy;
         if (updates.extensions !== undefined) data.extensions = updates.extensions;
         if (updates.notes !== undefined) data.notes = updates.notes;
+        if (updates.deviceMemory !== undefined) data.deviceMemory = updates.deviceMemory;
+        if (updates.hardwareConcurrency !== undefined) data.hardwareConcurrency = updates.hardwareConcurrency;
+        if (updates.screen !== undefined) data.screen = updates.screen;
+        if (updates.timezone !== undefined) data.timezone = updates.timezone;
+        if (updates.locale !== undefined) data.locale = updates.locale;
 
         fs.writeFileSync(metaFile, JSON.stringify(data, null, 2));
         this.profilesCache.set(profileId, data);
@@ -881,8 +899,8 @@ class ProfileManager {
         const screen = profileData.screen || { width: 1920, height: 1080 };
         const hwConcurrency = profileData.hardwareConcurrency || 8;
         const devMemory = profileData.deviceMemory || 8;
-        const timezone = profileData.timezone || 'Asia/Ho_Chi_Minh';
-        const locale = profileData.locale || 'vi-VN';
+        let timezone = profileData.timezone || 'Asia/Ho_Chi_Minh';
+        let locale = profileData.locale || 'vi-VN';
 
         // Generate a fake local IP from noiseSeed for WebRTC spoofing
         const rawSeed = profileData.noiseSeed || '12345';
@@ -943,49 +961,70 @@ class ProfileManager {
             : 'http://127.0.0.1:8888';
         const effectiveProxyObj = parseProxy(effectiveProxyRaw);
 
-        // Resolve proxy OUTGOING IP for WebRTC spoofing
-        let webrtcIp = fakeLocalIp; // fallback when no proxy
-        const parsedIpCheckProxy = parseProxy(profileData.proxy); // always use real proxy for IP check
-        if (parsedIpCheckProxy && parsedIpCheckProxy.server && (options.proxyMode !== 'global' || isMultiProxyEnabled)) {
-            try {
-                const http = require('http');
-                const { URL } = require('url');
-                const proxyUrl = new URL(parsedIpCheckProxy.server);
+        // Auto Geo & Proxy Spoofing: Tự động đổi Múi giờ, Vị trí GPS, Locale & WebRTC IP theo Proxy
+        const autoGeoSettings = settings.autoGeoProxy || {
+            enabled: true,
+            autoTimezone: true,
+            autoGeolocation: true,
+            autoLocale: true,
+            realisticJitter: true
+        };
 
-                // Dùng fetch qua proxy để lấy IP outgoing thực tế
-                const outgoingIp = await new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
-                    const reqOptions = {
-                        hostname: proxyUrl.hostname,
-                        port: proxyUrl.port,
-                        path: 'http://api.ipify.org',
-                        method: 'GET',
-                        headers: { 'Host': 'api.ipify.org' },
-                    };
-                    if (parsedIpCheckProxy.username) {
-                        reqOptions.headers['Proxy-Authorization'] = 'Basic ' + Buffer.from(`${parsedIpCheckProxy.username}:${parsedIpCheckProxy.password || ''}`).toString('base64');
-                    }
-                    const req = http.request(reqOptions, (res) => {
-                        let data = '';
-                        res.on('data', chunk => data += chunk);
-                        res.on('end', () => {
-                            clearTimeout(timeout);
-                            const ip = data.trim();
-                            if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
-                                resolve(ip);
-                            } else {
-                                reject(new Error(`Invalid IP: ${ip}`));
-                            }
-                        });
-                    });
-                    req.on('error', (e) => { clearTimeout(timeout); reject(e); });
-                    req.end();
+        let webrtcIp = fakeLocalIp;
+        let geolocationConfig = null;
+
+        // Proxy dùng để tra cứu GeoIP:
+        // Nếu multi-proxy bật: dùng profileData.proxy
+        // Nếu gateway mode: dùng upstream proxy của gateway (proxyService.activeUpstream)
+        const proxyForGeo = isMultiProxyEnabled
+            ? profileData.proxy
+            : (options.proxyMode === 'individual' ? profileData.proxy : (proxyService.activeUpstream || null));
+
+        if (autoGeoSettings.enabled !== false) {
+            try {
+                const geoInfo = await geoService.resolveProxyGeo(proxyForGeo, profileData.noiseSeed, {
+                    applyJitter: autoGeoSettings.realisticJitter !== false
                 });
 
-                webrtcIp = outgoingIp;
-                console.log(`[Manager] 🌐 WebRTC IP = ${webrtcIp} (detected via proxy)`);
-            } catch (e) {
-                console.log(`[Manager] ⚠️ Không detect được proxy outgoing IP: ${e.message}, dùng fake: ${fakeLocalIp}`);
+                if (geoInfo && geoInfo.ip && geoInfo.ip !== '127.0.0.1') {
+                    webrtcIp = geoInfo.ip;
+                }
+
+                // 1. Đồng bộ Múi giờ (Timezone)
+                if (autoGeoSettings.autoTimezone !== false) {
+                    if (geoInfo.timezone && (profileData.timezone === 'auto' || !profileData.timezone || autoGeoSettings.autoTimezone)) {
+                        timezone = geoInfo.timezone;
+                    }
+                }
+
+                // 2. Đồng bộ Ngôn ngữ (Locale)
+                if (autoGeoSettings.autoLocale !== false && geoInfo.locale) {
+                    locale = geoInfo.locale;
+                }
+
+                // 3. Đồng bộ Vị trí GPS (Geolocation)
+                if (autoGeoSettings.autoGeolocation !== false && geoInfo.lat && geoInfo.lon) {
+                    geolocationConfig = {
+                        latitude: geoInfo.lat,
+                        longitude: geoInfo.lon,
+                        accuracy: 50
+                    };
+                }
+
+                console.log(`[Manager] 🌐 Auto Geo [${geoInfo.source}${geoInfo.cached ? ' (cached)' : ''}]: IP=${geoInfo.ip} | City=${geoInfo.city}, ${geoInfo.countryCode} | TZ=${timezone} | GPS=(${geoInfo.lat}, ${geoInfo.lon}) | Locale=${locale}`);
+            } catch (geoErr) {
+                console.warn(`[Manager] ⚠️ Auto Geo resolve error: ${geoErr.message}, fallback defaults.`);
+            }
+        } else {
+            // Khi tắt Auto Geo: giữ nguyên logic WebRTC cũ
+            const parsedIpCheckProxy = parseProxy(profileData.proxy);
+            if (parsedIpCheckProxy && parsedIpCheckProxy.server && (options.proxyMode !== 'global' || isMultiProxyEnabled)) {
+                try {
+                    const fallbackGeo = await geoService.resolveProxyGeo(profileData.proxy, profileData.noiseSeed);
+                    if (fallbackGeo && fallbackGeo.ip && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(fallbackGeo.ip)) {
+                        webrtcIp = fallbackGeo.ip;
+                    }
+                } catch (e) {}
             }
         }
 
@@ -1117,6 +1156,11 @@ class ProfileManager {
             // timezoneId/locale gây fail Turnstile (Cloudflare detect CDP override)
         };
 
+        if (geolocationConfig) {
+            launchConfig.geolocation = geolocationConfig;
+            launchConfig.permissions = ['geolocation'];
+        }
+
         if (effectiveProxyObj && effectiveProxyObj.server) {
             launchConfig.proxy = { server: effectiveProxyObj.server };
             if (effectiveProxyObj.username) launchConfig.proxy.username = effectiveProxyObj.username;
@@ -1169,12 +1213,20 @@ class ProfileManager {
             }
         }
 
+        // Tự động gán tọa độ Geolocation & quyền định vị cho context nếu có
+        if (geolocationConfig) {
+            try {
+                await context.setGeolocation(geolocationConfig).catch(() => {});
+                await context.grantPermissions(['geolocation']).catch(() => {});
+            } catch (e) {}
+        }
+
         // ❌ KHÔNG dùng addInitScript — Cloudflare detect MỌI Object.defineProperty
         // Screen/Timezone/Locale đã được xử lý native bởi patchright
         // hardwareConcurrency/deviceMemory cần C++ patch trong tương lai
         console.log(`[Manager] 🎭 GPU: ${profileData.gpu.renderer.substring(0, 50)}`);
         console.log(`[Manager] 🖥️  Screen: ${screen.width}x${screen.height}`);
-        console.log(`[Manager] 🌍 TZ: ${timezone} | Locale: ${locale}`);
+        console.log(`[Manager] 🌍 TZ: ${timezone} | Locale: ${locale}${geolocationConfig ? ` | GPS: (${geolocationConfig.latitude}, ${geolocationConfig.longitude})` : ''}`);
         console.log(`[Manager] 🔒 WebRTC: disabled non-proxied UDP`);
 
         // Chặn tài nguyên nặng nếu bật blockImages hoặc settings.smartBandwidthSaver

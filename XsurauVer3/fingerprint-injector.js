@@ -60,7 +60,7 @@ const SCREEN_RESOLUTIONS = [
 ];
 
 const HARDWARE_CONCURRENCY = [2, 4, 6, 8, 12, 16];
-const DEVICE_MEMORY        = [2, 4, 8];
+const DEVICE_MEMORY        = [4, 8];
 const LANGUAGES            = [['en-US', 'en'], ['en-GB', 'en'], ['vi-VN', 'vi'], ['en-US', 'en-GB', 'en']];
 
 // ============================================================

@@ -8,6 +8,7 @@ const fs = require('fs');
 const ProfileManager = require('./manager');
 const AutomationEngine = require('./automation-engine');
 const proxyService = require('./proxy-service');
+const geoService = require('./geo-service');
 const { registerSheetRoutes } = require('./google-sheet');
 const { registerPhoneRoutes, phoneQueue } = require('./phone');
 const { attachGestureWatcher, stopGestureWatcher, getActiveWatchers } = require('./gesture-watcher');
@@ -378,6 +379,16 @@ app.post('/api/proxy/switch', async (req, res) => {
     try {
         await proxyService.switchProxy(proxyUrl, manager);
         res.json({ success: true, message: `Switched upstream to ${proxyUrl}` });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/geo/check', async (req, res) => {
+    try {
+        const { proxy } = req.body || {};
+        const geo = await geoService.resolveProxyGeo(proxy, 'test_preview');
+        res.json({ success: true, geo });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
