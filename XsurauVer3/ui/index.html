@@ -2295,50 +2295,71 @@
             </div>
         </div>
 
-        <div class="modal-overlay" id="feedLayoutModalOverlay">
-            <div class="modal" style="max-width: 500px; width: 90%;">
-                <h2>FEED GRID SETTINGS</h2>
-                <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 15px;">
-                    Cấu hình tự động sắp xếp các cửa sổ trình duyệt trên màn hình khi chạy nhiều profile cùng lúc.
+        <div class="modal-overlay" id="feedLayoutModalOverlay" style="z-index: 1050 !important;">
+            <div class="modal" style="max-width: 600px; width: 92%; box-shadow: 0 20px 60px rgba(0,0,0,0.95), 0 0 30px rgba(0, 170, 170, 0.25); border: 1px solid rgba(0, 170, 170, 0.4);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="background: rgba(0, 170, 170, 0.2); border: 1px solid var(--cyan); color: var(--cyan); font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.5px;">GRID</span>
+                        <h2 style="margin: 0; font-size: 15px; color: var(--cyan); letter-spacing: 1.5px; font-weight: 800; text-transform: uppercase;">GRID & DISPLAY LAYOUT</h2>
+                    </div>
+                    <button class="modal-close" style="position: static; font-size: 18px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;" onclick="closeModal('feedLayoutModalOverlay')">&times;</button>
                 </div>
-                <div class="form-group">
-                    <label>CHẾ ĐỘ SẮP XẾP (MODE)</label>
-                    <select id="feedLayoutMode" class="settings-input" style="width: 100%;" onchange="toggleFeedLayoutMode()">
-                        <option value="auto">AUTO - Tự động chia đều tối ưu theo số lượng profile chạy</option>
-                        <option value="custom">CUSTOM - Tự nhập số Cột (Cols) và Hàng (Rows)</option>
-                    </select>
-                </div>
-                <div id="feedCustomLayoutOptions" style="display:none; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); padding: 14px; margin-bottom: 14px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>SỐ CỘT (COLS)</label>
-                            <input type="number" id="feedLayoutCols" min="1" max="20" value="3">
-                            <span style="font-size: 10px; color: var(--text-muted);">Số cửa sổ ngang (VD: 3)</span>
+
+                <div style="background: rgba(0,0,0,0.5); border: 1px solid rgba(0, 170, 170, 0.3); border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px;">
+                    <!-- Row 1: Columns, Rows, Scale -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                        <div style="font-size: 11px; font-weight: 800; font-family: monospace; color: #fff; letter-spacing: 1px;">
+                            GRID LAYOUT
                         </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>SỐ HÀNG (ROWS)</label>
-                            <input type="number" id="feedLayoutRows" min="1" max="20" value="1">
-                            <span style="font-size: 10px; color: var(--text-muted);">Số cửa sổ dọc (VD: 1)</span>
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 11px; font-family: monospace; color: var(--text-muted); font-weight: 700;">COLUMNS</span>
+                                <input type="number" id="feedLayoutCols" class="settings-input" value="5" min="1" max="20"
+                                    style="text-align: center; width: 70px; font-weight: bold; color: var(--cyan); font-family: monospace;" oninput="updateFeedGridPreview()">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 11px; font-family: monospace; color: var(--text-muted); font-weight: 700;">ROWS</span>
+                                <input type="number" id="feedLayoutRows" class="settings-input" value="3" min="1" max="20"
+                                    style="text-align: center; width: 70px; font-weight: bold; color: var(--cyan); font-family: monospace;" oninput="updateFeedGridPreview()">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 11px; font-family: monospace; color: var(--text-muted); font-weight: 700;">SCALE (%)</span>
+                                <input type="number" id="feedLayoutScale" class="settings-input" value="80" min="30" max="200"
+                                    style="text-align: center; width: 70px; font-weight: bold; color: var(--cyan); font-family: monospace;" oninput="updateFeedGridPreview()">
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Quick Presets -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.06);">
+                        <span style="font-size: 10px; color: var(--text-muted); font-family: monospace; text-transform: uppercase;">CHỌN NHANH:</span>
+                        <button type="button" class="btn btn-xs btn-ghost" onclick="setFeedGridPreset(3, 1, 100)" style="font-size: 10.5px; padding: 3px 8px;">3 CỘT (3x1)</button>
+                        <button type="button" class="btn btn-xs btn-ghost" onclick="setFeedGridPreset(2, 2, 80)" style="font-size: 10.5px; padding: 3px 8px;">4 Ô (2x2)</button>
+                        <button type="button" class="btn btn-xs btn-ghost" onclick="setFeedGridPreset(3, 2, 80)" style="font-size: 10.5px; padding: 3px 8px;">6 Ô (3x2)</button>
+                        <button type="button" class="btn btn-xs btn-ghost" onclick="setFeedGridPreset(5, 3, 67)" style="font-size: 10.5px; padding: 3px 8px;">15 Ô (5x3)</button>
+                        <button type="button" class="btn btn-xs btn-ghost" onclick="setFeedGridPreset('auto', 'auto', 80)" style="font-size: 10.5px; padding: 3px 8px; color: var(--yellow); border-color: rgba(245,176,0,0.3);">AUTO TỰ ĐỘNG</button>
+                    </div>
+
+                    <!-- Row 2: Target Monitor Dropdown -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 12px; gap: 15px; flex-wrap: wrap;">
+                        <div style="font-size: 11px; font-weight: 800; font-family: monospace; color: var(--cyan); letter-spacing: 1px; white-space: nowrap;">
+                            MÀN HÌNH MỞ BROWSER (TARGET MONITOR):
+                        </div>
+                        <select id="feedLayoutMonitor" class="settings-input" style="flex: 1; min-width: 220px; padding: 8px 12px; font-size: 12px; font-weight: bold; color: var(--cyan); background: #000; border: 1px solid rgba(0, 170, 170, 0.4); border-radius: 4px; font-family: 'JetBrains Mono', monospace;" onchange="updateFeedGridPreview()">
+                            <option value="primary">Màn hình 1 (Chính)</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>SCALE / THU PHÓNG NỘI DUNG (%)</label>
-                    <input type="number" id="feedLayoutScale" min="30" max="200" value="100">
-                    <span style="font-size: 10px; color: var(--text-muted);">Mặc định 100%. Đặt 80% nếu muốn website tự thu nhỏ để nhìn được nhiều nội dung hơn.</span>
+
+                <!-- Preview Hint Box -->
+                <div id="feedLayoutPreviewHint" style="padding: 10px 14px; background: rgba(0, 170, 170, 0.08); border: 1px solid rgba(0, 170, 170, 0.25); border-radius: 4px; font-size: 11.5px; color: var(--cyan); margin-bottom: 16px; line-height: 1.6;">
+                    💡 <span id="feedLayoutHintDetail">Bố cục: 5 Cột × 3 Hàng (Tối đa 15 cửa sổ cùng lúc). Thu phóng 80%.</span>
                 </div>
-                <div class="form-group">
-                    <label>MÀN HÌNH MỞ BROWSER (TARGET MONITOR)</label>
-                    <select id="feedLayoutMonitor" class="settings-input" style="width: 100%;">
-                        <option value="primary">Màn hình 1 (Chính)</option>
-                    </select>
-                </div>
-                <div id="feedLayoutPreviewHint" style="padding: 10px 14px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); font-size: 11.5px; color: #38bdf8; margin-bottom: 16px; line-height: 1.5;">
-                    💡 <strong>Ví dụ chạy 3 profile:</strong> Nếu chọn <strong>3 Cột x 1 Hàng</strong> (hoặc để AUTO), màn hình sẽ được chia thành 3 phần bằng nhau: mỗi profile chiếm 1/3 chiều rộng và toàn bộ chiều cao màn hình, xếp khít cạnh nhau từ trái qua phải.
-                </div>
+
+                <!-- Footer Actions -->
                 <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
-                    <button class="btn btn-ghost" onclick="closeModal('feedLayoutModalOverlay')">HỦY</button>
-                    <button class="btn btn-primary" onclick="saveFeedGridSettings()">LƯU CẤU HÌNH</button>
+                    <button class="btn btn-ghost" onclick="closeModal('feedLayoutModalOverlay')">HỦY BỎ</button>
+                    <button class="btn btn-run btn-sm" onclick="saveFeedGridSettings()" style="padding: 8px 20px;">LƯU CẤU HÌNH (SAVE GRID CONFIG)</button>
                 </div>
             </div>
         </div>
@@ -3657,6 +3678,18 @@
                 fdBulkCount: document.getElementById('fdBulkCount') ? document.getElementById('fdBulkCount').value : '5'
             };
             localStorage.setItem('xsurau_fast_settings', JSON.stringify(settings));
+
+            // Also keep feed_grid_settings in sync
+            try {
+                const fCfg = {
+                    mode: 'custom',
+                    cols: parseInt(settings.gridCols) || 5,
+                    rows: parseInt(settings.gridRows) || 3,
+                    scale: parseInt(settings.gridScale) || 80,
+                    monitor: settings.targetMonitor || 'primary'
+                };
+                localStorage.setItem('feed_grid_settings', JSON.stringify(fCfg));
+            } catch (_) {}
         }
 
         function getFastSettings() {
@@ -4125,7 +4158,7 @@
         }
 
         function openBulkProxyModal() { document.getElementById('bulkProxyModalOverlay').classList.add('active'); }
-        function openLayoutModal() { document.getElementById('layoutModalOverlay').classList.add('active'); }
+        function openLayoutModal() { openFeedLayoutModal(); }
 
         async function bulkCreate() {
             const count = parseInt(document.getElementById('bulkCount').value);
@@ -5451,29 +5484,85 @@
         function getFeedGridSettings() {
             const saved = localStorage.getItem('feed_grid_settings');
             if (saved) {
-                try { return JSON.parse(saved); } catch (_) {}
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && (parsed.cols || parsed.rows)) return parsed;
+                } catch (_) {}
             }
-            return { mode: 'auto', cols: 3, rows: 1, scale: 100, monitor: 'primary' };
+            const fast = getFastSettings();
+            return {
+                mode: 'custom',
+                cols: parseInt(fast.gridCols) || 5,
+                rows: parseInt(fast.gridRows) || 3,
+                scale: parseInt(fast.gridScale) || 80,
+                monitor: fast.targetMonitor || 'primary'
+            };
+        }
+
+        function setFeedGridPreset(cols, rows, scale) {
+            const colsInput = document.getElementById('feedLayoutCols');
+            const rowsInput = document.getElementById('feedLayoutRows');
+            const scaleInput = document.getElementById('feedLayoutScale');
+            if (colsInput) colsInput.value = cols;
+            if (rowsInput) rowsInput.value = rows;
+            if (scaleInput && scale) scaleInput.value = scale;
+            updateFeedGridPreview();
+        }
+
+        function updateFeedGridPreview() {
+            const colsInput = document.getElementById('feedLayoutCols');
+            const rowsInput = document.getElementById('feedLayoutRows');
+            const scaleInput = document.getElementById('feedLayoutScale');
+            const hintDetail = document.getElementById('feedLayoutHintDetail');
+            if (!hintDetail) return;
+
+            const colsVal = colsInput ? colsInput.value.trim().toLowerCase() : '5';
+            const rowsVal = rowsInput ? rowsInput.value.trim().toLowerCase() : '3';
+            const scaleVal = scaleInput ? scaleInput.value : '80';
+
+            if (colsVal === 'auto' || rowsVal === 'auto') {
+                hintDetail.innerHTML = `<strong>Tự động (AUTO):</strong> Hệ thống tự tính số cột x hàng tối ưu theo số profile bạn chọn khi chạy (VD: chạy 3 profile sẽ tự xếp 3 Cột x 1 Hàng). Thu phóng: <strong>${scaleVal}%</strong>.`;
+            } else {
+                const c = Math.max(1, parseInt(colsVal) || 5);
+                const r = Math.max(1, parseInt(rowsVal) || 3);
+                const total = c * r;
+                hintDetail.innerHTML = `<strong>Bố cục:</strong> <strong>${c} Cột × ${r} Hàng</strong> (Mở tối đa <strong>${total}</strong> cửa sổ xếp khít trên màn hình). Thu phóng nội dung: <strong>${scaleVal}%</strong>.`;
+            }
         }
 
         function saveFeedGridSettings() {
-            const mode = document.getElementById('feedLayoutMode').value;
-            const cols = parseInt(document.getElementById('feedLayoutCols').value) || 3;
-            const rows = parseInt(document.getElementById('feedLayoutRows').value) || 1;
-            const scale = parseInt(document.getElementById('feedLayoutScale').value) || 100;
+            const colsVal = document.getElementById('feedLayoutCols').value.trim().toLowerCase();
+            const rowsVal = document.getElementById('feedLayoutRows').value.trim().toLowerCase();
+            const isAuto = colsVal === 'auto' || rowsVal === 'auto';
+            const cols = isAuto ? 3 : Math.max(1, parseInt(colsVal) || 5);
+            const rows = isAuto ? 1 : Math.max(1, parseInt(rowsVal) || 3);
+            const scale = Math.max(30, Math.min(200, parseInt(document.getElementById('feedLayoutScale').value) || 80));
             const monitor = document.getElementById('feedLayoutMonitor') ? document.getElementById('feedLayoutMonitor').value : 'primary';
+            const mode = isAuto ? 'auto' : 'custom';
+
             const settings = { mode, cols, rows, scale, monitor };
             localStorage.setItem('feed_grid_settings', JSON.stringify(settings));
-            showToast('ĐÃ LƯU CẤU HÌNH FEED GRID!');
+
+            // Sync with Settings Tab (xsurau_fast_settings)
+            const fast = getFastSettings();
+            fast.gridCols = String(cols);
+            fast.gridRows = String(rows);
+            fast.gridScale = String(scale);
+            fast.targetMonitor = monitor;
+            localStorage.setItem('xsurau_fast_settings', JSON.stringify(fast));
+
+            if (document.getElementById('fdGridCols')) document.getElementById('fdGridCols').value = cols;
+            if (document.getElementById('fdGridRows')) document.getElementById('fdGridRows').value = rows;
+            if (document.getElementById('fdGridScale')) document.getElementById('fdGridScale').value = scale;
+            if (document.getElementById('fdTargetMonitor')) document.getElementById('fdTargetMonitor').value = monitor;
+
+            showToast('ĐÃ LƯU CẤU HÌNH GRID & DISPLAY LAYOUT!');
             closeModal('feedLayoutModalOverlay');
         }
 
         function calculateFeedGridLayout(count, cfg) {
             let cols, rows;
-            if (cfg.mode === 'custom') {
-                cols = Math.max(1, parseInt(cfg.cols) || 3);
-                rows = Math.max(1, parseInt(cfg.rows) || 1);
-            } else {
+            if (cfg.mode === 'auto') {
                 if (count <= 1) { cols = 1; rows = 1; }
                 else if (count === 2) { cols = 2; rows = 1; }
                 else if (count === 3) { cols = 3; rows = 1; }
@@ -5487,23 +5576,25 @@
                     cols = Math.ceil(Math.sqrt(count * (16 / 9)));
                     rows = Math.ceil(count / cols);
                 }
+            } else {
+                cols = Math.max(1, parseInt(cfg.cols) || 5);
+                rows = Math.max(1, parseInt(cfg.rows) || 3);
             }
             return { cols, rows };
         }
 
-        function toggleFeedLayoutMode() {
-            const mode = document.getElementById('feedLayoutMode').value;
-            const opts = document.getElementById('feedCustomLayoutOptions');
-            if (opts) opts.style.display = mode === 'custom' ? 'block' : 'none';
-            setTimeout(initAllFeedCyberDropdowns, 20);
-        }
-
         async function openFeedLayoutModal() {
             const cfg = getFeedGridSettings();
-            if (document.getElementById('feedLayoutMode')) document.getElementById('feedLayoutMode').value = cfg.mode || 'auto';
-            if (document.getElementById('feedLayoutCols')) document.getElementById('feedLayoutCols').value = cfg.cols || 3;
-            if (document.getElementById('feedLayoutRows')) document.getElementById('feedLayoutRows').value = cfg.rows || 1;
-            if (document.getElementById('feedLayoutScale')) document.getElementById('feedLayoutScale').value = cfg.scale || 100;
+            const s = getFastSettings();
+
+            const cols = (cfg.mode === 'auto') ? 'auto' : (cfg.cols || s.gridCols || 5);
+            const rows = (cfg.mode === 'auto') ? 'auto' : (cfg.rows || s.gridRows || 3);
+            const scale = cfg.scale || s.gridScale || 80;
+            const monitor = cfg.monitor || s.targetMonitor || 'primary';
+
+            if (document.getElementById('feedLayoutCols')) document.getElementById('feedLayoutCols').value = cols;
+            if (document.getElementById('feedLayoutRows')) document.getElementById('feedLayoutRows').value = rows;
+            if (document.getElementById('feedLayoutScale')) document.getElementById('feedLayoutScale').value = scale;
 
             const monSelect = document.getElementById('feedLayoutMonitor');
             if (monSelect) {
@@ -5511,18 +5602,20 @@
                     const screenRes = await fetch(`${API}/screens`);
                     const screenData = await screenRes.json();
                     if (screenData.screens && screenData.screens.length > 0) {
-                        monSelect.innerHTML = screenData.screens.map(s => `
-                            <option value="${s.id}" ${(cfg.monitor === s.id || (!cfg.monitor && s.primary)) ? 'selected' : ''}>
-                                ${escHtml(s.name)}${s.primary ? ' (Màn hình chính)' : ''}
+                        monSelect.innerHTML = screenData.screens.map(sc => `
+                            <option value="${sc.id}" ${(monitor === sc.id || (!monitor && sc.primary)) ? 'selected' : ''}>
+                                ${escHtml(sc.name)}${sc.primary ? ' (Màn hình chính)' : ''}
                             </option>
                         `).join('');
+                        if (monitor && screenData.screens.some(sc => sc.id === monitor)) {
+                            monSelect.value = monitor;
+                        }
                     }
                 } catch (_) {}
             }
 
-            toggleFeedLayoutMode();
+            updateFeedGridPreview();
             document.getElementById('feedLayoutModalOverlay').classList.add('active');
-            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         async function openFeedCreateModal() {
