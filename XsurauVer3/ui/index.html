@@ -2071,37 +2071,34 @@
         </div>
 
         <!-- UNIFIED FILTER PANEL: GROUPS & TAGS -->
-        <div style="margin: 0 32px 12px; background: rgba(18, 18, 22, 0.6); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px; padding: 10px 16px; display: flex; flex-direction: column; gap: 8px;">
-            <!-- Group Tabs Row -->
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="margin: 0 32px 12px; background: rgba(18, 18, 22, 0.6); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 0; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 14px; flex: 1;">
+                <!-- Nhóm section -->
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span style="font-size: 10.5px; font-weight: 800; color: var(--text-muted); font-family: monospace; letter-spacing: 0.5px; min-width: 50px;">
+                    <span style="font-size: 10.5px; font-weight: 800; color: #38bdf8; font-family: monospace; letter-spacing: 0.5px;">
                         NHÓM:
                     </span>
                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" id="feedGroupTabsContainer">
                         <!-- Populated dynamically -->
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <button class="btn btn-cyan-tint btn-xs" onclick="openFeedCreateGroupModal()">+ THÊM NHÓM</button>
-                    <button class="btn btn-ghost-clean btn-xs" onclick="openFeedManageGroupsModal()">QUẢN LÝ</button>
-                </div>
-            </div>
 
-            <!-- Tag Filter Row -->
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.04);">
+                <div style="width: 1px; height: 18px; background: rgba(255, 255, 255, 0.12); margin: 0 4px;"></div>
+
+                <!-- Nhãn section -->
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span style="font-size: 10.5px; font-weight: 800; color: var(--text-muted); font-family: monospace; letter-spacing: 0.5px; min-width: 50px;">
+                    <span style="font-size: 10.5px; font-weight: 800; color: #10b981; font-family: monospace; letter-spacing: 0.5px;">
                         NHÃN:
                     </span>
                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" id="feedTagChipsContainer">
                         <!-- Populated dynamically -->
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <button class="btn btn-green-tint btn-xs" onclick="openFeedCreateTagModal()">+ THÊM NHÃN</button>
-                    <button class="btn btn-ghost-clean btn-xs" onclick="openFeedManageTagsModal()">QUẢN LÝ</button>
-                </div>
+            </div>
+
+            <!-- Single Unified Manage Button -->
+            <div>
+                <button class="btn btn-ghost-clean btn-xs" onclick="openFeedManageUnifiedModal()" style="font-weight: 700; border-color: rgba(255,255,255,0.2); letter-spacing: 0.5px;">QUẢN LÝ</button>
             </div>
         </div>
 
@@ -2374,13 +2371,25 @@
         </div>
 
         <!-- MANAGE ALL GROUPS MODAL -->
-        <div class="modal-overlay" id="feedManageGroupsModalOverlay">
-            <div class="modal" style="max-width: 580px; max-height: 85vh; display: flex; flex-direction: column;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h2 style="margin: 0;">QUẢN LÝ CÁC NHÓM</h2>
-                    <button class="btn btn-primary btn-sm" onclick="openFeedCreateGroupModal()">TẠO NHÓM MỚI</button>
+        <!-- UNIFIED MANAGE GROUPS & TAGS MODAL -->
+        <div class="modal-overlay" id="feedManageUnifiedModalOverlay">
+            <div class="modal" style="max-width: 620px; width: 90%; max-height: 85vh; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <h2 style="margin: 0; font-size: 15px;">QUẢN LÝ</h2>
+                        <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.4); padding: 3px; border: 1px solid rgba(255,255,255,0.08);">
+                            <button id="feedManageTabBtnGroups" class="btn btn-xs btn-cyan-solid" onclick="switchFeedManageTab('groups')" style="border-radius: 0;">NHÓM (GROUPS)</button>
+                            <button id="feedManageTabBtnTags" class="btn btn-xs btn-ghost" onclick="switchFeedManageTab('tags')" style="border-radius: 0;">NHÃN (TAGS)</button>
+                        </div>
+                    </div>
+                    <div id="feedManageCreateBtnContainer">
+                        <button id="feedManageCreateGroupBtn" class="btn btn-cyan-solid btn-sm" onclick="openFeedCreateGroupModal()">+ TẠO NHÓM MỚI</button>
+                        <button id="feedManageCreateTagBtn" class="btn btn-green-solid btn-sm" style="display: none;" onclick="openFeedCreateTagModal()">+ TẠO NHÃN MỚI</button>
+                    </div>
                 </div>
-                <div style="overflow-y: auto; flex: 1; max-height: 400px;">
+
+                <!-- Groups Tab Content -->
+                <div id="feedManageTabContentGroups" style="overflow-y: auto; flex: 1; max-height: 420px;">
                     <table style="width: 100%;">
                         <thead>
                             <tr>
@@ -2392,8 +2401,23 @@
                         <tbody id="feedManageGroupsList"></tbody>
                     </table>
                 </div>
+
+                <!-- Tags Tab Content -->
+                <div id="feedManageTabContentTags" style="display: none; overflow-y: auto; flex: 1; max-height: 420px;">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>TÊN NHÃN</th>
+                                <th>SỐ PROFILE</th>
+                                <th style="text-align: right;">THAO TÁC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feedManageTagsList"></tbody>
+                    </table>
+                </div>
+
                 <div class="modal-actions" style="margin-top: 16px;">
-                    <button class="btn btn-ghost" onclick="closeModal('feedManageGroupsModalOverlay')">ĐÓNG</button>
+                    <button class="btn btn-ghost" onclick="closeModal('feedManageUnifiedModalOverlay')">ĐÓNG</button>
                 </div>
             </div>
         </div>
@@ -2415,31 +2439,6 @@
                 <div class="modal-actions">
                     <button class="btn btn-ghost" onclick="closeModal('feedTagModalOverlay')">HỦY</button>
                     <button class="btn btn-primary" onclick="saveFeedTagModal()">LƯU NHÃN</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- MANAGE ALL TAGS MODAL -->
-        <div class="modal-overlay" id="feedManageTagsModalOverlay">
-            <div class="modal" style="max-width: 580px; max-height: 85vh; display: flex; flex-direction: column;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h2 style="margin: 0;">QUẢN LÝ CÁC NHÃN</h2>
-                    <button class="btn btn-primary btn-sm" onclick="openFeedCreateTagModal()">TẠO NHÃN MỚI</button>
-                </div>
-                <div style="overflow-y: auto; flex: 1; max-height: 400px;">
-                    <table style="width: 100%;">
-                        <thead>
-                            <tr>
-                                <th>TÊN NHÃN</th>
-                                <th>SỐ PROFILE</th>
-                                <th style="text-align: right;">THAO TÁC</th>
-                            </tr>
-                        </thead>
-                        <tbody id="feedManageTagsList"></tbody>
-                    </table>
-                </div>
-                <div class="modal-actions" style="margin-top: 16px;">
-                    <button class="btn btn-ghost" onclick="closeModal('feedManageTagsModalOverlay')">ĐÓNG</button>
                 </div>
             </div>
         </div>
@@ -4789,20 +4788,46 @@
                 }
                 closeModal('feedGroupModalOverlay');
                 await loadFeedProfiles();
-                if (document.getElementById('feedManageGroupsModalOverlay').classList.contains('active')) {
-                    openFeedManageGroupsModal();
+                if (document.getElementById('feedManageUnifiedModalOverlay').classList.contains('active')) {
+                    renderFeedManageGroupsList();
                 }
             } catch (e) {
                 showToast('Lỗi: ' + e.message);
             }
         }
 
-        function openFeedManageGroupsModal() {
+        let currentFeedManageTab = 'groups';
+
+        function switchFeedManageTab(tab) {
+            currentFeedManageTab = tab;
+            const isGrp = tab === 'groups';
+
+            const grpContent = document.getElementById('feedManageTabContentGroups');
+            const tagContent = document.getElementById('feedManageTabContentTags');
+            if (grpContent) grpContent.style.display = isGrp ? 'block' : 'none';
+            if (tagContent) tagContent.style.display = isGrp ? 'none' : 'block';
+
+            const btnCreateGrp = document.getElementById('feedManageCreateGroupBtn');
+            const btnCreateTag = document.getElementById('feedManageCreateTagBtn');
+            if (btnCreateGrp) btnCreateGrp.style.display = isGrp ? 'inline-flex' : 'none';
+            if (btnCreateTag) btnCreateTag.style.display = isGrp ? 'none' : 'inline-flex';
+
+            const tabBtnGrp = document.getElementById('feedManageTabBtnGroups');
+            const tabBtnTag = document.getElementById('feedManageTabBtnTags');
+            if (tabBtnGrp) {
+                tabBtnGrp.className = isGrp ? 'btn btn-xs btn-cyan-solid' : 'btn btn-xs btn-ghost';
+            }
+            if (tabBtnTag) {
+                tabBtnTag.className = isGrp ? 'btn btn-xs btn-ghost' : 'btn btn-xs btn-green-solid';
+            }
+        }
+
+        function renderFeedManageGroupsList() {
             const tbody = document.getElementById('feedManageGroupsList');
             if (!tbody) return;
 
             if (feedGroups.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:20px;">Chưa có nhóm nào. Bấm "TẠO NHÓM MỚI" để bắt đầu.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:24px 10px;">Chưa có nhóm nào. Bấm "+ TẠO NHÓM MỚI" để bắt đầu.</td></tr>`;
             } else {
                 tbody.innerHTML = feedGroups.map(g => {
                     const count = feedProfilesList.filter(p => p.group === g.id).length;
@@ -4823,8 +4848,49 @@
                     `;
                 }).join('');
             }
+        }
 
-            document.getElementById('feedManageGroupsModalOverlay').classList.add('active');
+        function renderFeedManageTagsList() {
+            const tbody = document.getElementById('feedManageTagsList');
+            if (!tbody) return;
+
+            if (feedTags.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:24px 10px;">Chưa có nhãn nào. Bấm "+ TẠO NHÃN MỚI" để bắt đầu.</td></tr>`;
+            } else {
+                tbody.innerHTML = feedTags.map(t => {
+                    const count = feedProfilesList.filter(p => (p.tags || []).includes(t.id) || (p.tags || []).includes(t.name)).length;
+                    return `
+                    <tr>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="color-dot" style="background:${t.color};"></span>
+                                <span style="font-weight:700; color:#fff;">${escHtml(t.name)}</span>
+                            </div>
+                        </td>
+                        <td><span class="count-badge" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px; font-size:11px;">${count} profiles</span></td>
+                        <td style="text-align:right;">
+                            <button class="btn btn-ghost btn-sm" onclick="openFeedEditTagModal('${t.id}')">SỬA</button>
+                            <button class="btn btn-ghost btn-sm" style="color:var(--red); border-color:var(--red);" onclick="deleteFeedTag('${t.id}')">XÓA</button>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        function openFeedManageUnifiedModal(initialTab = 'groups') {
+            renderFeedManageGroupsList();
+            renderFeedManageTagsList();
+            switchFeedManageTab(initialTab);
+            document.getElementById('feedManageUnifiedModalOverlay').classList.add('active');
+        }
+
+        function openFeedManageGroupsModal() {
+            openFeedManageUnifiedModal('groups');
+        }
+
+        function openFeedManageTagsModal() {
+            openFeedManageUnifiedModal('tags');
         }
 
         async function deleteFeedGroup(id) {
@@ -4842,7 +4908,7 @@
                     showToast(`Đã xóa nhóm "${name}"!`);
                     if (currentFeedGroupFilter === id) currentFeedGroupFilter = 'ALL';
                     await loadFeedProfiles();
-                    openFeedManageGroupsModal();
+                    renderFeedManageGroupsList();
                 }
             });
         }
@@ -4891,42 +4957,12 @@
                 }
                 closeModal('feedTagModalOverlay');
                 await loadFeedProfiles();
-                if (document.getElementById('feedManageTagsModalOverlay').classList.contains('active')) {
-                    openFeedManageTagsModal();
+                if (document.getElementById('feedManageUnifiedModalOverlay').classList.contains('active')) {
+                    renderFeedManageTagsList();
                 }
             } catch (e) {
                 showToast('Lỗi: ' + e.message);
             }
-        }
-
-        function openFeedManageTagsModal() {
-            const tbody = document.getElementById('feedManageTagsList');
-            if (!tbody) return;
-
-            if (feedTags.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:20px;">Chưa có nhãn nào. Bấm "TẠO NHÃN MỚI" để bắt đầu.</td></tr>`;
-            } else {
-                tbody.innerHTML = feedTags.map(t => {
-                    const count = feedProfilesList.filter(p => (p.tags || []).includes(t.id) || (p.tags || []).includes(t.name)).length;
-                    return `
-                    <tr>
-                        <td>
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <span class="color-dot" style="background:${t.color};"></span>
-                                <span style="font-weight:700; color:#fff;">${escHtml(t.name)}</span>
-                            </div>
-                        </td>
-                        <td><span class="count-badge" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px; font-size:11px;">${count} profiles</span></td>
-                        <td style="text-align:right;">
-                            <button class="btn btn-ghost btn-sm" onclick="openFeedEditTagModal('${t.id}')">SỬA</button>
-                            <button class="btn btn-ghost btn-sm" style="color:var(--red); border-color:var(--red);" onclick="deleteFeedTag('${t.id}')">XÓA</button>
-                        </td>
-                    </tr>
-                    `;
-                }).join('');
-            }
-
-            document.getElementById('feedManageTagsModalOverlay').classList.add('active');
         }
 
         async function deleteFeedTag(id) {
@@ -4944,7 +4980,7 @@
                     showToast(`Đã xóa nhãn "${name}"!`);
                     if (currentFeedTagFilter === id) currentFeedTagFilter = 'ALL';
                     await loadFeedProfiles();
-                    openFeedManageTagsModal();
+                    renderFeedManageTagsList();
                 }
             });
         }
