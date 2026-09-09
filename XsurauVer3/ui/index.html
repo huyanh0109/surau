@@ -369,6 +369,8 @@
         .actions {
             display: flex;
             gap: 6px;
+            justify-content: flex-end;
+            align-items: center;
         }
 
         .modal-overlay {
@@ -3272,12 +3274,12 @@
                     </span>
                 </td>
                 <td class="proxy-cell" title="${escHtml(p.proxy || '')}">${displayProxy}</td>
-                <td class="actions">
-                    <button class="btn btn-ghost btn-sm" onclick="showProfileInfo('${p.id}')">INFO</button>
+                <td class="actions" style="white-space: nowrap; justify-content: flex-end;">
                     ${p.status === 'running'
                             ? `<button class="btn btn-stop btn-sm" onclick="closeProfile('${p.id}')">CEASE</button>`
                             : `<button class="btn btn-run btn-sm" onclick="launchProfile('${p.id}')">LAUNCH</button>`
                         }
+                    <button class="btn btn-ghost btn-sm" onclick="showProfileInfo('${p.id}')">INFO</button>
                     <button class="btn btn-ghost btn-sm" onclick="openEditModal('${p.id}')">EDIT</button>
                     <button class="btn btn-ghost btn-sm" onclick="deleteProfile('${p.id}')" ${p.status === 'running' ? 'disabled style="opacity:0.3"' : ''}>DEL</button>
                 </td>
@@ -4143,12 +4145,12 @@
                 </span>
             </td>
             <td class="proxy-cell" title="${escHtml(p.proxy || 'Mạng máy thật')}">${displayProxy}</td>
-            <td class="actions" style="white-space: nowrap;">
-                <button class="btn btn-ghost-clean btn-xs" onclick="showFeedProfileInfo('${p.id}')">INFO</button>
+            <td class="actions" style="white-space: nowrap; justify-content: flex-end;">
                 ${p.status === 'running'
                     ? `<button class="btn btn-red-tint btn-xs" onclick="closeFeedProfile('${p.id}')">DỪNG</button>`
                     : `<button class="btn btn-green-tint btn-xs" onclick="launchFeedProfile('${p.id}')">CHẠY</button>`
                 }
+                <button class="btn btn-ghost-clean btn-xs" onclick="showFeedProfileInfo('${p.id}')">INFO</button>
                 <button class="btn btn-ghost-clean btn-xs" onclick="openFeedEditModal('${p.id}')">SỬA</button>
                 <button class="btn btn-red-tint btn-xs" onclick="deleteFeedProfile('${p.id}')" ${p.status === 'running' ? 'disabled style="opacity:0.25; cursor:not-allowed;"' : ''}>XÓA</button>
             </td>
