@@ -21,7 +21,7 @@ if (Test-Path $exePath) {
     $shortcut.IconLocation = "K:\Surau\Loopy\icon.ico, 0"
 }
 
-$shortcut.Description = "Loopy Antidetect Manager v3.0.0"
+$shortcut.Description = "Loopy Antidetect Manager v3.1.0"
 $shortcut.Save()
 
 Write-Output "Loopy Manager Desktop Shortcut created successfully at: $shortcutPath"

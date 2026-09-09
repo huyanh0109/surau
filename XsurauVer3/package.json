@@ -1,7 +1,7 @@
 {
   "name": "loopy",
-  "version": "3.0.0",
-  "description": "Loopy Antidetect Browser Manager v3.0.0 - Custom Chromium C++ patched",
+  "version": "3.1.0",
+  "description": "Loopy Antidetect Browser Manager v3.1.0 - Custom Chromium C++ patched",
   "main": "electron-main.js",
   "scripts": {
     "start": "node server.js",
