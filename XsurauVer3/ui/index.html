@@ -1139,6 +1139,123 @@
                 opacity: 0.4;
             }
         }
+
+        /* FEED GROUPS & TAGS STYLES */
+        .feed-group-tab {
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: 700;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .feed-group-tab:hover {
+            border-color: var(--text-primary);
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .feed-group-tab.active {
+            border-color: var(--accent) !important;
+            color: var(--accent) !important;
+            background: rgba(245, 176, 0, 0.12) !important;
+            box-shadow: 0 0 8px rgba(245, 176, 0, 0.25);
+        }
+        .feed-group-tab .count-badge {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: inherit;
+        }
+
+        .feed-tag-chip {
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .feed-tag-chip:hover {
+            border-color: var(--text-primary);
+            color: var(--text-primary);
+        }
+        .feed-tag-chip.active {
+            border-color: #10b981 !important;
+            color: #10b981 !important;
+            background: rgba(16, 185, 129, 0.15) !important;
+            font-weight: 700;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
+        }
+
+        .tag-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 7px;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 3px;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+        }
+
+        .color-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .color-palette-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .color-palette-btn:hover {
+            transform: scale(1.15);
+        }
+        .color-palette-btn.selected {
+            border-color: #fff !important;
+            box-shadow: 0 0 6px rgba(255,255,255,0.7);
+        }
+
+        /* ROW SELECTION HIGHLIGHT & CHECKBOXES */
+        tr.row-selected td {
+            background: rgba(56, 189, 248, 0.12) !important;
+        }
+        tr.row-selected:hover td {
+            background: rgba(56, 189, 248, 0.2) !important;
+        }
+        .feed-profile-check {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #38bdf8;
+        }
+        #selectAllFeedProfiles {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #38bdf8;
+        }
     </style>
 </head>
 
@@ -1176,6 +1293,7 @@
     <div class="tab-nav">
         <button class="tab-btn active" onclick="switchTab('fastdashboard')">FAST DASHBOARD</button>
         <button class="tab-btn" onclick="switchTab('profiles')">PROFILE MANAGER</button>
+        <button class="tab-btn" onclick="switchTab('feed')">FEED MANAGER</button>
         <button class="tab-btn" onclick="switchTab('automation')">AUTOMATION</button>
         <button class="tab-btn" onclick="switchTab('archives')">ARCHIVES</button>
         <button class="tab-btn" onclick="switchTab('settings')">SETTINGS</button>
@@ -1561,6 +1679,446 @@
     </div>
 
     <!-- ========================================== -->
+    <!-- TAB: FEED MANAGER (CLONED FOR H:\Loopy feed) -->
+    <!-- ========================================== -->
+    <div class="tab-content" id="tab-feed">
+
+        <div class="toolbar">
+            <div class="toolbar-left" style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+                <button class="btn btn-primary" onclick="openFeedCreateModal()">CREATE PROFILE</button>
+                <button class="btn btn-orange" onclick="openFeedBulkModal()">BULK CREATE</button>
+                <button class="btn btn-yellow" onclick="openFeedBulkProxyModal()">BULK PROXY</button>
+                <button class="btn btn-ghost btn-sm" id="feedToolbarSelectAllBtn" onclick="toggleFeedSelectAllFromToolbar()" style="font-size: 11px; font-weight: 700; color: #38bdf8; border-color: rgba(56,189,248,0.5);">CHỌN TẤT CẢ</button>
+                <span style="display:inline-flex; align-items:center; padding:5px 12px; font-size:11px; background:rgba(245,176,0,0.1); border:1px solid var(--accent); color:var(--accent); font-family:monospace; font-weight:bold; letter-spacing:0.5px;">
+                    STORAGE: H:\Loopy feed
+                </span>
+                <span id="feedCountBadge" style="display:inline-flex; align-items:center; padding:5px 10px; font-size:11px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-primary); font-family:monospace;">
+                    0 PROFILES
+                </span>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-ghost" onclick="loadFeedProfiles()">REFRESH</button>
+                <div style="display:flex;">
+                    <button class="btn btn-run btn-sm" onclick="launchAllFeedProfiles()">LAUNCH ALL</button>
+                    <button class="btn btn-run btn-sm" style="border-left: none;" onclick="openFeedLayoutModal()">GRID</button>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="closeAllFeedProfiles()">CEASE ALL</button>
+                <button class="btn btn-ghost btn-sm" onclick="deleteAllFeedProfilesUI()" style="color: var(--red); border-color: var(--red);">PURGE ALL</button>
+            </div>
+        </div>
+
+        <!-- FEED GROUPS BAR -->
+        <div class="feed-groups-bar" style="padding: 0 32px 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" id="feedGroupTabsContainer">
+                <!-- Populated dynamically -->
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <button class="btn btn-ghost btn-sm" onclick="openFeedCreateGroupModal()" style="color: #38bdf8; border-color: #38bdf8; font-size: 11px;">TẠO NHÓM</button>
+                <button class="btn btn-ghost btn-sm" onclick="openFeedManageGroupsModal()" style="font-size: 11px;">QUẢN LÝ NHÓM</button>
+            </div>
+        </div>
+
+        <!-- FEED TAGS FILTER BAR -->
+        <div class="feed-tags-bar" style="padding: 8px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.2);">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 11px; font-weight: 800; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; letter-spacing: 0.5px;">
+                    LỌC THEO NHÃN:
+                </span>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" id="feedTagChipsContainer">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <button class="btn btn-ghost btn-sm" onclick="openFeedCreateTagModal()" style="color: #10b981; border-color: #10b981; font-size: 11px;">TẠO NHÃN</button>
+                <button class="btn btn-ghost btn-sm" onclick="openFeedManageTagsModal()" style="font-size: 11px;">QUẢN LÝ NHÃN</button>
+            </div>
+        </div>
+
+        <!-- FEED BULK ACTION BAR -->
+        <div id="feedBulkActionBar" style="display: none; padding: 10px 32px; background: rgba(56, 189, 248, 0.08); border-top: 1px solid rgba(56, 189, 248, 0.3); border-bottom: 1px solid rgba(56, 189, 248, 0.3); align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 12px; font-weight: 800; color: #38bdf8; font-family: monospace;">
+                    ĐÃ CHỌN: <span id="feedSelectedCount" style="color: #fff; background: rgba(56,189,248,0.25); padding: 2px 7px; border-radius: 3px;">0</span> PROFILE
+                </span>
+                <button class="btn btn-ghost btn-sm" onclick="clearFeedSelection()" style="font-size: 10.5px;">BỎ CHỌN</button>
+                <button class="btn btn-ghost btn-sm" onclick="selectAllFilteredFeedProfiles()" style="font-size: 10.5px; color:#38bdf8; border-color:#38bdf8;">CHỌN HẾT</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-primary btn-sm" onclick="openFeedBulkMoveModal()" style="font-size: 11px;">CHUYỂN NHÓM</button>
+                <button class="btn btn-ghost btn-sm" style="color: #10b981; border-color: #10b981; font-size: 11px;" onclick="openFeedBulkAddTagModal()">GÁN NHÃN</button>
+                <button class="btn btn-ghost btn-sm" style="color: #f87171; border-color: #f87171; font-size: 11px;" onclick="openFeedBulkRemoveTagModal()">BỎ NHÃN</button>
+                <button class="btn btn-yellow btn-sm" onclick="openFeedBulkProxyModal()" style="font-size: 11px;">ĐỔI PROXY</button>
+                <button class="btn btn-run btn-sm" onclick="launchSelectedFeedProfiles()" style="font-size: 11px;">KHỞI CHẠY (GRID)</button>
+                <button class="btn btn-stop btn-sm" onclick="closeSelectedFeedProfiles()" style="font-size: 11px;">ĐÓNG ĐÃ CHỌN</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteSelectedFeedProfiles()" style="font-size: 11px;">XÓA ĐÃ CHỌN</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAllFeedProfiles" onclick="toggleAllFeedProfileCheck()"></th>
+                        <th>NAME</th>
+                        <th>NHÓM</th>
+                        <th>NHÃN (TAGS)</th>
+                        <th>ACCOUNT</th>
+                        <th>STATUS</th>
+                        <th>PROXY</th>
+                        <th style="text-align:right;">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="feedProfileTable"></tbody>
+            </table>
+            <div class="empty-state" id="feedEmptyState" style="display:none;">
+                <p id="feedEmptyMessage">NO FEED PROFILES. CREATE ONE IN H:\Loopy feed.</p>
+                <br>
+                <button class="btn btn-primary" onclick="openFeedCreateModal()">CREATE PROFILE</button>
+            </div>
+        </div>
+
+        <!-- Modals for Feed Manager -->
+        <div class="modal-overlay" id="feedModalOverlay">
+            <div class="modal" style="max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                <h2 id="feedModalTitle">CREATE FEED PROFILE</h2>
+                <input type="hidden" id="feedEditProfileId">
+                <div class="form-group"><label>NAME</label><input type="text" id="feedInputName" placeholder="Tên Feed Profile"></div>
+                <div class="form-group" id="feedAccountFormGroup">
+                    <label>TÀI KHOẢN MICROSOFT (EMAIL)</label>
+                    <input type="text" id="feedInputAccount" placeholder="abc@sad.com">
+                </div>
+                <div class="form-group">
+                    <label>NHÓM (GROUP)</label>
+                    <select id="feedInputGroup" class="settings-input" style="width: 100%;">
+                        <option value="">-- Chưa phân nhóm / Không có nhóm --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>NHÃN (TAGS)</label>
+                    <div id="feedInputTagsList" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0;"></div>
+                </div>
+                <div class="form-group"><label>PROXY</label><input type="text" id="feedInputProxy" placeholder="127.0.0.1:1080 hoặc user:pass@ip:port"></div>
+                <div class="form-group"><label>EXTENSIONS</label><textarea id="feedInputExtensions" placeholder="Mỗi đường dẫn extension 1 dòng..."></textarea></div>
+                
+                <div class="form-group" id="feedCreateProfileModeGroup">
+                    <label>FINGERPRINT MODE</label>
+                    <select id="feedCreateProfileModeSelect" class="settings-input" style="width: 100%; font-weight: bold; color: var(--accent);" onchange="toggleFeedCreateModalCustomFieldsUI()">
+                        <option value="random">RANDOM (TỰ ĐỘNG NGẪU NHIÊN VÂN TAY)</option>
+                        <option value="custom">CUSTOM (TỰ CHỌN THÔNG SỐ VÂN TAY)</option>
+                    </select>
+                </div>
+
+                <div id="feedCreateModalCustomFieldsArea" style="display: none; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); padding: 14px; margin-bottom: 15px;">
+                    <div style="font-size: 10px; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 1px;">CUSTOM FINGERPRINT CONFIG:</div>
+                    <div class="form-group"><label style="font-size: 10px; color: var(--text-secondary);">USER AGENT / CHROME VERSION</label><select id="feedCreateCustomUA" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    <div class="form-group"><label style="font-size: 10px; color: var(--text-secondary);">GPU RENDERER</label><select id="feedCreateCustomGpu" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">RESOLUTION</label><select id="feedCreateCustomScreen" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">CPU CORES</label><select id="feedCreateCustomCpu" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">RAM (GB)</label><select id="feedCreateCustomRam" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">TIMEZONE</label><select id="feedCreateCustomTimezone" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" onclick="closeModal('feedModalOverlay')">CANCEL</button>
+                    <button class="btn btn-primary" onclick="saveFeedProfile()">SAVE</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="feedBulkModalOverlay">
+            <div class="modal" style="max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                <h2>BULK CREATE FEED PROFILES</h2>
+                <div class="form-group"><label>COUNT</label><input type="number" id="feedBulkCount" min="1" max="500" value="10"></div>
+                <div class="form-group"><label>PREFIX</label><input type="text" id="feedBulkPrefix" value="Feed"></div>
+                <div class="form-group">
+                    <label>GÁN VÀO NHÓM (GROUP)</label>
+                    <select id="feedBulkGroup" class="settings-input" style="width: 100%;">
+                        <option value="">-- Chưa phân nhóm / Không có nhóm --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>GÁN NHÃN (TAGS)</label>
+                    <div id="feedBulkTagsList" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0;"></div>
+                </div>
+                <div class="form-group"><label>PROXIES</label><textarea id="feedBulkCreateProxies" placeholder="Mỗi dòng 1 proxy..."></textarea></div>
+                
+                <div class="form-group">
+                    <label>FINGERPRINT MODE</label>
+                    <select id="feedBulkProfileModeSelect" class="settings-input" style="width: 100%; font-weight: bold; color: var(--accent);" onchange="toggleFeedBulkModalCustomFieldsUI()">
+                        <option value="random">RANDOM (MỖI PROFILE 1 VÂN TAY NGẪU NHIÊN)</option>
+                        <option value="custom">CUSTOM (ÁP DỤNG CẤU HÌNH CỐ ĐỊNH CHO TẤT CẢ)</option>
+                    </select>
+                </div>
+
+                <div id="feedBulkModalCustomFieldsArea" style="display: none; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); padding: 14px; margin-bottom: 15px;">
+                    <div style="font-size: 10px; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 1px;">BULK CUSTOM FINGERPRINT CONFIG:</div>
+                    <div class="form-group"><label style="font-size: 10px; color: var(--text-secondary);">USER AGENT / CHROME VERSION</label><select id="feedBulkCustomUA" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    <div class="form-group"><label style="font-size: 10px; color: var(--text-secondary);">GPU RENDERER</label><select id="feedBulkCustomGpu" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">RESOLUTION</label><select id="feedBulkCustomScreen" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">CPU CORES</label><select id="feedBulkCustomCpu" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">RAM (GB)</label><select id="feedBulkCustomRam" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                        <div><label style="font-size: 10px; color: var(--text-secondary);">TIMEZONE</label><select id="feedBulkCustomTimezone" class="settings-input" style="width: 100%; font-size: 11px;"></select></div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" onclick="closeModal('feedBulkModalOverlay')">CANCEL</button>
+                    <button class="btn btn-orange" onclick="bulkCreateFeed()">CREATE</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="feedBulkProxyModalOverlay">
+            <div class="modal" style="max-width: 540px; width: 92%;">
+                <h2 id="feedBulkProxyTitle">THAY ĐỔI PROXY (FEED PROFILES)</h2>
+                
+                <div id="feedBulkProxyTargetInfo" style="padding: 10px 14px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; margin-bottom: 14px; font-size: 12px; color: #38bdf8;">
+                    Đang chọn 0 profile
+                </div>
+
+                <div class="form-group">
+                    <label>CHẾ ĐỘ GÁN PROXY</label>
+                    <select id="feedBulkProxyMode" class="settings-input" style="width: 100%;" onchange="toggleFeedBulkProxyModeUI()">
+                        <option value="list">Gán theo danh sách (Tuần tự mỗi profile 1 proxy)</option>
+                        <option value="single">Dùng chung 1 proxy cho tất cả profile</option>
+                        <option value="clear">Xóa proxy (Chuyển sang IP máy thật - Direct)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="feedBulkProxyInputGroup">
+                    <label id="feedBulkProxyInputLabel">DANH SÁCH PROXY</label>
+                    <textarea id="feedBulkProxyList" style="height: 120px; font-family: monospace; font-size: 11px;" placeholder="Mỗi dòng 1 proxy. Hỗ trợ định dạng:&#10;ip:port&#10;ip:port:user:pass&#10;user:pass@ip:port&#10;user:pass:ip:port"></textarea>
+                    <div id="feedBulkProxyHint" style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">
+                        Nếu danh sách ít hơn số profile, proxy sẽ được tự động lặp vòng tuần tự.
+                    </div>
+                </div>
+
+                <div class="form-group" id="feedBulkProxyOverwriteGroup" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="feedBulkProxyOverwrite" checked style="width: auto;">
+                    <label for="feedBulkProxyOverwrite" style="margin-bottom: 0; cursor: pointer;">GHI ĐÈ NẾU PROFILE ĐÃ CÓ PROXY</label>
+                </div>
+
+                <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center;">
+                    <button class="btn btn-ghost btn-sm" style="color: var(--red); border-color: var(--red);" onclick="clearFeedProxyDirectAction()">XÓA PROXY (DIRECT)</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-ghost" onclick="closeModal('feedBulkProxyModalOverlay')">HỦY</button>
+                        <button class="btn btn-yellow" onclick="saveFeedBulkProxy()">ÁP DỤNG PROXY</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="feedLayoutModalOverlay">
+            <div class="modal">
+                <h2>FEED GRID SETTINGS</h2>
+                <div class="form-group"><label>MODE</label>
+                    <select id="feedLayoutMode" onchange="toggleFeedLayoutMode()">
+                        <option value="auto">AUTO</option>
+                        <option value="custom">CUSTOM</option>
+                    </select>
+                </div>
+                <div id="feedCustomLayoutOptions" style="display:none;">
+                    <div class="form-group"><label>COLS</label><input type="number" id="feedLayoutCols" min="1" max="20" value="5"></div>
+                    <div class="form-group"><label>ROWS</label><input type="number" id="feedLayoutRows" min="1" max="20" value="4"></div>
+                </div>
+                <div class="form-group"><label>SCALE (%)</label><input type="number" id="feedLayoutScale" min="30" max="200" value="100"></div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" onclick="closeModal('feedLayoutModalOverlay')">CANCEL</button>
+                    <button class="btn btn-primary" onclick="closeModal('feedLayoutModalOverlay')">CLOSE</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="feedInfoModalOverlay">
+            <div class="modal">
+                <div class="modal-header">
+                    <div class="modal-title">FEED PROFILE FINGERPRINT INFO</div>
+                    <button class="modal-close" onclick="closeModal('feedInfoModalOverlay')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="feedProfileInfoContent" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;"></div>
+                    <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+                        <div class="settings-label">USER AGENT</div>
+                        <textarea id="feedInfoUA" readonly style="width: 100%; height: 80px; background: #000; border: 1px solid var(--border); color: var(--accent); font-family: monospace; font-size: 11px; padding: 10px; margin-top: 5px;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-ghost" onclick="closeModal('feedInfoModalOverlay')">CLOSE</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW MODALS: GROUPS & TAGS MANAGEMENT -->
+        <!-- CREATE / EDIT GROUP MODAL -->
+        <div class="modal-overlay" id="feedGroupModalOverlay">
+            <div class="modal" style="max-width: 440px;">
+                <h2 id="feedGroupModalTitle">TẠO NHÓM MỚI</h2>
+                <input type="hidden" id="feedGroupIdInput">
+                <div class="form-group">
+                    <label>TÊN NHÓM</label>
+                    <input type="text" id="feedGroupNameInput" placeholder="Ví dụ: Nhóm 1, Acc Chính, Nuôi Nick...">
+                </div>
+                <div class="form-group">
+                    <label>MÀU ĐẠI DIỆN</label>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;" id="feedGroupColorPresets"></div>
+                    <input type="color" id="feedGroupColorInput" value="#38bdf8" style="height: 36px; padding: 2px; width: 80px; cursor: pointer;">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" onclick="closeModal('feedGroupModalOverlay')">HỦY</button>
+                    <button class="btn btn-primary" onclick="saveFeedGroupModal()">LƯU NHÓM</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MANAGE ALL GROUPS MODAL -->
+        <div class="modal-overlay" id="feedManageGroupsModalOverlay">
+            <div class="modal" style="max-width: 580px; max-height: 85vh; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="margin: 0;">QUẢN LÝ CÁC NHÓM</h2>
+                    <button class="btn btn-primary btn-sm" onclick="openFeedCreateGroupModal()">TẠO NHÓM MỚI</button>
+                </div>
+                <div style="overflow-y: auto; flex: 1; max-height: 400px;">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>TÊN NHÓM</th>
+                                <th>SỐ PROFILE</th>
+                                <th style="text-align: right;">THAO TÁC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feedManageGroupsList"></tbody>
+                    </table>
+                </div>
+                <div class="modal-actions" style="margin-top: 16px;">
+                    <button class="btn btn-ghost" onclick="closeModal('feedManageGroupsModalOverlay')">ĐÓNG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CREATE / EDIT TAG MODAL -->
+        <div class="modal-overlay" id="feedTagModalOverlay">
+            <div class="modal" style="max-width: 440px;">
+                <h2 id="feedTagModalTitle">TẠO NHÃN MỚI</h2>
+                <input type="hidden" id="feedTagIdInput">
+                <div class="form-group">
+                    <label>TÊN NHÃN (TAG)</label>
+                    <input type="text" id="feedTagNameInput" placeholder="Ví dụ: VIP, Cần Nuôi, Đã Kháng...">
+                </div>
+                <div class="form-group">
+                    <label>MÀU NHÃN</label>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;" id="feedTagColorPresets"></div>
+                    <input type="color" id="feedTagColorInput" value="#10b981" style="height: 36px; padding: 2px; width: 80px; cursor: pointer;">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" onclick="closeModal('feedTagModalOverlay')">HỦY</button>
+                    <button class="btn btn-primary" onclick="saveFeedTagModal()">LƯU NHÃN</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MANAGE ALL TAGS MODAL -->
+        <div class="modal-overlay" id="feedManageTagsModalOverlay">
+            <div class="modal" style="max-width: 580px; max-height: 85vh; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="margin: 0;">QUẢN LÝ CÁC NHÃN</h2>
+                    <button class="btn btn-primary btn-sm" onclick="openFeedCreateTagModal()">TẠO NHÃN MỚI</button>
+                </div>
+                <div style="overflow-y: auto; flex: 1; max-height: 400px;">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>TÊN NHÃN</th>
+                                <th>SỐ PROFILE</th>
+                                <th style="text-align: right;">THAO TÁC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feedManageTagsList"></tbody>
+                    </table>
+                </div>
+                <div class="modal-actions" style="margin-top: 16px;">
+                    <button class="btn btn-ghost" onclick="closeModal('feedManageTagsModalOverlay')">ĐÓNG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BULK MOVE PROFILES MODAL -->
+        <div class="modal-overlay" id="feedBulkMoveModalOverlay">
+            <div class="modal" style="max-width: 440px;">
+                <h2>CHUYỂN NHÓM (HÀNG LOẠT)</h2>
+                <p id="feedBulkMoveInfo" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;"></p>
+                <div class="form-group">
+                    <label>CHỌN NHÓM ĐÍCH</label>
+                    <select id="feedBulkMoveTargetGroup" class="settings-input" style="width: 100%;">
+                        <option value="">-- Bỏ khỏi nhóm (Chưa phân nhóm) --</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" onclick="closeModal('feedBulkMoveModalOverlay')">HỦY</button>
+                    <button class="btn btn-primary" onclick="confirmFeedBulkMove()">XÁC NHẬN CHUYỂN</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BULK ADD TAGS MODAL -->
+        <div class="modal-overlay" id="feedBulkAddTagModalOverlay">
+            <div class="modal" style="max-width: 480px;">
+                <h2>GÁN NHÃN (HÀNG LOẠT)</h2>
+                <p id="feedBulkAddTagInfo" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;"></p>
+                <div class="form-group">
+                    <label>CHỌN NHÃN CẦN GÁN</label>
+                    <div id="feedBulkAddTagCheckboxes" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); max-height: 180px; overflow-y: auto;"></div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" onclick="closeModal('feedBulkAddTagModalOverlay')">HỦY</button>
+                    <button class="btn btn-primary" onclick="confirmFeedBulkAddTag()">GÁN NHÃN</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BULK REMOVE TAGS MODAL -->
+        <div class="modal-overlay" id="feedBulkRemoveTagModalOverlay">
+            <div class="modal" style="max-width: 480px;">
+                <h2>BỎ NHÃN (HÀNG LOẠT)</h2>
+                <p id="feedBulkRemoveTagInfo" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;"></p>
+                <div class="form-group">
+                    <label>CHỌN NHÃN CẦN GỠ BỎ</label>
+                    <div id="feedBulkRemoveTagCheckboxes" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); max-height: 180px; overflow-y: auto;"></div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" onclick="closeModal('feedBulkRemoveTagModalOverlay')">HỦY</button>
+                    <button class="btn btn-danger" onclick="confirmFeedBulkRemoveTag()">BỎ NHÃN</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUICK ASSIGN GROUP & TAGS FOR SINGLE PROFILE MODAL -->
+        <div class="modal-overlay" id="feedQuickAssignModalOverlay">
+            <div class="modal" style="max-width: 460px;">
+                <h2 id="feedQuickAssignTitle">QUẢN LÝ NHÓM & NHÃN</h2>
+                <input type="hidden" id="feedQuickAssignProfileId">
+                <div class="form-group">
+                    <label>NHÓM (GROUP)</label>
+                    <select id="feedQuickAssignGroup" class="settings-input" style="width: 100%;">
+                        <option value="">-- Chưa phân nhóm / Không có nhóm --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>NHÃN (TAGS)</label>
+                    <div id="feedQuickAssignTags" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); max-height: 180px; overflow-y: auto;"></div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" onclick="closeModal('feedQuickAssignModalOverlay')">HỦY</button>
+                    <button class="btn btn-primary" onclick="saveFeedQuickAssign()">LƯU THAY ĐỔI</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ========================================== -->
     <!-- TAB: AUTOMATION -->
     <!-- ========================================== -->
     <div class="tab-content" id="tab-automation">
@@ -1783,7 +2341,7 @@
                                 KIỂM TRA THỬ THÔNG TIN ĐỊA LÝ (TEST GEO DETECT):
                             </span>
                             <button class="btn btn-sm btn-yellow" onclick="testGeoLookupUI()" style="font-size: 10px; padding: 6px 16px; font-weight: bold;">
-                                🔍 KIỂM TRA IP / PROXY NGAY
+                                KIỂM TRA IP / PROXY NGAY
                             </button>
                         </div>
                         <div style="display: flex; gap: 10px;">
@@ -2221,6 +2779,12 @@
             event.currentTarget.classList.add('active');
             document.getElementById('tab-' + tabId).classList.add('active');
 
+            if (tabId === 'profiles') {
+                loadProfiles();
+            }
+            if (tabId === 'feed') {
+                loadFeedProfiles();
+            }
             if (tabId === 'automation') {
                 refreshAutoProfiles();
             }
@@ -2784,6 +3348,36 @@
             if (bCpu && bCpu.children.length === 0) bCpu.innerHTML = cpuOptions;
             if (bRam && bRam.children.length === 0) bRam.innerHTML = ramOptions;
             if (bTz && bTz.children.length === 0) bTz.innerHTML = tzOptions;
+
+            // Feed Create Modal dropdowns
+            const fcUa = document.getElementById('feedCreateCustomUA');
+            const fcGpu = document.getElementById('feedCreateCustomGpu');
+            const fcScreen = document.getElementById('feedCreateCustomScreen');
+            const fcCpu = document.getElementById('feedCreateCustomCpu');
+            const fcRam = document.getElementById('feedCreateCustomRam');
+            const fcTz = document.getElementById('feedCreateCustomTimezone');
+
+            if (fcUa && fcUa.children.length === 0) fcUa.innerHTML = uaOptions;
+            if (fcGpu && fcGpu.children.length === 0) fcGpu.innerHTML = gpuOptions;
+            if (fcScreen && fcScreen.children.length === 0) fcScreen.innerHTML = screenOptions;
+            if (fcCpu && fcCpu.children.length === 0) fcCpu.innerHTML = cpuOptions;
+            if (fcRam && fcRam.children.length === 0) fcRam.innerHTML = ramOptions;
+            if (fcTz && fcTz.children.length === 0) fcTz.innerHTML = tzOptions;
+
+            // Feed Bulk Modal dropdowns
+            const fbUa = document.getElementById('feedBulkCustomUA');
+            const fbGpu = document.getElementById('feedBulkCustomGpu');
+            const fbScreen = document.getElementById('feedBulkCustomScreen');
+            const fbCpu = document.getElementById('feedBulkCustomCpu');
+            const fbRam = document.getElementById('feedBulkCustomRam');
+            const fbTz = document.getElementById('feedBulkCustomTimezone');
+
+            if (fbUa && fbUa.children.length === 0) fbUa.innerHTML = uaOptions;
+            if (fbGpu && fbGpu.children.length === 0) fbGpu.innerHTML = gpuOptions;
+            if (fbScreen && fbScreen.children.length === 0) fbScreen.innerHTML = screenOptions;
+            if (fbCpu && fbCpu.children.length === 0) fbCpu.innerHTML = cpuOptions;
+            if (fbRam && fbRam.children.length === 0) fbRam.innerHTML = ramOptions;
+            if (fbTz && fbTz.children.length === 0) fbTz.innerHTML = tzOptions;
         }
 
         function toggleCreationModeFieldsUI() {
@@ -2945,7 +3539,7 @@
 
             const proxyVal = (proxyInput?.value || '').trim();
             resultBox.style.display = 'block';
-            resultBox.innerHTML = '<span style="color: var(--cyan);">⏳ Đang tra cứu thông tin địa lý và IP qua GeoService...</span>';
+            resultBox.innerHTML = '<span style="color: var(--cyan);">Đang tra cứu thông tin địa lý và IP qua GeoService...</span>';
 
             try {
                 const res = await fetch(`${API}/geo/check`, {
@@ -2958,22 +3552,22 @@
                     const g = data.geo;
                     resultBox.innerHTML = `
                         <div style="color: #00ff88; font-weight: bold; margin-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 4px;">
-                            ✅ TRA CỨU THÀNH CÔNG [Nguồn: <span style="color: var(--cyan);">${escHtml(g.source)}</span>${g.cached ? ' • <span style="color: var(--accent);">RAM Cache 0ms</span>' : ''}]
+                            TRA CỨU THÀNH CÔNG [Nguồn: <span style="color: var(--cyan);">${escHtml(g.source)}</span>${g.cached ? ' • <span style="color: var(--accent);">RAM Cache 0ms</span>' : ''}]
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: var(--text-secondary);">
-                            <div>🌐 <b>IP Outgoing:</b> <span style="color: #fff; font-weight: bold;">${escHtml(g.ip)}</span></div>
-                            <div>🕒 <b>Múi giờ (Timezone):</b> <span style="color: var(--cyan); font-weight: bold;">${escHtml(g.timezone)}</span></div>
-                            <div>📍 <b>Quốc gia:</b> <span style="color: #fff;">${escHtml(g.country)} (${escHtml(g.countryCode)})</span></div>
-                            <div>🏙️ <b>Thành phố:</b> <span style="color: #fff;">${escHtml(g.city || 'N/A')}</span></div>
-                            <div>🗺️ <b>Tọa độ GPS (Jittered):</b> <span style="color: var(--accent); font-weight: bold;">${g.lat}, ${g.lon}</span></div>
-                            <div>🗣️ <b>Ngôn ngữ (Locale):</b> <span style="color: var(--cyan); font-weight: bold;">${escHtml(g.locale)}</span></div>
+                            <div><b>IP Outgoing:</b> <span style="color: #fff; font-weight: bold;">${escHtml(g.ip)}</span></div>
+                            <div><b>Múi giờ (Timezone):</b> <span style="color: var(--cyan); font-weight: bold;">${escHtml(g.timezone)}</span></div>
+                            <div><b>Quốc gia:</b> <span style="color: #fff;">${escHtml(g.country)} (${escHtml(g.countryCode)})</span></div>
+                            <div><b>Thành phố:</b> <span style="color: #fff;">${escHtml(g.city || 'N/A')}</span></div>
+                            <div><b>Tọa độ GPS (Jittered):</b> <span style="color: var(--accent); font-weight: bold;">${g.lat}, ${g.lon}</span></div>
+                            <div><b>Ngôn ngữ (Locale):</b> <span style="color: var(--cyan); font-weight: bold;">${escHtml(g.locale)}</span></div>
                         </div>
                     `;
                 } else {
-                    resultBox.innerHTML = `<span style="color: var(--red);">❌ Tra cứu thất bại: ${escHtml(data?.error || 'Không nhận diện được IP')}</span>`;
+                    resultBox.innerHTML = `<span style="color: var(--red);">Tra cứu thất bại: ${escHtml(data?.error || 'Không nhận diện được IP')}</span>`;
                 }
             } catch (err) {
-                resultBox.innerHTML = `<span style="color: var(--red);">❌ Lỗi kết nối API: ${escHtml(err.message)}</span>`;
+                resultBox.innerHTML = `<span style="color: var(--red);">Lỗi kết nối API: ${escHtml(err.message)}</span>`;
             }
         }
 
@@ -3111,6 +3705,1337 @@
             loadProfiles();
         }
 
+        // ==========================================
+        // FEED PROFILES LOGIC (STORAGE: H:\Loopy feed)
+        // ==========================================
+        let _lastFeedProfilesRenderCache = '';
+        let currentFeedGroupFilter = 'ALL'; // 'ALL', 'UNGROUPED', or groupId
+        let currentFeedTagFilter = 'ALL';   // 'ALL' or tagId
+        let feedProfilesList = [];
+        let feedGroups = [];
+        let feedTags = [];
+        const FEED_COLOR_PALETTE = ['#38bdf8', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16'];
+
+        function renderColorPresets(containerId, inputId, selectedColor) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const targetColor = (selectedColor || '').toLowerCase();
+            container.innerHTML = FEED_COLOR_PALETTE.map(c => `
+                <div class="color-palette-btn ${c.toLowerCase() === targetColor ? 'selected' : ''}" 
+                     style="background:${c};" 
+                     onclick="selectColorPreset('${containerId}', '${inputId}', '${c}')"></div>
+            `).join('');
+        }
+
+        function selectColorPreset(containerId, inputId, color) {
+            const input = document.getElementById(inputId);
+            if (input) input.value = color;
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.querySelectorAll('.color-palette-btn').forEach(b => {
+                    const bColor = b.style.backgroundColor;
+                    const matches = bColor === color || rgbToHex(bColor) === color.toLowerCase();
+                    b.classList.toggle('selected', matches);
+                });
+            }
+        }
+
+        function rgbToHex(col) {
+            if (!col || col.startsWith('#')) return (col || '').toLowerCase();
+            const rgb = col.match(/\d+/g);
+            if (!rgb || rgb.length < 3) return col;
+            return '#' + ((1 << 24) + (parseInt(rgb[0]) << 16) + (parseInt(rgb[1]) << 8) + parseInt(rgb[2])).toString(16).slice(1).toLowerCase();
+        }
+
+        function renderFeedGroupTabs() {
+            const container = document.getElementById('feedGroupTabsContainer');
+            if (!container) return;
+
+            const total = feedProfilesList.length;
+            const ungroupedCount = feedProfilesList.filter(p => !p.group).length;
+
+            let html = `
+                <div class="feed-group-tab ${currentFeedGroupFilter === 'ALL' ? 'active' : ''}" onclick="setFeedGroupFilter('ALL')">
+                    Tất cả <span class="count-badge">${total}</span>
+                </div>
+                <div class="feed-group-tab ${currentFeedGroupFilter === 'UNGROUPED' ? 'active' : ''}" onclick="setFeedGroupFilter('UNGROUPED')">
+                    Chưa phân nhóm <span class="count-badge">${ungroupedCount}</span>
+                </div>
+            `;
+
+            feedGroups.forEach(g => {
+                const count = feedProfilesList.filter(p => p.group === g.id).length;
+                const isActive = currentFeedGroupFilter === g.id;
+                html += `
+                    <div class="feed-group-tab ${isActive ? 'active' : ''}" onclick="setFeedGroupFilter('${g.id}')">
+                        <span class="color-dot" style="background:${g.color || '#38bdf8'};"></span>
+                        <span>${escHtml(g.name)}</span>
+                        <span class="count-badge">${count}</span>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function setFeedGroupFilter(groupId) {
+            currentFeedGroupFilter = groupId;
+            renderFeedGroupTabs();
+            renderFeedProfileTable();
+        }
+
+        function renderFeedTagChips() {
+            const container = document.getElementById('feedTagChipsContainer');
+            if (!container) return;
+
+            let html = `
+                <div class="feed-tag-chip ${currentFeedTagFilter === 'ALL' ? 'active' : ''}" onclick="setFeedTagFilter('ALL')">
+                    Tất cả
+                </div>
+            `;
+
+            feedTags.forEach(t => {
+                const count = feedProfilesList.filter(p => (p.tags || []).includes(t.id) || (p.tags || []).includes(t.name)).length;
+                const isActive = currentFeedTagFilter === t.id;
+                html += `
+                    <div class="feed-tag-chip ${isActive ? 'active' : ''}" onclick="setFeedTagFilter('${t.id}')">
+                        <span class="color-dot" style="background:${t.color || '#10b981'};"></span>
+                        <span>${escHtml(t.name)}</span>
+                        <span style="font-size:10px; opacity:0.7;">(${count})</span>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function setFeedTagFilter(tagId) {
+            currentFeedTagFilter = tagId;
+            renderFeedTagChips();
+            renderFeedProfileTable();
+        }
+
+        let selectedFeedProfileIds = new Set();
+
+        function getFilteredFeedProfiles() {
+            let filtered = feedProfilesList;
+            if (currentFeedGroupFilter === 'UNGROUPED') {
+                filtered = filtered.filter(p => !p.group);
+            } else if (currentFeedGroupFilter !== 'ALL') {
+                filtered = filtered.filter(p => p.group === currentFeedGroupFilter);
+            }
+            if (currentFeedTagFilter !== 'ALL') {
+                const activeTag = feedTags.find(t => t.id === currentFeedTagFilter);
+                const activeTagName = activeTag ? activeTag.name : currentFeedTagFilter;
+                filtered = filtered.filter(p => (p.tags || []).includes(currentFeedTagFilter) || (p.tags || []).includes(activeTagName));
+            }
+            return filtered;
+        }
+
+        function renderFeedProfileTable() {
+            const table = document.getElementById('feedProfileTable');
+            const empty = document.getElementById('feedEmptyState');
+            const countBadge = document.getElementById('feedCountBadge');
+            if (!table) return;
+
+            const filtered = getFilteredFeedProfiles();
+            const runningCountVal = feedProfilesList.filter(p => p.status === 'running').length;
+            if (countBadge) {
+                countBadge.textContent = `${feedProfilesList.length} PROFILES (${runningCountVal} RUNNING)${filtered.length !== feedProfilesList.length ? ` • HIỂN THỊ: ${filtered.length}` : ''}`;
+            }
+
+            if (filtered.length === 0) {
+                table.innerHTML = '';
+                if (empty) {
+                    empty.style.display = 'block';
+                    const msg = document.getElementById('feedEmptyMessage');
+                    if (msg) {
+                        msg.textContent = feedProfilesList.length === 0 
+                            ? 'NO FEED PROFILES. CREATE ONE IN H:\\Loopy feed.' 
+                            : 'KHÔNG CÓ PROFILE NÀO TRONG BỘ LỌC HIỆN TẠI.';
+                    }
+                }
+                updateFeedSelectionUI();
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+
+            const groupMap = new Map(feedGroups.map(g => [g.id, g]));
+            const tagMap = new Map();
+            feedTags.forEach(t => {
+                tagMap.set(t.id, t);
+                tagMap.set(t.name.toLowerCase(), t);
+            });
+
+            table.innerHTML = filtered.map(p => {
+                const isChecked = selectedFeedProfileIds.has(p.id);
+                const hasProxy = p.proxy && p.proxy.trim() && p.proxy.trim().toUpperCase() !== 'NONE' && p.proxy.trim().toUpperCase() !== 'DIRECT';
+                let displayProxy = '';
+                if (hasProxy) {
+                    displayProxy = p.status === 'running'
+                        ? `<span style="color:var(--green); font-weight:600; font-family:monospace; font-size:11px;">${escHtml(p.proxy)}</span>`
+                        : `<span style="color:var(--text); font-family:monospace; font-size:11px;">${escHtml(p.proxy)}</span>`;
+                } else {
+                    displayProxy = p.status === 'running'
+                        ? `<span style="color:#60a5fa; font-weight:600; font-size:11px;">MÁY THẬT (DIRECT IP)</span>`
+                        : `<span style="color:var(--text-muted); font-size:11px; font-weight:600;">MÁY THẬT (DIRECT IP)</span>`;
+                }
+
+                const grp = p.group ? groupMap.get(p.group) : null;
+                const groupBadge = grp 
+                    ? `<span class="badge" style="border-color:${grp.color}; color:${grp.color}; background:${grp.color}15; cursor:pointer;" onclick="openFeedQuickAssign('${p.id}')" title="Click để đổi nhóm">${escHtml(grp.name)}</span>`
+                    : `<span style="color:var(--text-muted); font-size:11px; cursor:pointer;" onclick="openFeedQuickAssign('${p.id}')" title="Click để gán nhóm">—</span>`;
+
+                const pTags = Array.isArray(p.tags) ? p.tags : [];
+                let tagsHtml = '';
+                if (pTags.length > 0) {
+                    tagsHtml = pTags.map(tIdOrName => {
+                        const tagObj = tagMap.get(tIdOrName) || tagMap.get(String(tIdOrName).toLowerCase());
+                        const tagName = tagObj ? tagObj.name : tIdOrName;
+                        const tagColor = tagObj ? tagObj.color : '#10b981';
+                        return `<span class="tag-pill" style="border:1px solid ${tagColor}; color:${tagColor}; background:${tagColor}15;" title="Nhãn: ${escHtml(tagName)}">${escHtml(tagName)}</span>`;
+                    }).join(' ');
+                }
+                tagsHtml += ` <button class="btn btn-ghost btn-sm" style="padding:1px 6px; font-size:10px; border-radius:3px; margin-left:2px; vertical-align:middle;" onclick="openFeedQuickAssign('${p.id}')" title="Gán / Bỏ nhãn">+</button>`;
+
+                return `
+        <tr class="${isChecked ? 'row-selected' : ''}">
+            <td><input type="checkbox" class="feed-profile-check" data-id="${p.id}" ${isChecked ? 'checked' : ''} onchange="toggleFeedProfileCheck('${p.id}', this.checked)"></td>
+            <td>
+                <div class="profile-name">${escHtml(p.name)}</div>
+                <div class="profile-id">${p.id}</div>
+            </td>
+            <td>${groupBadge}</td>
+            <td style="max-width:240px;">${tagsHtml}</td>
+            <td class="account-cell" id="feed-acc-${p.id}" style="min-width: 170px;">
+                ${p.account 
+                    ? `<span style="color:#38bdf8; font-weight:600; font-family:monospace; font-size:11px;" title="${escHtml(p.account)}">${escHtml(p.account)}</span>`
+                    : `<span style="color:var(--text-muted); font-size:11px;">—</span>`
+                }
+            </td>
+            <td>
+                <span class="badge badge-${p.status}">
+                    ${p.status === 'running' ? 'RUNNING' : 'STOPPED'}
+                </span>
+            </td>
+            <td class="proxy-cell" title="${escHtml(p.proxy || 'Mạng máy thật')}">${displayProxy}</td>
+            <td class="actions">
+                <button class="btn btn-ghost btn-sm" onclick="showFeedProfileInfo('${p.id}')">INFO</button>
+                ${p.status === 'running'
+                    ? `<button class="btn btn-stop btn-sm" onclick="closeFeedProfile('${p.id}')">CEASE</button>`
+                    : `<button class="btn btn-run btn-sm" onclick="launchFeedProfile('${p.id}')">LAUNCH</button>`
+                }
+                <button class="btn btn-ghost btn-sm" onclick="openFeedEditModal('${p.id}')">EDIT</button>
+                <button class="btn btn-ghost btn-sm" onclick="deleteFeedProfile('${p.id}')" ${p.status === 'running' ? 'disabled style="opacity:0.3"' : ''}>DEL</button>
+            </td>
+        </tr>
+        `;
+            }).join('');
+
+            updateFeedSelectionUI();
+        }
+
+        async function loadFeedProfiles() {
+            try {
+                const [pRes, gRes, tRes] = await Promise.all([
+                    fetch(`${API}/feed/profiles`),
+                    fetch(`${API}/feed/groups`),
+                    fetch(`${API}/feed/tags`)
+                ]);
+
+                feedProfilesList = await pRes.json();
+                feedGroups = await gRes.json();
+                feedTags = await tRes.json();
+
+                renderFeedGroupTabs();
+                renderFeedTagChips();
+                renderFeedProfileTable();
+            } catch (e) {
+                console.error('loadFeedProfiles error:', e);
+            }
+        }
+
+        function toggleFeedProfileCheck(id, isChecked) {
+            if (isChecked) {
+                selectedFeedProfileIds.add(id);
+            } else {
+                selectedFeedProfileIds.delete(id);
+            }
+            updateFeedSelectionUI();
+        }
+
+        function toggleAllFeedProfileCheck() {
+            const filtered = getFilteredFeedProfiles();
+            const allChecked = filtered.length > 0 && filtered.every(p => selectedFeedProfileIds.has(p.id));
+            if (allChecked) {
+                filtered.forEach(p => selectedFeedProfileIds.delete(p.id));
+            } else {
+                filtered.forEach(p => selectedFeedProfileIds.add(p.id));
+            }
+            renderFeedProfileTable();
+        }
+
+        function toggleFeedSelectAllFromToolbar() {
+            const filtered = getFilteredFeedProfiles();
+            const allChecked = filtered.length > 0 && filtered.every(p => selectedFeedProfileIds.has(p.id));
+            if (allChecked) {
+                filtered.forEach(p => selectedFeedProfileIds.delete(p.id));
+            } else {
+                filtered.forEach(p => selectedFeedProfileIds.add(p.id));
+            }
+            renderFeedProfileTable();
+        }
+
+        function selectAllFilteredFeedProfiles() {
+            const filtered = getFilteredFeedProfiles();
+            filtered.forEach(p => selectedFeedProfileIds.add(p.id));
+            renderFeedProfileTable();
+        }
+
+        function clearFeedSelection() {
+            selectedFeedProfileIds.clear();
+            renderFeedProfileTable();
+        }
+
+        function updateFeedSelectionUI() {
+            const filtered = getFilteredFeedProfiles();
+            const filteredCount = filtered.length;
+            const checkedCount = Array.from(selectedFeedProfileIds).filter(id => feedProfilesList.some(p => p.id === id)).length;
+
+            const bulkBar = document.getElementById('feedBulkActionBar');
+            const countSpan = document.getElementById('feedSelectedCount');
+            const masterCheck = document.getElementById('selectAllFeedProfiles');
+            const toolbarBtn = document.getElementById('feedToolbarSelectAllBtn');
+
+            if (countSpan) countSpan.textContent = checkedCount;
+            if (bulkBar) bulkBar.style.display = checkedCount > 0 ? 'flex' : 'none';
+
+            const allFilteredChecked = filteredCount > 0 && filtered.every(p => selectedFeedProfileIds.has(p.id));
+            const someFilteredChecked = filtered.some(p => selectedFeedProfileIds.has(p.id));
+
+            if (masterCheck) {
+                masterCheck.checked = allFilteredChecked;
+                masterCheck.indeterminate = !allFilteredChecked && someFilteredChecked;
+            }
+
+            if (toolbarBtn) {
+                if (allFilteredChecked) {
+                    toolbarBtn.textContent = 'BỎ CHỌN';
+                    toolbarBtn.style.color = 'var(--red)';
+                    toolbarBtn.style.borderColor = 'rgba(239,68,68,0.5)';
+                } else {
+                    toolbarBtn.textContent = `CHỌN TẤT CẢ (${filteredCount})`;
+                    toolbarBtn.style.color = '#38bdf8';
+                    toolbarBtn.style.borderColor = 'rgba(56,189,248,0.5)';
+                }
+            }
+
+            // Update row highlighting
+            document.querySelectorAll('#feedProfileTable tr').forEach(row => {
+                const chk = row.querySelector('.feed-profile-check');
+                if (chk) {
+                    const isRowChecked = selectedFeedProfileIds.has(chk.dataset.id);
+                    chk.checked = isRowChecked;
+                    row.classList.toggle('row-selected', isRowChecked);
+                }
+            });
+        }
+
+        function getSelectedFeedProfileIds() {
+            return Array.from(selectedFeedProfileIds).filter(id => feedProfilesList.some(p => p.id === id));
+        }
+
+        function openFeedBulkMoveModal() {
+            const ids = getSelectedFeedProfileIds();
+            if (ids.length === 0) return showToast('Vui lòng chọn ít nhất 1 profile!');
+            document.getElementById('feedBulkMoveInfo').textContent = `Đang chọn ${ids.length} profile để chuyển nhóm:`;
+            
+            const select = document.getElementById('feedBulkMoveTargetGroup');
+            select.innerHTML = '<option value="">-- Bỏ khỏi nhóm (Chưa phân nhóm) --</option>' + 
+                feedGroups.map(g => `<option value="${g.id}">${escHtml(g.name)}</option>`).join('');
+            
+            document.getElementById('feedBulkMoveModalOverlay').classList.add('active');
+        }
+
+        async function confirmFeedBulkMove() {
+            const ids = getSelectedFeedProfileIds();
+            const targetGroupId = document.getElementById('feedBulkMoveTargetGroup').value;
+            try {
+                const res = await fetch(`${API}/feed/groups/move`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileIds: ids, groupId: targetGroupId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Đã chuyển ${data.count} profile sang nhóm mới!`);
+                    closeModal('feedBulkMoveModalOverlay');
+                    loadFeedProfiles();
+                } else {
+                    showToast('Lỗi: ' + data.error);
+                }
+            } catch (e) {
+                showToast('Lỗi: ' + e.message);
+            }
+        }
+
+        function openFeedBulkAddTagModal() {
+            const ids = getSelectedFeedProfileIds();
+            if (ids.length === 0) return showToast('Vui lòng chọn ít nhất 1 profile!');
+            document.getElementById('feedBulkAddTagInfo').textContent = `Gán nhãn cho ${ids.length} profile đã chọn:`;
+            
+            const container = document.getElementById('feedBulkAddTagCheckboxes');
+            if (feedTags.length === 0) {
+                container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Chưa có nhãn nào. Hãy bấm "TẠO NHÃN" trước.</div>';
+            } else {
+                container.innerHTML = feedTags.map(t => `
+                    <label style="display:inline-flex; align-items:center; gap:6px; background:${t.color}15; border:1px solid ${t.color}; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; color:#fff;">
+                        <input type="checkbox" value="${t.id}" class="bulk-add-tag-chk">
+                        <span class="color-dot" style="background:${t.color};"></span>
+                        <span>${escHtml(t.name)}</span>
+                    </label>
+                `).join('');
+            }
+            document.getElementById('feedBulkAddTagModalOverlay').classList.add('active');
+        }
+
+        async function confirmFeedBulkAddTag() {
+            const ids = getSelectedFeedProfileIds();
+            const checkedTags = Array.from(document.querySelectorAll('.bulk-add-tag-chk:checked')).map(c => c.value);
+            if (checkedTags.length === 0) return showToast('Vui lòng chọn ít nhất 1 nhãn!');
+
+            try {
+                const res = await fetch(`${API}/feed/tags/bulk-add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileIds: ids, tags: checkedTags })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Đã gán nhãn cho ${data.count} profile!`);
+                    closeModal('feedBulkAddTagModalOverlay');
+                    loadFeedProfiles();
+                } else {
+                    showToast('Lỗi: ' + data.error);
+                }
+            } catch (e) {
+                showToast('Lỗi: ' + e.message);
+            }
+        }
+
+        function openFeedBulkRemoveTagModal() {
+            const ids = getSelectedFeedProfileIds();
+            if (ids.length === 0) return showToast('Vui lòng chọn ít nhất 1 profile!');
+            document.getElementById('feedBulkRemoveTagInfo').textContent = `Gỡ bỏ nhãn khỏi ${ids.length} profile đã chọn:`;
+
+            const container = document.getElementById('feedBulkRemoveTagCheckboxes');
+            if (feedTags.length === 0) {
+                container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Không có nhãn nào.</div>';
+            } else {
+                container.innerHTML = feedTags.map(t => `
+                    <label style="display:inline-flex; align-items:center; gap:6px; background:${t.color}15; border:1px solid ${t.color}; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; color:#fff;">
+                        <input type="checkbox" value="${t.id}" class="bulk-remove-tag-chk">
+                        <span class="color-dot" style="background:${t.color};"></span>
+                        <span>${escHtml(t.name)}</span>
+                    </label>
+                `).join('');
+            }
+            document.getElementById('feedBulkRemoveTagModalOverlay').classList.add('active');
+        }
+
+        async function confirmFeedBulkRemoveTag() {
+            const ids = getSelectedFeedProfileIds();
+            const checkedTags = Array.from(document.querySelectorAll('.bulk-remove-tag-chk:checked')).map(c => c.value);
+            if (checkedTags.length === 0) return showToast('Vui lòng chọn ít nhất 1 nhãn cần gỡ bỏ!');
+
+            try {
+                const res = await fetch(`${API}/feed/tags/bulk-remove`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileIds: ids, tags: checkedTags })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Đã gỡ nhãn khỏi ${data.count} profile!`);
+                    closeModal('feedBulkRemoveTagModalOverlay');
+                    loadFeedProfiles();
+                } else {
+                    showToast('Lỗi: ' + data.error);
+                }
+            } catch (e) {
+                showToast('Lỗi: ' + e.message);
+            }
+        }
+
+        async function launchSelectedFeedProfiles() {
+            const ids = getSelectedFeedProfileIds();
+            if (ids.length === 0) return showToast('Vui lòng tick chọn ít nhất 1 profile để khởi chạy!');
+
+            const toLaunch = feedProfilesList.filter(p => ids.includes(p.id) && p.status !== 'running');
+            if (toLaunch.length === 0) {
+                return showToast('Tất cả profile đã chọn hiện đang chạy rồi!');
+            }
+
+            showToast(`ĐANG KHỞI CHẠY ${toLaunch.length} PROFILE ĐÃ CHỌN (TILED GRID)...`);
+
+            const settings = getFastSettings();
+            const cols = parseInt(settings.gridCols) || 5;
+            const rows = parseInt(settings.gridRows) || 3;
+            const scale = (parseInt(settings.gridScale) || 100) / 100;
+            const targetScreenId = document.getElementById('fdTargetMonitor') ? document.getElementById('fdTargetMonitor').value : (settings.targetMonitor || 'primary');
+
+            let screens = [];
+            try {
+                const screenRes = await fetch(`${API}/screens`);
+                const screenData = await screenRes.json();
+                if (screenData.screens && screenData.screens.length > 0) {
+                    screens = screenData.screens;
+                }
+            } catch (e) {}
+
+            let targetScreen = screens.find(s => s.id === targetScreenId || (targetScreenId === 'primary' && s.primary)) || screens.find(s => s.primary) || screens[0];
+            if (!targetScreen) {
+                targetScreen = { x: 0, y: 0, width: 1920, height: 1080 };
+            }
+
+            const screenW = targetScreen.width || 1920;
+            const screenH = targetScreen.height || 1080;
+            const winW = Math.floor(screenW / cols);
+            const winH = Math.floor(screenH / rows);
+
+            const promises = toLaunch.map((p, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols) % rows;
+
+                const windowSize = { width: winW, height: winH };
+                const windowPosition = {
+                    x: Math.round(targetScreen.x + (col * winW)),
+                    y: Math.round(targetScreen.y + (row * winH))
+                };
+
+                return fetch(`${API}/feed/profiles/${p.id}/launch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        windowSize,
+                        windowPosition,
+                        scaleFactor: scale
+                    })
+                });
+            });
+
+            await Promise.all(promises);
+            showToast(`ĐÃ KHỞI CHẠY ${toLaunch.length} PROFILE THÀNH CÔNG!`);
+            loadFeedProfiles();
+        }
+
+        async function closeSelectedFeedProfiles() {
+            const ids = getSelectedFeedProfileIds();
+            if (ids.length === 0) return showToast('Vui lòng tick chọn ít nhất 1 profile!');
+
+            const toClose = feedProfilesList.filter(p => ids.includes(p.id) && p.status === 'running');
+            if (toClose.length === 0) return showToast('Không có profile nào đang chạy trong danh sách đã chọn!');
+
+            showToast(`ĐANG ĐÓNG ${toClose.length} PROFILES...`);
+            await Promise.all(toClose.map(p => fetch(`${API}/feed/profiles/${p.id}/close`, { method: 'POST' })));
+            showToast(`ĐÃ ĐÓNG ${toClose.length} PROFILES!`);
+            loadFeedProfiles();
+        }
+
+        async function deleteSelectedFeedProfiles() {
+            const ids = getSelectedFeedProfileIds();
+            if (ids.length === 0) return showToast('Vui lòng chọn ít nhất 1 profile!');
+            if (!confirm(`XÁC NHẬN XÓA ${ids.length} FEED PROFILES ĐÃ CHỌN?\nDữ liệu trong H:\\Loopy feed sẽ bị xóa vĩnh viễn!`)) return;
+
+            for (const id of ids) {
+                await fetch(`${API}/feed/profiles/${id}`, { method: 'DELETE' });
+                selectedFeedProfileIds.delete(id);
+            }
+            showToast(`ĐÃ XÓA ${ids.length} FEED PROFILES!`);
+            loadFeedProfiles();
+        }
+
+        function openFeedCreateGroupModal() {
+            document.getElementById('feedGroupModalTitle').textContent = 'TẠO NHÓM MỚI';
+            document.getElementById('feedGroupIdInput').value = '';
+            document.getElementById('feedGroupNameInput').value = '';
+            document.getElementById('feedGroupColorInput').value = '#38bdf8';
+            renderColorPresets('feedGroupColorPresets', 'feedGroupColorInput', '#38bdf8');
+            document.getElementById('feedGroupModalOverlay').classList.add('active');
+        }
+
+        function openFeedEditGroupModal(id) {
+            const g = feedGroups.find(item => item.id === id);
+            if (!g) return;
+            document.getElementById('feedGroupModalTitle').textContent = 'SỬA TÊN / MÀU NHÓM';
+            document.getElementById('feedGroupIdInput').value = g.id;
+            document.getElementById('feedGroupNameInput').value = g.name;
+            document.getElementById('feedGroupColorInput').value = g.color || '#38bdf8';
+            renderColorPresets('feedGroupColorPresets', 'feedGroupColorInput', g.color || '#38bdf8');
+            document.getElementById('feedGroupModalOverlay').classList.add('active');
+        }
+
+        async function saveFeedGroupModal() {
+            const id = document.getElementById('feedGroupIdInput').value;
+            const name = document.getElementById('feedGroupNameInput').value.trim();
+            const color = document.getElementById('feedGroupColorInput').value;
+            if (!name) return showToast('Vui lòng nhập tên nhóm!');
+
+            try {
+                if (id) {
+                    await fetch(`${API}/feed/groups/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, color })
+                    });
+                    showToast('ĐÃ CẬP NHẬT NHÓM!');
+                } else {
+                    await fetch(`${API}/feed/groups`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, color })
+                    });
+                    showToast('ĐÃ TẠO NHÓM MỚI!');
+                }
+                closeModal('feedGroupModalOverlay');
+                await loadFeedProfiles();
+                if (document.getElementById('feedManageGroupsModalOverlay').classList.contains('active')) {
+                    openFeedManageGroupsModal();
+                }
+            } catch (e) {
+                showToast('Lỗi: ' + e.message);
+            }
+        }
+
+        function openFeedManageGroupsModal() {
+            const tbody = document.getElementById('feedManageGroupsList');
+            if (!tbody) return;
+
+            if (feedGroups.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:20px;">Chưa có nhóm nào. Bấm "TẠO NHÓM MỚI" để bắt đầu.</td></tr>`;
+            } else {
+                tbody.innerHTML = feedGroups.map(g => {
+                    const count = feedProfilesList.filter(p => p.group === g.id).length;
+                    return `
+                    <tr>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="color-dot" style="background:${g.color};"></span>
+                                <span style="font-weight:700; color:#fff;">${escHtml(g.name)}</span>
+                            </div>
+                        </td>
+                        <td><span class="count-badge" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px; font-size:11px;">${count} profiles</span></td>
+                        <td style="text-align:right;">
+                            <button class="btn btn-ghost btn-sm" onclick="openFeedEditGroupModal('${g.id}')">SỬA</button>
+                            <button class="btn btn-ghost btn-sm" style="color:var(--red); border-color:var(--red);" onclick="deleteFeedGroup('${g.id}')">XÓA</button>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('feedManageGroupsModalOverlay').classList.add('active');
+        }
+
+        async function deleteFeedGroup(id) {
+            const g = feedGroups.find(item => item.id === id);
+            const name = g ? g.name : id;
+            if (!confirm(`Bạn có chắc muốn xóa nhóm "${name}"?\n(Các profile thuộc nhóm này sẽ chuyển về "Chưa phân nhóm")`)) return;
+
+            try {
+                await fetch(`${API}/feed/groups/${id}`, { method: 'DELETE' });
+                showToast(`Đã xóa nhóm "${name}"!`);
+                if (currentFeedGroupFilter === id) currentFeedGroupFilter = 'ALL';
+                await loadFeedProfiles();
+                openFeedManageGroupsModal();
+            } catch (e) {
+                showToast('Lỗi: ' + e.message);
+            }
+        }
+
+        function openFeedCreateTagModal() {
+            document.getElementById('feedTagModalTitle').textContent = 'TẠO NHÃN MỚI';
+            document.getElementById('feedTagIdInput').value = '';
+            document.getElementById('feedTagNameInput').value = '';
+            document.getElementById('feedTagColorInput').value = '#10b981';
+            renderColorPresets('feedTagColorPresets', 'feedTagColorInput', '#10b981');
+            document.getElementById('feedTagModalOverlay').classList.add('active');
+        }
+
+        function openFeedEditTagModal(id) {
+            const t = feedTags.find(item => item.id === id);
+            if (!t) return;
+            document.getElementById('feedTagModalTitle').textContent = 'SỬA TÊN / MÀU NHÃN';
+            document.getElementById('feedTagIdInput').value = t.id;
+            document.getElementById('feedTagNameInput').value = t.name;
+            document.getElementById('feedTagColorInput').value = t.color || '#10b981';
+            renderColorPresets('feedTagColorPresets', 'feedTagColorInput', t.color || '#10b981');
+            document.getElementById('feedTagModalOverlay').classList.add('active');
+        }
+
+        async function saveFeedTagModal() {
+            const id = document.getElementById('feedTagIdInput').value;
+            const name = document.getElementById('feedTagNameInput').value.trim();
+            const color = document.getElementById('feedTagColorInput').value;
+            if (!name) return showToast('Vui lòng nhập tên nhãn!');
+
+            try {
+                if (id) {
+                    await fetch(`${API}/feed/tags/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, color })
+                    });
+                    showToast('ĐÃ CẬP NHẬT NHÃN!');
+                } else {
+                    await fetch(`${API}/feed/tags`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, color })
+                    });
+                    showToast('ĐÃ TẠO NHÃN MỚI!');
+                }
+                closeModal('feedTagModalOverlay');
+                await loadFeedProfiles();
+                if (document.getElementById('feedManageTagsModalOverlay').classList.contains('active')) {
+                    openFeedManageTagsModal();
+                }
+            } catch (e) {
+                showToast('Lỗi: ' + e.message);
+            }
+        }
+
+        function openFeedManageTagsModal() {
+            const tbody = document.getElementById('feedManageTagsList');
+            if (!tbody) return;
+
+            if (feedTags.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:20px;">Chưa có nhãn nào. Bấm "TẠO NHÃN MỚI" để bắt đầu.</td></tr>`;
+            } else {
+                tbody.innerHTML = feedTags.map(t => {
+                    const count = feedProfilesList.filter(p => (p.tags || []).includes(t.id) || (p.tags || []).includes(t.name)).length;
+                    return `
+                    <tr>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="color-dot" style="background:${t.color};"></span>
+                                <span style="font-weight:700; color:#fff;">${escHtml(t.name)}</span>
+                            </div>
+                        </td>
+                        <td><span class="count-badge" style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px; font-size:11px;">${count} profiles</span></td>
+                        <td style="text-align:right;">
+                            <button class="btn btn-ghost btn-sm" onclick="openFeedEditTagModal('${t.id}')">SỬA</button>
+                            <button class="btn btn-ghost btn-sm" style="color:var(--red); border-color:var(--red);" onclick="deleteFeedTag('${t.id}')">XÓA</button>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('feedManageTagsModalOverlay').classList.add('active');
+        }
+
+        async function deleteFeedTag(id) {
+            const t = feedTags.find(item => item.id === id);
+            const name = t ? t.name : id;
+            if (!confirm(`Bạn có chắc muốn xóa nhãn "${name}"?\n(Nhãn này sẽ được gỡ bỏ khỏi tất cả profile)`)) return;
+
+            try {
+                await fetch(`${API}/feed/tags/${id}`, { method: 'DELETE' });
+                showToast(`Đã xóa nhãn "${name}"!`);
+                if (currentFeedTagFilter === id) currentFeedTagFilter = 'ALL';
+                await loadFeedProfiles();
+                openFeedManageTagsModal();
+            } catch (e) {
+                showToast('Lỗi: ' + e.message);
+            }
+        }
+
+        function openFeedQuickAssign(profileId) {
+            const p = feedProfilesList.find(item => item.id === profileId);
+            if (!p) return;
+
+            document.getElementById('feedQuickAssignProfileId').value = profileId;
+            document.getElementById('feedQuickAssignTitle').textContent = `NHÓM & NHÃN: ${p.name}`;
+
+            const grpSelect = document.getElementById('feedQuickAssignGroup');
+            grpSelect.innerHTML = '<option value="">-- Chưa phân nhóm / Không có nhóm --</option>' + 
+                feedGroups.map(g => `<option value="${g.id}" ${p.group === g.id ? 'selected' : ''}>${escHtml(g.name)}</option>`).join('');
+
+            const tagsContainer = document.getElementById('feedQuickAssignTags');
+            const pTags = Array.isArray(p.tags) ? p.tags : [];
+            if (feedTags.length === 0) {
+                tagsContainer.innerHTML = '<div style="color:var(--text-muted); font-size:11px;">Chưa có nhãn nào. Bấm "TẠO NHÃN" ở ngoài để thêm.</div>';
+            } else {
+                tagsContainer.innerHTML = feedTags.map(t => {
+                    const isChecked = pTags.includes(t.id) || pTags.includes(t.name);
+                    return `
+                    <label style="display:inline-flex; align-items:center; gap:6px; background:${t.color}15; border:1px solid ${t.color}; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; color:#fff;">
+                        <input type="checkbox" value="${t.id}" class="quick-assign-tag-chk" ${isChecked ? 'checked' : ''}>
+                        <span class="color-dot" style="background:${t.color};"></span>
+                        <span>${escHtml(t.name)}</span>
+                    </label>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('feedQuickAssignModalOverlay').classList.add('active');
+        }
+
+        async function saveFeedQuickAssign() {
+            const profileId = document.getElementById('feedQuickAssignProfileId').value;
+            const group = document.getElementById('feedQuickAssignGroup').value;
+            const tags = Array.from(document.querySelectorAll('.quick-assign-tag-chk:checked')).map(c => c.value);
+
+            try {
+                await fetch(`${API}/feed/profiles/${profileId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ group, tags })
+                });
+                showToast('ĐÃ CẬP NHẬT NHÓM & NHÃN!');
+                closeModal('feedQuickAssignModalOverlay');
+                loadFeedProfiles();
+            } catch (e) {
+                showToast('Lỗi: ' + e.message);
+            }
+        }
+
+        async function launchFeedProfile(id) {
+            showToast('LAUNCHING FEED PROFILE...');
+            const res = await fetch(`${API}/feed/profiles/${id}/launch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ proxyMode: 'direct' })
+            });
+            const data = await res.json();
+            if (data.error) showToast('ERROR: ' + data.error);
+            else showToast('FEED PROFILE LAUNCHED!');
+            loadFeedProfiles();
+        }
+
+        async function closeFeedProfile(id) {
+            await fetch(`${API}/feed/profiles/${id}/close`, { method: 'POST' });
+            showToast('CEASED feed profile.');
+            loadFeedProfiles();
+        }
+
+        async function closeAllFeedProfiles() {
+            await fetch(`${API}/feed/close-all`, { method: 'POST' });
+            showToast('CEASED ALL FEED PROFILES.');
+            loadFeedProfiles();
+        }
+
+        async function launchAllFeedProfiles() {
+            showToast('LAUNCHING ALL FEED PROFILES...');
+
+            const settings = getFastSettings();
+            const cols = parseInt(settings.gridCols) || 5;
+            const rows = parseInt(settings.gridRows) || 3;
+            const scale = (parseInt(settings.gridScale) || 100) / 100;
+            const targetScreenId = document.getElementById('fdTargetMonitor') ? document.getElementById('fdTargetMonitor').value : (settings.targetMonitor || 'primary');
+
+            const res = await fetch(`${API}/feed/profiles`);
+            const profiles = await res.json();
+            const toLaunch = profiles.filter(p => p.status !== 'running');
+
+            let screens = [];
+            try {
+                const screenRes = await fetch(`${API}/screens`);
+                const screenData = await screenRes.json();
+                if (screenData.screens && screenData.screens.length > 0) {
+                    screens = screenData.screens;
+                }
+            } catch (e) {}
+
+            let targetScreen = screens.find(s => s.id === targetScreenId || (targetScreenId === 'primary' && s.primary)) || screens.find(s => s.primary) || screens[0];
+            if (!targetScreen) {
+                targetScreen = { x: 0, y: 0, width: 1920, height: 1080 };
+            }
+
+            const screenW = targetScreen.width || 1920;
+            const screenH = targetScreen.height || 1080;
+            const winW = Math.floor(screenW / cols);
+            const winH = Math.floor(screenH / rows);
+
+            const promises = toLaunch.map((p, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols) % rows;
+
+                const windowSize = { width: winW, height: winH };
+                const windowPosition = {
+                    x: Math.round(targetScreen.x + (col * winW)),
+                    y: Math.round(targetScreen.y + (row * winH))
+                };
+
+                return fetch(`${API}/feed/profiles/${p.id}/launch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        windowSize,
+                        windowPosition,
+                        scaleFactor: scale,
+                        proxyMode: 'direct'
+                    })
+                });
+            });
+
+            await Promise.all(promises);
+            showToast('ALL FEED PROFILES LAUNCHED!');
+            loadFeedProfiles();
+        }
+
+        async function deleteFeedProfile(id) {
+            if (!confirm('PURGE this feed profile? (Data in H:\\Loopy feed will be deleted)')) return;
+            const res = await fetch(`${API}/feed/profiles/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.error) showToast('ERROR: ' + data.error);
+            else showToast('PURGED FEED PROFILE.');
+            loadFeedProfiles();
+        }
+
+        async function deleteAllFeedProfilesUI() {
+            if (!confirm('WIPE ALL FEED PROFILES IN H:\\Loopy feed? CANNOT BE UNDONE.')) return;
+            await fetch(`${API}/feed/profiles/all`, { method: 'DELETE' });
+            showToast('ALL FEED PROFILES PURGED.');
+            loadFeedProfiles();
+        }
+
+        function toggleFeedCreateModalCustomFieldsUI() {
+            const mode = document.getElementById('feedCreateProfileModeSelect').value;
+            const container = document.getElementById('feedCreateModalCustomFieldsArea');
+            if (container) container.style.display = mode === 'custom' ? 'flex' : 'none';
+        }
+
+        function toggleFeedBulkModalCustomFieldsUI() {
+            const mode = document.getElementById('feedBulkProfileModeSelect').value;
+            const container = document.getElementById('feedBulkModalCustomFieldsArea');
+            if (container) container.style.display = mode === 'custom' ? 'flex' : 'none';
+        }
+
+        function toggleFeedLayoutMode() {
+            const mode = document.getElementById('feedLayoutMode').value;
+            const opts = document.getElementById('feedCustomLayoutOptions');
+            if (opts) opts.style.display = mode === 'custom' ? 'block' : 'none';
+        }
+
+        async function openFeedCreateModal() {
+            await fetchFingerprintOptionsUI();
+            document.getElementById('feedModalTitle').textContent = 'CREATE FEED PROFILE';
+            document.getElementById('feedEditProfileId').value = '';
+            document.getElementById('feedInputName').value = '';
+            if (document.getElementById('feedInputAccount')) document.getElementById('feedInputAccount').value = '';
+            document.getElementById('feedInputProxy').value = '';
+            document.getElementById('feedInputExtensions').value = '';
+
+            // Group dropdown
+            const grpSelect = document.getElementById('feedInputGroup');
+            if (grpSelect) {
+                grpSelect.innerHTML = '<option value="">-- Chưa phân nhóm / Không có nhóm --</option>' + 
+                    feedGroups.map(g => `<option value="${g.id}" ${currentFeedGroupFilter === g.id ? 'selected' : ''}>${escHtml(g.name)}</option>`).join('');
+            }
+
+            // Tags checkboxes
+            const tagsList = document.getElementById('feedInputTagsList');
+            if (tagsList) {
+                if (feedTags.length === 0) {
+                    tagsList.innerHTML = '<span style="font-size:11px; color:var(--text-muted);">Chưa có nhãn nào.</span>';
+                } else {
+                    tagsList.innerHTML = feedTags.map(t => `
+                        <label style="display:inline-flex; align-items:center; gap:6px; background:${t.color}15; border:1px solid ${t.color}; padding:3px 7px; border-radius:4px; font-size:11px; cursor:pointer; color:#fff;">
+                            <input type="checkbox" value="${t.id}" class="feed-create-tag-chk">
+                            <span class="color-dot" style="background:${t.color};"></span>
+                            <span>${escHtml(t.name)}</span>
+                        </label>
+                    `).join('');
+                }
+            }
+
+            const modeGroup = document.getElementById('feedCreateProfileModeGroup');
+            if (modeGroup) modeGroup.style.display = 'block';
+
+            try {
+                const res = await fetch(`${API}/settings`);
+                const settings = await res.json();
+                const defaults = settings.profileCreationDefaults || {};
+                const modeSelect = document.getElementById('feedCreateProfileModeSelect');
+                if (modeSelect) {
+                    modeSelect.value = defaults.mode || 'random';
+                    toggleFeedCreateModalCustomFieldsUI();
+                }
+            } catch (e) {}
+
+            document.getElementById('feedModalOverlay').classList.add('active');
+        }
+
+        async function openFeedEditModal(id) {
+            const res = await fetch(`${API}/feed/profiles/${id}`);
+            const p = await res.json();
+            document.getElementById('feedModalTitle').textContent = 'EDIT FEED PROFILE';
+            document.getElementById('feedEditProfileId').value = id;
+            document.getElementById('feedInputName').value = p.name || '';
+            if (document.getElementById('feedInputAccount')) document.getElementById('feedInputAccount').value = p.account || '';
+            document.getElementById('feedInputProxy').value = p.proxy || '';
+            document.getElementById('feedInputExtensions').value = (p.extensions || []).join('\n');
+
+            // Group dropdown
+            const grpSelect = document.getElementById('feedInputGroup');
+            if (grpSelect) {
+                grpSelect.innerHTML = '<option value="">-- Chưa phân nhóm / Không có nhóm --</option>' + 
+                    feedGroups.map(g => `<option value="${g.id}" ${p.group === g.id ? 'selected' : ''}>${escHtml(g.name)}</option>`).join('');
+            }
+
+            // Tags checkboxes
+            const tagsList = document.getElementById('feedInputTagsList');
+            if (tagsList) {
+                const pTags = Array.isArray(p.tags) ? p.tags : [];
+                if (feedTags.length === 0) {
+                    tagsList.innerHTML = '<span style="font-size:11px; color:var(--text-muted);">Chưa có nhãn nào.</span>';
+                } else {
+                    tagsList.innerHTML = feedTags.map(t => {
+                        const isChecked = pTags.includes(t.id) || pTags.includes(t.name);
+                        return `
+                        <label style="display:inline-flex; align-items:center; gap:6px; background:${t.color}15; border:1px solid ${t.color}; padding:3px 7px; border-radius:4px; font-size:11px; cursor:pointer; color:#fff;">
+                            <input type="checkbox" value="${t.id}" class="feed-create-tag-chk" ${isChecked ? 'checked' : ''}>
+                            <span class="color-dot" style="background:${t.color};"></span>
+                            <span>${escHtml(t.name)}</span>
+                        </label>
+                        `;
+                    }).join('');
+                }
+            }
+
+            const modeGroup = document.getElementById('feedCreateProfileModeGroup');
+            const customArea = document.getElementById('feedCreateModalCustomFieldsArea');
+            if (modeGroup) modeGroup.style.display = 'none';
+            if (customArea) customArea.style.display = 'none';
+
+            document.getElementById('feedModalOverlay').classList.add('active');
+        }
+
+        async function saveFeedProfile() {
+            const editId = document.getElementById('feedEditProfileId').value;
+            const name = document.getElementById('feedInputName').value.trim();
+            const proxy = document.getElementById('feedInputProxy').value.trim() || null;
+            const account = document.getElementById('feedInputAccount') ? document.getElementById('feedInputAccount').value.trim() : '';
+            const group = document.getElementById('feedInputGroup') ? document.getElementById('feedInputGroup').value : '';
+            const tags = Array.from(document.querySelectorAll('#feedInputTagsList input[type="checkbox"]:checked')).map(c => c.value);
+            const extText = document.getElementById('feedInputExtensions').value.trim();
+            const extensions = extText ? extText.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+            if (editId) {
+                await fetch(`${API}/feed/profiles/${editId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, proxy, account, group, tags, extensions })
+                });
+                showToast('UPDATED FEED PROFILE.');
+            } else {
+                const mode = document.getElementById('feedCreateProfileModeSelect').value;
+                const options = { mode, account, group, tags };
+                if (mode === 'custom') {
+                    options.userAgent = document.getElementById('feedCreateCustomUA').value;
+                    options.gpu = document.getElementById('feedCreateCustomGpu').value;
+                    options.screen = document.getElementById('feedCreateCustomScreen').value;
+                    options.hardwareConcurrency = parseInt(document.getElementById('feedCreateCustomCpu').value, 10);
+                    options.deviceMemory = parseInt(document.getElementById('feedCreateCustomRam').value, 10);
+                    options.timezone = document.getElementById('feedCreateCustomTimezone').value;
+                }
+
+                await fetch(`${API}/feed/profiles`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, proxy, extensions, options, group, tags })
+                });
+                showToast('FEED PROFILE CREATED IN H:\\Loopy feed!');
+            }
+            closeModal('feedModalOverlay');
+            loadFeedProfiles();
+        }
+
+        async function openFeedBulkModal() {
+            await fetchFingerprintOptionsUI();
+
+            // Group dropdown in bulk modal
+            const grpSelect = document.getElementById('feedBulkGroup');
+            if (grpSelect) {
+                grpSelect.innerHTML = '<option value="">-- Chưa phân nhóm / Không có nhóm --</option>' + 
+                    feedGroups.map(g => `<option value="${g.id}" ${currentFeedGroupFilter === g.id ? 'selected' : ''}>${escHtml(g.name)}</option>`).join('');
+            }
+
+            // Tags checkboxes in bulk modal
+            const tagsList = document.getElementById('feedBulkTagsList');
+            if (tagsList) {
+                if (feedTags.length === 0) {
+                    tagsList.innerHTML = '<span style="font-size:11px; color:var(--text-muted);">Chưa có nhãn nào.</span>';
+                } else {
+                    tagsList.innerHTML = feedTags.map(t => `
+                        <label style="display:inline-flex; align-items:center; gap:6px; background:${t.color}15; border:1px solid ${t.color}; padding:3px 7px; border-radius:4px; font-size:11px; cursor:pointer; color:#fff;">
+                            <input type="checkbox" value="${t.id}" class="feed-bulk-create-tag-chk">
+                            <span class="color-dot" style="background:${t.color};"></span>
+                            <span>${escHtml(t.name)}</span>
+                        </label>
+                    `).join('');
+                }
+            }
+
+            const modeSelect = document.getElementById('feedBulkProfileModeSelect');
+            if (modeSelect) {
+                try {
+                    const res = await fetch(`${API}/settings`);
+                    const settings = await res.json();
+                    const defaults = settings.profileCreationDefaults || {};
+                    modeSelect.value = defaults.mode || 'random';
+                    toggleFeedBulkModalCustomFieldsUI();
+                } catch (e) {}
+            }
+            document.getElementById('feedBulkModalOverlay').classList.add('active');
+        }
+
+        function openFeedLayoutModal() { document.getElementById('feedLayoutModalOverlay').classList.add('active'); }
+
+        async function bulkCreateFeed() {
+            const count = parseInt(document.getElementById('feedBulkCount').value);
+            const prefix = document.getElementById('feedBulkPrefix').value;
+            const group = document.getElementById('feedBulkGroup') ? document.getElementById('feedBulkGroup').value : '';
+            const tags = Array.from(document.querySelectorAll('#feedBulkTagsList input[type="checkbox"]:checked')).map(c => c.value);
+            const proxies = document.getElementById('feedBulkCreateProxies').value.split('\n').map(s => s.trim()).filter(Boolean);
+
+            const mode = document.getElementById('feedBulkProfileModeSelect').value;
+            const options = { mode, group, tags };
+            if (mode === 'custom') {
+                options.userAgent = document.getElementById('feedBulkCustomUA').value;
+                options.gpu = document.getElementById('feedBulkCustomGpu').value;
+                options.screen = document.getElementById('feedBulkCustomScreen').value;
+                options.hardwareConcurrency = parseInt(document.getElementById('feedBulkCustomCpu').value, 10);
+                options.deviceMemory = parseInt(document.getElementById('feedBulkCustomRam').value, 10);
+                options.timezone = document.getElementById('feedBulkCustomTimezone').value;
+            }
+
+            await fetch(`${API}/feed/profiles/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ count, namePrefix: prefix, proxies, options, group, tags })
+            });
+            showToast(`CREATED ${count} FEED PROFILES`);
+            closeModal('feedBulkModalOverlay');
+            loadFeedProfiles();
+        }
+
+        function openFeedBulkProxyModal() {
+            const selectedCount = selectedFeedProfileIds.size;
+            const targetInfo = document.getElementById('feedBulkProxyTargetInfo');
+            const modeSelect = document.getElementById('feedBulkProxyMode');
+            const listTextarea = document.getElementById('feedBulkProxyList');
+            const overwriteCheck = document.getElementById('feedBulkProxyOverwrite');
+
+            if (targetInfo) {
+                if (selectedCount > 0) {
+                    targetInfo.innerHTML = `Đang chọn: <strong>${selectedCount} profile</strong> (Chỉ thay đổi proxy cho các profile được tick chọn).`;
+                    targetInfo.style.background = 'rgba(56, 189, 248, 0.12)';
+                    targetInfo.style.borderColor = '#38bdf8';
+                    targetInfo.style.color = '#38bdf8';
+                } else {
+                    targetInfo.innerHTML = `Chưa tick chọn profile nào: Sẽ áp dụng thay đổi cho <strong>TẤT CẢ (${feedProfilesList.length}) PROFILES</strong>.`;
+                    targetInfo.style.background = 'rgba(245, 176, 0, 0.1)';
+                    targetInfo.style.borderColor = 'var(--accent)';
+                    targetInfo.style.color = 'var(--accent)';
+                }
+            }
+
+            if (modeSelect) modeSelect.value = 'list';
+            if (listTextarea) listTextarea.value = '';
+            if (overwriteCheck) overwriteCheck.checked = true;
+
+            toggleFeedBulkProxyModeUI();
+            document.getElementById('feedBulkProxyModalOverlay').classList.add('active');
+        }
+
+        function toggleFeedBulkProxyModeUI() {
+            const mode = document.getElementById('feedBulkProxyMode').value;
+            const inputGroup = document.getElementById('feedBulkProxyInputGroup');
+            const overwriteGroup = document.getElementById('feedBulkProxyOverwriteGroup');
+            const label = document.getElementById('feedBulkProxyInputLabel');
+            const hint = document.getElementById('feedBulkProxyHint');
+            const textarea = document.getElementById('feedBulkProxyList');
+
+            if (mode === 'clear') {
+                if (inputGroup) inputGroup.style.display = 'none';
+                if (overwriteGroup) overwriteGroup.style.display = 'none';
+            } else {
+                if (inputGroup) inputGroup.style.display = 'block';
+                if (overwriteGroup) overwriteGroup.style.display = 'flex';
+
+                if (mode === 'single') {
+                    if (label) label.textContent = 'PROXY DÙNG CHUNG';
+                    if (textarea) textarea.placeholder = 'Nhập 1 proxy dùng chung cho tất cả profile đã chọn...\nVí dụ: 192.168.1.50:8080 hoặc ip:port:user:pass';
+                    if (hint) hint.textContent = 'Toàn bộ các profile mục tiêu sẽ sử dụng chung proxy này.';
+                } else {
+                    if (label) label.textContent = 'DANH SÁCH PROXY (MỖI DÒNG 1 PROXY)';
+                    if (textarea) textarea.placeholder = 'Mỗi dòng 1 proxy. Hỗ trợ định dạng:\nip:port\nip:port:user:pass\nuser:pass@ip:port\nuser:pass:ip:port';
+                    if (hint) hint.textContent = 'Proxy sẽ được gán tuần tự lần lượt cho từng profile. Nếu ít hơn số profile, hệ thống tự động lặp vòng.';
+                }
+            }
+        }
+
+        async function saveFeedBulkProxy() {
+            const mode = document.getElementById('feedBulkProxyMode').value;
+            const overwrite = document.getElementById('feedBulkProxyOverwrite').checked;
+            const rawText = document.getElementById('feedBulkProxyList').value.trim();
+            const proxyLines = rawText.split('\n').map(s => s.trim()).filter(Boolean);
+
+            if (mode !== 'clear' && proxyLines.length === 0) {
+                return showToast('Vui lòng nhập ít nhất 1 proxy!');
+            }
+
+            const targets = selectedFeedProfileIds.size > 0 
+                ? Array.from(selectedFeedProfileIds) 
+                : feedProfilesList.map(p => p.id);
+
+            if (targets.length === 0) {
+                return showToast('Không có profile nào để áp dụng!');
+            }
+
+            showToast(`ĐANG CẬP NHẬT PROXY CHO ${targets.length} PROFILES...`);
+
+            try {
+                const res = await fetch(`${API}/feed/profiles/bulk-proxy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        profileIds: targets,
+                        proxies: proxyLines,
+                        mode,
+                        overwrite
+                    })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    showToast('Lỗi: ' + data.error);
+                } else {
+                    const desc = mode === 'clear' 
+                        ? `Đã xóa proxy, chuyển ${data.count} profile sang IP máy thật (Direct)`
+                        : `Đã cập nhật proxy cho ${data.count} profile!`;
+                    showToast(desc);
+                    closeModal('feedBulkProxyModalOverlay');
+                    loadFeedProfiles();
+                }
+            } catch (e) {
+                showToast('Lỗi khi cập nhật proxy: ' + e.message);
+            }
+        }
+
+        async function clearFeedProxyDirectAction() {
+            const targets = selectedFeedProfileIds.size > 0 
+                ? Array.from(selectedFeedProfileIds) 
+                : feedProfilesList.map(p => p.id);
+
+            if (targets.length === 0) return showToast('Không có profile nào!');
+            if (!confirm(`Xóa toàn bộ proxy của ${targets.length} profile để chuyển về dùng IP máy thật (Direct)?`)) return;
+
+            try {
+                const res = await fetch(`${API}/feed/profiles/bulk-proxy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        profileIds: targets,
+                        proxies: [],
+                        mode: 'clear',
+                        overwrite: true
+                    })
+                });
+                const data = await res.json();
+                showToast(`Đã xóa proxy của ${data.count} profile (Direct IP)!`);
+                closeModal('feedBulkProxyModalOverlay');
+                loadFeedProfiles();
+            } catch (e) {
+                showToast('Lỗi: ' + e.message);
+            }
+        }
+
+        async function showFeedProfileInfo(id) {
+            try {
+                const res = await fetch(`${API}/feed/profiles/${id}`);
+                const p = await res.json();
+                const content = document.getElementById('feedProfileInfoContent');
+
+                const grp = p.group ? feedGroups.find(g => g.id === p.group) : null;
+                const groupName = grp ? grp.name : '— (Chưa phân nhóm)';
+                const tagNames = (p.tags || []).map(tId => {
+                    const tagObj = feedTags.find(t => t.id === tId || t.name === tId);
+                    return tagObj ? tagObj.name : tId;
+                }).join(', ') || '— (Không có nhãn)';
+
+                content.innerHTML = `
+            <div><div class="settings-label">NAME</div><div class="stat-value">${escHtml(p.name)}</div></div>
+            <div><div class="settings-label">STORAGE</div><div class="stat-value" style="font-size:12px; color:var(--cyan);">H:\\Loopy feed</div></div>
+            <div><div class="settings-label">NHÓM (GROUP)</div><div class="stat-value" style="font-size:12px; color:#38bdf8;">${escHtml(groupName)}</div></div>
+            <div><div class="settings-label">NHÃN (TAGS)</div><div class="stat-value" style="font-size:12px; color:#10b981;">${escHtml(tagNames)}</div></div>
+            <div><div class="settings-label">ACCOUNT</div><div class="stat-value" style="font-size:12px; color:#38bdf8; font-family:monospace;">${escHtml(p.account || '— (Chưa đăng nhập)')}</div></div>
+            <div><div class="settings-label">PROXY</div><div class="stat-value" style="font-size:11px; font-family:monospace;">${escHtml(p.proxy || 'Mạng máy thật')}</div></div>
+            <div><div class="settings-label">RESOLUTION</div><div class="stat-value">${p.screen?.width}x${p.screen?.height}</div></div>
+            <div><div class="settings-label">CORES / RAM</div><div class="stat-value">${p.hardwareConcurrency} Cores / ${p.deviceMemory} GB</div></div>
+            <div><div class="settings-label">TIMEZONE</div><div class="stat-value">${p.timezone || 'UTC'}</div></div>
+            <div><div class="settings-label">LOCALE</div><div class="stat-value">${p.locale || 'en-US'}</div></div>
+            <div style="grid-column: span 2;">
+                <div class="settings-label">GPU RENDERER</div>
+                <div class="stat-value" style="font-size:11px; color:var(--yellow);">${escHtml(p.gpu?.renderer || '—')}</div>
+            </div>
+        `;
+                document.getElementById('feedInfoUA').value = p.userAgent || '—';
+                document.getElementById('feedInfoModalOverlay').classList.add('active');
+            } catch (e) {
+                showToast('Error loading profile info');
+            }
+        }
+
+        async function extractFeedAccount(id) {
+            showToast('ĐANG QUÉT TÀI KHOẢN...');
+            try {
+                const res = await fetch(`${API}/feed/profiles/${id}/extract-account`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success && data.account) {
+                    showToast(`TÌM THẤY TÀI KHOẢN: ${data.account}`);
+                    loadFeedProfiles();
+                } else {
+                    showToast(data.message || 'Chưa phát hiện tài khoản Microsoft đã đăng nhập');
+                }
+            } catch (e) {
+                showToast('Lỗi khi quét tài khoản: ' + e.message);
+            }
+        }
+
+        async function extractAllFeedAccounts() {
+            showToast('ĐANG QUÉT TẤT CẢ TÀI KHOẢN FEED...');
+            try {
+                const res = await fetch(`${API}/feed/profiles/extract-all`, { method: 'POST' });
+                const data = await res.json();
+                const foundCount = (data.results || []).filter(r => r.success).length;
+                showToast(`QUÉT HOÀN TẤT: Tìm thấy ${foundCount} tài khoản.`);
+                loadFeedProfiles();
+            } catch (e) {
+                showToast('Lỗi khi quét: ' + e.message);
+            }
+        }
+
+        async function extractFeedAccountForEditModal() {
+            const editId = document.getElementById('feedEditProfileId').value;
+            if (!editId) return showToast('Vui lòng lưu profile trước khi quét');
+            showToast('ĐANG QUÉT TÀI KHOẢN...');
+            try {
+                const res = await fetch(`${API}/feed/profiles/${editId}/extract-account`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success && data.account) {
+                    document.getElementById('feedInputAccount').value = data.account;
+                    showToast(`ĐÃ TÌM THẤY: ${data.account}`);
+                } else {
+                    showToast(data.message || 'Chưa phát hiện tài khoản Microsoft đã đăng nhập');
+                }
+            } catch (e) {
+                showToast('Lỗi khi quét: ' + e.message);
+            }
+        }
+
         // =======================
         // FAST DASHBOARD LOGIC
         // =======================
@@ -3186,7 +5111,7 @@
                 // Nếu là kịch bản check-phone-verify / check-double: Tự nạp 500 SĐT đầu tiên từ Tab quy định vào Queue & Cập nhật thẻ PHONES
                 if (name === 'check-phone-verify' || name === 'check-double') {
                     try {
-                        showToast('🔄 LOADING PHONE QUEUE...');
+                        showToast('LOADING PHONE QUEUE...');
                         fdLogMsg('Loading Phone Queue (300 rows max)...', 'info');
                         const queueRes = await fetch(`${API}/phone/queue/load`, {
                             method: 'POST',
@@ -3200,10 +5125,10 @@
                         const phoneBadge = document.getElementById('phoneQueueCount');
                         if (phoneBadge) phoneBadge.textContent = count;
                         
-                        showToast(`✅ LOADED ${count} PHONES`);
-                        fdLogMsg(`✅ Loaded ${count} valid phones from RentPhone tab into Queue`, 'success');
+                        showToast(`LOADED ${count} PHONES`);
+                        fdLogMsg(`Loaded ${count} valid phones from RentPhone tab into Queue`, 'success');
                     } catch (eQueue) {
-                        fdLogMsg(`⚠️ Phone queue load warning: ${eQueue.message}`, 'warning');
+                        fdLogMsg(`Phone queue load warning: ${eQueue.message}`, 'warning');
                     }
                 }
 
@@ -3255,14 +5180,14 @@
                 });
                 const data = await res.json();
                 if (data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
-                else fdLogMsg(`✅ PROXY SWITCHED: ${val}`, 'success');
+                else fdLogMsg(`PROXY SWITCHED: ${val}`, 'success');
             } catch (e) {
                 fdLogMsg(`ERROR: ${e.message}`, 'error');
             }
         }
 
         async function fdUseDirectProxy() {
-            fdLogMsg('🖥️ Switching to machine real IP (no proxy)...', 'info');
+            fdLogMsg('Switching to machine real IP (no proxy)...', 'info');
             try {
                 const res = await fetch(`${API}/proxy/switch`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3270,7 +5195,7 @@
                 });
                 const data = await res.json();
                 if (data.error) fdLogMsg(`ERROR: ${data.error}`, 'error');
-                else fdLogMsg('✅ IP REAL activated. Tất cả trình duyệt dùng IP thật của máy.', 'success');
+                else fdLogMsg('IP REAL activated. Tất cả trình duyệt dùng IP thật của máy.', 'success');
             } catch (e) {
                 fdLogMsg(`ERROR: ${e.message}`, 'error');
             }
@@ -3308,7 +5233,7 @@
 
 
         async function pauseAllProfiles() {
-            fdLogMsg('🛑 Sending STOP all automations command...', 'warning');
+            fdLogMsg('Sending STOP all automations command...', 'warning');
             try {
                 const res = await fetch(`${API}/automation/stop`, {
                     method: 'POST',
@@ -3317,13 +5242,13 @@
                 });
                 const data = await res.json();
                 if (data.stopped) {
-                    fdLogMsg('✅ STOP ALL AUTOMATIONS completed.', 'success');
+                    fdLogMsg('STOP ALL AUTOMATIONS completed.', 'success');
                     showToast('AUTOMATIONS STOPPED');
                 } else {
-                    fdLogMsg('⚠️ Failed to stop automations.', 'warning');
+                    fdLogMsg('Failed to stop automations.', 'warning');
                 }
             } catch (e) {
-                fdLogMsg(`❌ Error stopping automations: ${e.message}`, 'error');
+                fdLogMsg(`Error stopping automations: ${e.message}`, 'error');
             }
         }
 
@@ -4363,7 +6288,7 @@
             
             if (btnElement) {
                 btnElement.disabled = true;
-                btnElement.innerHTML = '⏳ Scanning...';
+                btnElement.innerHTML = 'Scanning...';
             }
             
             try {
@@ -4398,7 +6323,7 @@
 
             if (btnElement) {
                 btnElement.disabled = true;
-                btnElement.innerHTML = '⏳ Creating...';
+                btnElement.innerHTML = 'Creating...';
             }
 
             try {
@@ -4419,7 +6344,7 @@
             } finally {
                 if (btnElement) {
                     btnElement.disabled = false;
-                    btnElement.innerHTML = '➕ Create Tab';
+                    btnElement.innerHTML = 'Create Tab';
                 }
             }
         }
@@ -4532,7 +6457,7 @@
                 return `
                     <div style="display: flex; gap: 6px; align-items: center; background: rgba(0,0,0,0.25); padding: 4px 6px; border: 1px solid rgba(255,255,255,0.05); border-radius: 6px;">
                         <input type="text" value="${escHtml(fieldName)}" class="settings-input" style="flex: 1.5; font-size: 11px; font-weight: bold; background: transparent; border: none; border-bottom: 1px dashed rgba(255,255,255,0.15); border-radius:0; padding: 4px 0; color: #fff;" onchange="updateColumnField('${fieldName}', this.value, '${colLetter}')">
-                        <span style="color: var(--text-muted); font-size: 10px;">➔</span>
+                        <span style="color: var(--text-muted); font-size: 10px;">-></span>
                         <input type="text" value="${escHtml(colLetter)}" class="settings-input" style="width: 35px; font-size: 11px; text-align: center; text-transform: uppercase; background: #000; border-color: rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 0; font-family: monospace; font-weight: bold; color: var(--accent);" onchange="updateColumnLetter('${fieldName}', this.value)">
                         <button class="btn btn-ghost btn-sm" onclick="deleteColumnUI('${fieldName}')" style="color: var(--red); border-color: rgba(204,0,0,0.4); padding: 2px 6px; font-size: 9px;">REMOVE</button>
                     </div>
@@ -4690,7 +6615,7 @@
                 return `
                     <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); padding:8px 10px;">
                         <span style="font-size:11px; font-family:monospace; font-weight:bold; color:#fff;">
-                            Nguồn #${idx + 1}: Sheet [${escHtml(sheetName)}] ➔ Tab [${escHtml(src.tab)}]
+                            Nguồn #${idx + 1}: Sheet [${escHtml(sheetName)}] -> Tab [${escHtml(src.tab)}]
                         </span>
                         <button class="btn btn-danger" onclick="deleteAutomationSourceUI('${autoName}', ${idx})" style="padding:2px 8px; font-size:9px; line-height:1; background:transparent;">REMOVE</button>
                     </div>
@@ -4762,7 +6687,7 @@
             select.innerHTML = sources.map((src, idx) => {
                 const sheet = sheets.find(s => s.id === src.sheetId || s.spreadsheetId === src.sheetId) || sheets[0];
                 const sheetName = sheet ? sheet.name : 'Main Sheet';
-                return `<option value="${idx}">Nguồn #${idx + 1}: Sheet [${escHtml(sheetName)}] ➔ Tab [${escHtml(src.tab)}]</option>`;
+                return `<option value="${idx}">Nguồn #${idx + 1}: Sheet [${escHtml(sheetName)}] -> Tab [${escHtml(src.tab)}]</option>`;
             }).join('');
         }
 
@@ -4937,10 +6862,10 @@
 
             const targetTabSelectHtml = `
                 <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(0, 170, 170, 0.06); padding: 10px 14px; border: 1px solid rgba(0, 170, 170, 0.25); margin-bottom: 10px; width: 100%;">
-                    <span style="font-weight: 800; color: #fff; font-family: monospace; font-size: 10px; text-transform: uppercase;">📍 CHỌN TAB NƠI GHI KẾT QUẢ (TARGET OUTPUT TAB):</span>
+                    <span style="font-weight: 800; color: #fff; font-family: monospace; font-size: 10px; text-transform: uppercase;">CHỌN TAB NƠI GHI KẾT QUẢ (TARGET OUTPUT TAB):</span>
                     <select class="settings-input" style="width: 100%; padding: 8px 10px; font-size: 11px; font-weight: bold; color: var(--cyan);" onchange="updateAutomationTargetOutputTab('${autoName}', ${sourceIndex}, this.value)">
                         ${allTabOptions.map(opt => `
-                            <option value="${opt.key}" selected>Sheet [${escHtml(opt.sheetName)}] ➔ Tab [${escHtml(opt.tabName)}]</option>
+                            <option value="${opt.key}" selected>Sheet [${escHtml(opt.sheetName)}] -> Tab [${escHtml(opt.tabName)}]</option>
                         `).join('')}
                     </select>
                 </div>
@@ -5438,7 +7363,7 @@
                             <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px;">
                                 <span style="color: var(--cyan); font-weight: bold;">● Nguồn #${idx + 1}:</span>
                                 <span style="color: #fff; font-weight: 800;">Sheet [${escHtml(src.sheetName)}]</span>
-                                <span style="color: var(--accent);">➔ Tab [${escHtml(src.tab)}]</span>
+                                <span style="color: var(--accent);">-> Tab [${escHtml(src.tab)}]</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <div style="display: flex; align-items: center; gap: 4px;">
@@ -5589,7 +7514,7 @@
 
         async function fdSyncSheetNow() {
             try {
-                showToast('🔄 SYNCING GOOGLE SHEET...');
+                showToast('SYNCING GOOGLE SHEET...');
                 fdLogMsg('Manual Sync Sheet triggered...', 'info');
                 
                 const monitoredSources = getAllMonitoredSyncSources();
@@ -5637,11 +7562,11 @@
                 }
 
                 window.globalSheetData = aggregatedRows;
-                showToast(`✅ SYNCED ${totalFetched} ROWS`);
-                fdLogMsg(`✅ Sheet data synced successfully (${totalFetched} rows loaded from ${monitoredSources.length || 1} sources)`, 'success');
+                showToast(`SYNCED ${totalFetched} ROWS`);
+                fdLogMsg(`Sheet data synced successfully (${totalFetched} rows loaded from ${monitoredSources.length || 1} sources)`, 'success');
             } catch (e) {
-                showToast(`❌ SYNC ERROR: ${e.message}`);
-                fdLogMsg(`❌ Sync Sheet error: ${e.message}`, 'error');
+                showToast(`SYNC ERROR: ${e.message}`);
+                fdLogMsg(`Sync Sheet error: ${e.message}`, 'error');
             }
         }
 
@@ -5726,7 +7651,7 @@
             await autoSaveAllSettings();
             renderSmartBandwidthSaverUI();
 
-            const statusStr = isChecked ? '⚡ SMART BANDWIDTH SAVER ENABLED (Chặn ảnh web, Giữ ảnh Captcha)' : 'SMART BANDWIDTH SAVER DISABLED';
+            const statusStr = isChecked ? 'SMART BANDWIDTH SAVER ENABLED (Chặn ảnh web, Giữ ảnh Captcha)' : 'SMART BANDWIDTH SAVER DISABLED';
             showToast(statusStr);
             fdLogMsg(statusStr, isChecked ? 'success' : 'warning');
         }
@@ -5775,7 +7700,7 @@
                 return;
             }
 
-            fdLogMsg(`⚡ Triggering MULTI-ROTATE for ${rotateUrls.length} Proxy APIs...`, 'info');
+            fdLogMsg(`Triggering MULTI-ROTATE for ${rotateUrls.length} Proxy APIs...`, 'info');
             try {
                 const res = await fetch(`${API}/proxy/rotate-multi`, {
                     method: 'POST',
@@ -5786,7 +7711,7 @@
                 if (data.error) {
                     fdLogMsg(`XOAY MULTI ERROR: ${data.error}`, 'error');
                 } else {
-                    fdLogMsg(`✅ MULTI-ROTATE SUCCESS: Rotated ${data.total || rotateUrls.length} Proxy APIs in parallel!`, 'success');
+                    fdLogMsg(`MULTI-ROTATE SUCCESS: Rotated ${data.total || rotateUrls.length} Proxy APIs in parallel!`, 'success');
                     showToast(`ROTATED ${data.total || rotateUrls.length} PROXIES!`);
                 }
             } catch (e) {
@@ -5795,8 +7720,15 @@
         }
 
         // Init
-        setInterval(loadProfiles, 5000);
+        setInterval(() => {
+            loadProfiles();
+            const feedTab = document.getElementById('tab-feed');
+            if (feedTab && feedTab.classList.contains('active')) {
+                loadFeedProfiles();
+            }
+        }, 2000);
         loadProfiles();
+        loadFeedProfiles();
         loadArchives(); // Initial load for counters
         loadFastSettingsUI();
         loadGlobalExts();
@@ -5814,7 +7746,7 @@
 
             if (active) {
                 if (solveBtn) {
-                    solveBtn.textContent = '🟢 SOLVING...';
+                    solveBtn.textContent = 'SOLVING...';
                     solveBtn.style.borderColor = '#00aa00';
                     solveBtn.style.color = '#00aa00';
                     solveBtn.style.background = 'rgba(0,170,0,0.1)';
@@ -5844,7 +7776,7 @@
                 const running = profiles.filter(p => p.status === 'running');
 
                 if (running.length === 0) {
-                    fdLogMsg('⚠️ Không có profile nào đang chạy. Hãy mở profile trước.', 'warning');
+                    fdLogMsg('Không có profile nào đang chạy. Hãy mở profile trước.', 'warning');
                     showToast('NO RUNNING PROFILES');
                     return;
                 }
@@ -5860,12 +7792,12 @@
                         const d = await r.json();
                         if (d.success) {
                             started++;
-                            fdLogMsg(`✅ [${p.name}] — Vòng lặp giải gesture đã bắt đầu`, 'success');
+                            fdLogMsg(`[${p.name}] — Vòng lặp giải gesture đã bắt đầu`, 'success');
                         } else {
-                            fdLogMsg(`⚠️ [${p.name}]: ${d.error || 'Failed'}`, 'warning');
+                            fdLogMsg(`[${p.name}]: ${d.error || 'Failed'}`, 'warning');
                         }
                     } catch (e) {
-                        fdLogMsg(`❌ [${p.name}]: ${e.message}`, 'error');
+                        fdLogMsg(`[${p.name}]: ${e.message}`, 'error');
                     }
                 }
 
@@ -5874,16 +7806,16 @@
                     fdLogMsg(`Đang giải gesture cho ${started}/${running.length} profile. Tự động thử lại khi thất bại!`, 'success');
                     showToast(`GESTURE SOLVE: ${started} PROFILES`);
                 } else {
-                    fdLogMsg('❌ Không khởi động được watcher nào.', 'error');
+                    fdLogMsg('Không khởi động được watcher nào.', 'error');
                 }
             } catch (e) {
-                fdLogMsg(`❌ Lỗi: ${e.message}`, 'error');
+                fdLogMsg(`Lỗi: ${e.message}`, 'error');
             }
         }
 
 
         async function pauseGestureSolve() {
-            fdLogMsg('⏸️ PAUSE — Dừng tất cả vòng lặp giải gesture...', 'warning');
+            fdLogMsg('PAUSE — Dừng tất cả vòng lặp giải gesture...', 'warning');
             try {
                 const res = await fetch(`${API}/gesture-watch/stop`, {
                     method: 'POST',
@@ -5892,10 +7824,10 @@
                 });
                 const data = await res.json();
                 _setGestureUI(false);
-                fdLogMsg(`✅ Đã dừng. ${data.message || ''}`, 'info');
+                fdLogMsg(`Đã dừng. ${data.message || ''}`, 'info');
                 showToast('GESTURE PAUSED');
             } catch (e) {
-                fdLogMsg(`❌ Lỗi dừng: ${e.message}`, 'error');
+                fdLogMsg(`Lỗi dừng: ${e.message}`, 'error');
             }
         }
 
@@ -5914,16 +7846,16 @@
                         btn.classList.toggle('active', btn.dataset.gesture === gesture);
                     });
                     showToast(`CAM: ${gesture.toUpperCase()}`);
-                    fdLogMsg(`📷 Camera chuyển sang: ${gesture}`, 'success');
+                    fdLogMsg(`Camera chuyển sang: ${gesture}`, 'success');
                     // Tu dong bo highlight sau 4s
                     setTimeout(() => {
                         document.querySelectorAll('.gesture-cam-btn').forEach(b => b.classList.remove('active'));
                     }, 4000);
                 } else {
-                    fdLogMsg(`❌ Switch cam thất bại: ${data.error}`, 'error');
+                    fdLogMsg(`Switch cam thất bại: ${data.error}`, 'error');
                 }
             } catch (e) {
-                fdLogMsg(`❌ Lỗi switch cam: ${e.message}`, 'error');
+                fdLogMsg(`Lỗi switch cam: ${e.message}`, 'error');
             }
         }
 
@@ -5940,7 +7872,7 @@
                         _lastActive = isActive;
                         _setGestureUI(isActive);
                         if (isActive) {
-                            fdLogMsg(`🟢 Auto-watcher đang chạy cho ${data.activeWatchers.length} profile. Bấm SOLVE GESTURE để dừng.`, 'info');
+                            fdLogMsg(`Auto-watcher đang chạy cho ${data.activeWatchers.length} profile. Bấm SOLVE GESTURE để dừng.`, 'info');
                         }
                     }
                 } catch (e) { /* server chưa sẵn, bỏ qua */ }

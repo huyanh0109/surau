@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { stopGestureWatcher } = require('./gesture-watcher');
 const proxyService = require('./proxy-service');
+const proxyChain = require('proxy-chain');
 const geoService = require('./geo-service');
 
 // ============================================================================
@@ -45,20 +46,286 @@ const TIMEZONES = [
 ];
 const LOCALES = ['vi-VN', 'en-US', 'en-GB', 'en-AU', 'ja-JP', 'de-DE'];
 
+// ============================================================================
+// HÀM BÓC TÁCH TÀI KHOẢN MICROSOFT (MSAL / LIVE / BING / REWARDS / LOGIN DATA)
+// ============================================================================
+function isValidAccountEmail(e) {
+    if (!e || typeof e !== 'string') return false;
+    e = e.trim().toLowerCase();
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e)) return false;
+    const blocked = ['schema.org', 'w3.org', 'example.com', 'google.com', 'chromium.org', 'gstatic.com', 'googleapis.com', 'microsoft.com', 'bing.com'];
+    const domain = e.split('@')[1];
+    if (blocked.includes(domain)) return false;
+    if (e.endsWith('.png') || e.endsWith('.jpg') || e.endsWith('.svg') || e.endsWith('.js') || e.endsWith('.css')) return false;
+    return true;
+}
+
+function extractAccountFromProfileDir(profileDir) {
+    const defaultDir = path.join(profileDir, 'Default');
+    if (!fs.existsSync(defaultDir)) return null;
+
+    // 1. Kiểm tra History (URLs, MeControl username, OAuth login_hint, page titles)
+    const histPath = path.join(defaultDir, 'History');
+    if (fs.existsSync(histPath)) {
+        try {
+            const rawHist = fs.readFileSync(histPath, 'latin1');
+            // Check username=..., login_hint=..., email=...
+            const urlMatches = rawHist.match(/(?:username|login_hint|email)=([a-zA-Z0-9._%+-]+(?:%40|@)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/ig);
+            if (urlMatches) {
+                for (const u of urlMatches) {
+                    const clean = decodeURIComponent(u.split('=')[1].replace(/Continue$/i, '').trim());
+                    if (isValidAccountEmail(clean)) return clean;
+                }
+            }
+            // Check hotmail/outlook/live/msn in History
+            const msEmails = rawHist.match(/[a-zA-Z0-9._%+-]+@(hotmail|outlook|live|msn)\.com/gi);
+            if (msEmails) {
+                for (const m of msEmails) {
+                    const clean = m.replace(/Continue$/i, '').trim();
+                    if (isValidAccountEmail(clean)) return clean;
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 2. Kiểm tra Web Data (Autofill form inputs)
+    const webDataPath = path.join(defaultDir, 'Web Data');
+    if (fs.existsSync(webDataPath)) {
+        try {
+            const rawWebData = fs.readFileSync(webDataPath, 'latin1');
+            const matches = rawWebData.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+            if (matches) {
+                for (let m of matches) {
+                    if (m.startsWith('usernameEntry')) m = m.substring('usernameEntry'.length);
+                    const subMatch = m.match(/^[a-zA-Z0-9._%+-]+@(hotmail|outlook|live|msn)\.com/i);
+                    if (subMatch && isValidAccountEmail(subMatch[0])) return subMatch[0];
+                    if (isValidAccountEmail(m)) return m;
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 3. Kiểm tra Segmentation platform (ukm_db)
+    const ukmPath = path.join(profileDir, 'segmentation_platform', 'ukm_db');
+    if (fs.existsSync(ukmPath)) {
+        try {
+            const files = fs.readdirSync(ukmPath).filter(f => f.endsWith('.ldb') || f.endsWith('.log'));
+            for (const file of files) {
+                const fullPath = path.join(ukmPath, file);
+                const str = fs.readFileSync(fullPath, 'latin1');
+                const msMatches = str.match(/[a-zA-Z0-9._%+-]+@(hotmail|outlook|live|msn)\.com/gi);
+                if (msMatches) {
+                    for (const m of msMatches) {
+                        if (isValidAccountEmail(m)) return m.trim();
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 4. Kiểm tra Local Storage (LevelDB)
+    const lsDir = path.join(defaultDir, 'Local Storage', 'leveldb');
+    if (fs.existsSync(lsDir)) {
+        try {
+            const files = fs.readdirSync(lsDir).filter(f => f.endsWith('.ldb') || f.endsWith('.log'));
+            for (const file of files) {
+                const fullPath = path.join(lsDir, file);
+                const str = fs.readFileSync(fullPath, 'latin1');
+                const jsonPatterns = [
+                    /"(?:username|preferred_username|upn|email|userPrincipalName)":\s*"([^"@]+@[^"]+)"/i,
+                    /"(?:login_hint|unique_name)":\s*"([^"@]+@[^"]+)"/i,
+                    /"account":\s*\{[^}]*"username":\s*"([^"@]+@[^"]+)"/i
+                ];
+                for (const p of jsonPatterns) {
+                    const match = str.match(p);
+                    if (match && isValidAccountEmail(match[1])) {
+                        return match[1].trim();
+                    }
+                }
+                const msMatches = str.match(/[a-zA-Z0-9._%+-]+@(hotmail|outlook|live|msn)\.com/gi);
+                if (msMatches) {
+                    for (const m of msMatches) {
+                        if (isValidAccountEmail(m)) return m.trim();
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    // 5. Kiểm tra Login Data (SQLite / binary)
+    const loginDataPath = path.join(defaultDir, 'Login Data');
+    if (fs.existsSync(loginDataPath)) {
+        try {
+            const rawLogin = fs.readFileSync(loginDataPath, 'latin1');
+            const matches = rawLogin.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+            if (matches) {
+                for (const m of matches) {
+                    if (isValidAccountEmail(m)) return m.trim();
+                }
+            }
+        } catch (_) {}
+    }
+
+    // 6. Kiểm tra Session Storage
+    const ssDir = path.join(defaultDir, 'Session Storage');
+    if (fs.existsSync(ssDir)) {
+        try {
+            const files = fs.readdirSync(ssDir).filter(f => f.endsWith('.ldb') || f.endsWith('.log'));
+            for (const file of files) {
+                const fullPath = path.join(ssDir, file);
+                const str = fs.readFileSync(fullPath, 'latin1');
+                const jsonPatterns = [
+                    /"(?:username|preferred_username|upn|email)":\s*"([^"@]+@[^"]+)"/i,
+                    /"(?:login_hint|unique_name)":\s*"([^"@]+@[^"]+)"/i
+                ];
+                for (const p of jsonPatterns) {
+                    const match = str.match(p);
+                    if (match && isValidAccountEmail(match[1])) {
+                        return match[1].trim();
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    // 7. Kiểm tra Preferences
+    const prefPath = path.join(defaultDir, 'Preferences');
+    if (fs.existsSync(prefPath)) {
+        try {
+            const prefStr = fs.readFileSync(prefPath, 'utf8');
+            const match = prefStr.match(/"email":\s*"([^"@]+@[^"]+)"/i) || prefStr.match(/"user_email":\s*"([^"@]+@[^"]+)"/i);
+            if (match && isValidAccountEmail(match[1])) {
+                return match[1].trim();
+            }
+        } catch (e) {}
+    }
+
+    return null;
+}
+
+async function extractAccountFromRunningContext(context) {
+    if (!context) return null;
+    try {
+        const pages = context.pages();
+        for (const page of pages) {
+            try {
+                // 1. Kiểm tra URL của tab hiện tại
+                const curUrl = page.url();
+                if (curUrl && (curUrl.includes('username=') || curUrl.includes('login_hint=') || curUrl.includes('email='))) {
+                    const m = curUrl.match(/(?:username|login_hint|email)=([a-zA-Z0-9._%+-]+(?:%40|@)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+                    if (m) {
+                        const clean = decodeURIComponent(m[1].replace(/Continue$/i, '').trim());
+                        if (isValidAccountEmail(clean)) return clean;
+                    }
+                }
+
+                // 2. Trích xuất DOM & Storage trong trang
+                const email = await page.evaluate(() => {
+                    // Check URL
+                    const href = window.location.href;
+                    const urlMatch = href.match(/(?:username|login_hint|email)=([a-zA-Z0-9._%+-]+(?:%40|@)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+                    if (urlMatch) return decodeURIComponent(urlMatch[1]);
+
+                    // Selectors Microsoft MeControl, Bing user, login page
+                    const selectors = [
+                        '#mectrl_currentAccount_secondary',
+                        '.mectrl_accountEmail',
+                        '#bnp_user_name',
+                        '#id_a',
+                        '.id_username',
+                        '#displayName',
+                        '#userDisplayName',
+                        'div[data-bind*="userDisplayName"]',
+                        'input[name="loginfmt"]',
+                        '#i0116',
+                        'input[type="email"]',
+                        '.identity',
+                        '[data-test-id="current-user-email"]',
+                        '.user-profile-email',
+                        '#mectrl_main_trigger',
+                        '[aria-label*="@"]',
+                        '[title*="@"]'
+                    ];
+                    for (const s of selectors) {
+                        const el = document.querySelector(s);
+                        if (el) {
+                            const val = el.value || el.textContent || el.getAttribute('aria-label') || el.getAttribute('title') || '';
+                            if (val && val.includes('@')) {
+                                const m = val.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                                if (m) return m[0];
+                            }
+                        }
+                    }
+
+                    // Check toàn bộ text trang có đuôi Microsoft email
+                    const bodyText = document.body ? document.body.innerText : '';
+                    if (bodyText) {
+                        const m = bodyText.match(/[a-zA-Z0-9._%+-]+@(hotmail|outlook|live|msn)\.com/i);
+                        if (m) return m[0];
+                    }
+
+                    // Check localStorage
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const k = localStorage.key(i);
+                        const v = localStorage.getItem(k);
+                        if (v && v.includes('@')) {
+                            const match = v.match(/"(?:username|preferred_username|upn|email|userPrincipalName)":\s*"([^"@]+@[^"]+)"/i);
+                            if (match) return match[1];
+                            const msMatch = v.match(/[a-zA-Z0-9._%+-]+@(hotmail|outlook|live|msn)\.com/i);
+                            if (msMatch) return msMatch[0];
+                        }
+                    }
+
+                    // Check sessionStorage
+                    for (let i = 0; i < sessionStorage.length; i++) {
+                        const k = sessionStorage.key(i);
+                        const v = sessionStorage.getItem(k);
+                        if (v && v.includes('@')) {
+                            const match = v.match(/"(?:username|preferred_username|upn|email)":\s*"([^"@]+@[^"]+)"/i);
+                            if (match) return match[1];
+                            const msMatch = v.match(/[a-zA-Z0-9._%+-]+@(hotmail|outlook|live|msn)\.com/i);
+                            if (msMatch) return msMatch[0];
+                        }
+                    }
+                    return null;
+                });
+                if (email && isValidAccountEmail(email)) return email.trim();
+            } catch (err) {}
+        }
+
+        // 3. Quét Cookies trực tiếp từ context
+        try {
+            const cookies = await context.cookies();
+            for (const c of cookies) {
+                if (c.name === 'DefaultUser' || c.name === 'SignInState' || c.value.includes('@')) {
+                    const m = decodeURIComponent(c.value).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                    if (m && isValidAccountEmail(m[0])) return m[0];
+                }
+            }
+        } catch (_) {}
+    } catch (e) {}
+    return null;
+}
+
 class ProfileManager {
     constructor(options = {}) {
         // Thay đổi thư mục lưu trữ Data sang ổ G: theo yêu cầu
         const baseDir = options.baseDir || 'G:\\XsurauDataVer3';
+        this.baseDir = baseDir;
+        this.isFeed = !!options.isFeed || (typeof baseDir === 'string' && baseDir.toLowerCase().includes('feed'));
         this.profilesDataPath = path.join(baseDir, 'profiles_data');  // Lưu cookie, cache trình duyệt
         this.profilesMetaPath = path.join(baseDir, 'profiles_meta');  // Lưu cấu hình profile (JSON)
         this.archivesDir = path.join(baseDir, 'archives');           // Lưu trữ profile cũ (Safe from Delete All)
         this.extensionsPath = path.join(baseDir, 'extensions');       // Kho extension dùng chung
         this.settingsFile = path.join(baseDir, 'settings.json');      // Cấu hình toàn cục
         this.archivesMetaFile = path.join(this.archivesDir, 'archives.json'); // Metadata cho lưu trữ
+        this.groupsFile = path.join(baseDir, 'groups.json');          // Quản lý nhóm (Groups)
+        this.tagsFile = path.join(baseDir, 'tags.json');              // Quản lý nhãn (Tags)
         this.customChromePath = options.chromePath || 'K:\\chromium_src\\src\\out\\Xsurau\\chrome.exe';
 
         // Theo dõi profile đang chạy (RAM only — không cần lưu file)
         this.runningProfiles = new Map(); // profileId -> { context, pages[], pid }
+        this.anonymizedProxies = new Map(); // profileId -> anonProxyUrl (bridge xác thực cho proxy)
         // Khóa tránh mở 2 lần cùng lúc (race condition giữa thời gian launch và runningProfiles.set)
         this.launchingProfiles = new Set(); // profileId đang trong quá trình khởi động
         // Lưu vị trí grid layout cuối cùng (dùng lại khi automation mở profile)
@@ -86,7 +353,8 @@ class ProfileManager {
             const files = fs.readdirSync(this.profilesMetaPath).filter(f => f.endsWith('.json'));
             for (const f of files) {
                 try {
-                    const data = JSON.parse(fs.readFileSync(path.join(this.profilesMetaPath, f), 'utf8'));
+                    const raw = fs.readFileSync(path.join(this.profilesMetaPath, f), 'utf8').replace(/^\uFEFF/, '');
+                    const data = JSON.parse(raw);
                     this.profilesCache.set(data.id, data);
                 } catch (e) {}
             }
@@ -101,6 +369,12 @@ class ProfileManager {
         });
         if (!fs.existsSync(this.archivesMetaFile)) {
             fs.writeFileSync(this.archivesMetaFile, JSON.stringify({}, null, 2));
+        }
+        if (!fs.existsSync(this.groupsFile)) {
+            fs.writeFileSync(this.groupsFile, JSON.stringify([], null, 2));
+        }
+        if (!fs.existsSync(this.tagsFile)) {
+            fs.writeFileSync(this.tagsFile, JSON.stringify([], null, 2));
         }
     }
     _initSettings() {
@@ -560,6 +834,9 @@ class ProfileManager {
             name: name || id,
             createdAt: new Date().toISOString(),
             proxy,
+            group: customOptions.group || '',
+            tags: Array.isArray(customOptions.tags) ? customOptions.tags : [],
+            account: customOptions.account || '',
             extensions,
             noiseSeed,
             userAgent,
@@ -589,7 +866,7 @@ class ProfileManager {
             const profile = this.createProfile(`${namePrefix} ${num}`, proxy, [], customOptions);
             created.push(profile);
         }
-        console.log(`[Manager] ✅ Đã tạo ${count} profile hàng loạt!`);
+        console.log(`[Manager] 📦 Đã tạo ${count} profile hàng loạt!`);
         return created;
     }
 
@@ -599,32 +876,42 @@ class ProfileManager {
         if (!data) {
             const metaFile = path.join(this.profilesMetaPath, `${profileId}.json`);
             if (!fs.existsSync(metaFile)) return null;
-            data = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+            data = JSON.parse(fs.readFileSync(metaFile, 'utf8').replace(/^\uFEFF/, ''));
             this.profilesCache.set(profileId, data);
         }
         return {
             ...data,
+            group: data.group || '',
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            account: data.account || '',
             status: this.runningProfiles.has(profileId) ? 'running' : 'stopped'
         };
     }
 
-    /** Liệt kê tất cả profile (Trả về từ RAM Cache instant) */
+    /** Liệt kê tất cả profile (Đồng bộ cache với disk) */
     listProfiles() {
+        this._loadProfilesCache();
         return Array.from(this.profilesCache.values()).map(data => ({
             ...data,
+            group: data.group || '',
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            account: data.account || '',
             status: this.runningProfiles.has(data.id) ? 'running' : 'stopped'
         }));
     }
 
-    /** Cập nhật profile (proxy, extensions, name, notes) */
+    /** Cập nhật profile (proxy, extensions, name, notes, account, group, tags) */
     updateProfile(profileId, updates) {
         const metaFile = path.join(this.profilesMetaPath, `${profileId}.json`);
         if (!fs.existsSync(metaFile)) throw new Error(`Profile ${profileId} không tồn tại`);
         let data = this.profilesCache.get(profileId);
-        if (!data) data = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+        if (!data) data = JSON.parse(fs.readFileSync(metaFile, 'utf8').replace(/^\uFEFF/, ''));
 
         if (updates.name !== undefined) data.name = updates.name;
         if (updates.proxy !== undefined) data.proxy = updates.proxy;
+        if (updates.account !== undefined) data.account = updates.account;
+        if (updates.group !== undefined) data.group = updates.group;
+        if (updates.tags !== undefined) data.tags = Array.isArray(updates.tags) ? updates.tags : [];
         if (updates.extensions !== undefined) data.extensions = updates.extensions;
         if (updates.notes !== undefined) data.notes = updates.notes;
         if (updates.deviceMemory !== undefined) data.deviceMemory = updates.deviceMemory;
@@ -636,6 +923,278 @@ class ProfileManager {
         fs.writeFileSync(metaFile, JSON.stringify(data, null, 2));
         this.profilesCache.set(profileId, data);
         return data;
+    }
+
+    // ========================================================================
+    // QUẢN LÝ NHÓM (GROUPS)
+    // ========================================================================
+
+    getGroups() {
+        if (!fs.existsSync(this.groupsFile)) return [];
+        try {
+            return JSON.parse(fs.readFileSync(this.groupsFile, 'utf8'));
+        } catch (_) {
+            return [];
+        }
+    }
+
+    createGroup(name, color = '#38bdf8') {
+        if (!name || !name.trim()) throw new Error('Tên nhóm không được để trống');
+        const groups = this.getGroups();
+        const id = 'grp_' + Date.now() + '_' + crypto.randomBytes(2).toString('hex');
+        const newGroup = {
+            id,
+            name: name.trim(),
+            color: color || '#38bdf8',
+            createdAt: new Date().toISOString()
+        };
+        groups.push(newGroup);
+        fs.writeFileSync(this.groupsFile, JSON.stringify(groups, null, 2));
+        console.log(`[Manager] 📁 Đã tạo nhóm: [${newGroup.name}] (${newGroup.id})`);
+        return newGroup;
+    }
+
+    updateGroup(groupId, updates = {}) {
+        const groups = this.getGroups();
+        const group = groups.find(g => g.id === groupId);
+        if (!group) throw new Error(`Nhóm ${groupId} không tồn tại`);
+        if (updates.name && updates.name.trim()) group.name = updates.name.trim();
+        if (updates.color) group.color = updates.color;
+        fs.writeFileSync(this.groupsFile, JSON.stringify(groups, null, 2));
+        console.log(`[Manager] 📁 Đã cập nhật nhóm: [${group.name}]`);
+        return group;
+    }
+
+    deleteGroup(groupId) {
+        let groups = this.getGroups();
+        const group = groups.find(g => g.id === groupId);
+        if (!group) throw new Error(`Nhóm ${groupId} không tồn tại`);
+        groups = groups.filter(g => g.id !== groupId);
+        fs.writeFileSync(this.groupsFile, JSON.stringify(groups, null, 2));
+
+        // Bỏ nhóm cho các profile thuộc nhóm bị xóa
+        let affected = 0;
+        const allProfiles = this.listProfiles();
+        for (const p of allProfiles) {
+            if (p.group === groupId) {
+                p.group = '';
+                const metaFile = path.join(this.profilesMetaPath, `${p.id}.json`);
+                fs.writeFileSync(metaFile, JSON.stringify(p, null, 2));
+                this.profilesCache.set(p.id, p);
+                affected++;
+            }
+        }
+        console.log(`[Manager] 🗑️ Đã xóa nhóm [${group.name}], giải phóng ${affected} profiles.`);
+        return { success: true, affectedProfiles: affected };
+    }
+
+    moveToGroup(profileIds, groupId) {
+        if (!Array.isArray(profileIds)) profileIds = [profileIds];
+        const validGroup = groupId ? this.getGroups().find(g => g.id === groupId) : null;
+        const targetGroupId = validGroup ? validGroup.id : '';
+
+        let movedCount = 0;
+        for (const id of profileIds) {
+            const p = this.getProfile(id);
+            if (p) {
+                p.group = targetGroupId;
+                const metaFile = path.join(this.profilesMetaPath, `${id}.json`);
+                fs.writeFileSync(metaFile, JSON.stringify(p, null, 2));
+                this.profilesCache.set(id, p);
+                movedCount++;
+            }
+        }
+        console.log(`[Manager] 🔀 Đã di chuyển ${movedCount} profile vào nhóm [${validGroup ? validGroup.name : 'Chưa phân nhóm'}]`);
+        return { success: true, count: movedCount, groupId: targetGroupId };
+    }
+
+    // ========================================================================
+    // QUẢN LÝ NHÃN (TAGS)
+    // ========================================================================
+
+    getTags() {
+        if (!fs.existsSync(this.tagsFile)) return [];
+        try {
+            return JSON.parse(fs.readFileSync(this.tagsFile, 'utf8'));
+        } catch (_) {
+            return [];
+        }
+    }
+
+    createTag(name, color = '#10b981') {
+        if (!name || !name.trim()) throw new Error('Tên nhãn không được để trống');
+        const tags = this.getTags();
+        const trimmed = name.trim();
+        const existing = tags.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
+        if (existing) return existing;
+
+        const id = 'tag_' + Date.now() + '_' + crypto.randomBytes(2).toString('hex');
+        const newTag = {
+            id,
+            name: trimmed,
+            color: color || '#10b981'
+        };
+        tags.push(newTag);
+        fs.writeFileSync(this.tagsFile, JSON.stringify(tags, null, 2));
+        console.log(`[Manager] 🏷️ Đã tạo nhãn: [${newTag.name}] (${newTag.id})`);
+        return newTag;
+    }
+
+    updateTag(tagId, updates = {}) {
+        const tags = this.getTags();
+        const tag = tags.find(t => t.id === tagId);
+        if (!tag) throw new Error(`Nhãn ${tagId} không tồn tại`);
+        if (updates.name && updates.name.trim()) tag.name = updates.name.trim();
+        if (updates.color) tag.color = updates.color;
+        fs.writeFileSync(this.tagsFile, JSON.stringify(tags, null, 2));
+        console.log(`[Manager] 🏷️ Đã cập nhật nhãn: [${tag.name}]`);
+        return tag;
+    }
+
+    deleteTag(tagId) {
+        let tags = this.getTags();
+        const tag = tags.find(t => t.id === tagId);
+        if (!tag) throw new Error(`Nhãn ${tagId} không tồn tại`);
+        tags = tags.filter(t => t.id !== tagId);
+        fs.writeFileSync(this.tagsFile, JSON.stringify(tags, null, 2));
+
+        // Gỡ nhãn này khỏi tất cả các profile
+        let affected = 0;
+        const allProfiles = this.listProfiles();
+        for (const p of allProfiles) {
+            if (Array.isArray(p.tags) && (p.tags.includes(tagId) || p.tags.includes(tag.name))) {
+                p.tags = p.tags.filter(t => t !== tagId && t !== tag.name);
+                const metaFile = path.join(this.profilesMetaPath, `${p.id}.json`);
+                fs.writeFileSync(metaFile, JSON.stringify(p, null, 2));
+                this.profilesCache.set(p.id, p);
+                affected++;
+            }
+        }
+        console.log(`[Manager] 🗑️ Đã xóa nhãn [${tag.name}], gỡ khỏi ${affected} profile.`);
+        return { success: true, affectedProfiles: affected };
+    }
+
+    addTagsToProfiles(profileIds, tagNamesOrIds) {
+        if (!Array.isArray(profileIds)) profileIds = [profileIds];
+        if (!Array.isArray(tagNamesOrIds)) tagNamesOrIds = [tagNamesOrIds];
+
+        let affected = 0;
+        for (const id of profileIds) {
+            const p = this.getProfile(id);
+            if (p) {
+                const cur = Array.isArray(p.tags) ? p.tags : [];
+                p.tags = [...new Set([...cur, ...tagNamesOrIds])];
+                const metaFile = path.join(this.profilesMetaPath, `${id}.json`);
+                fs.writeFileSync(metaFile, JSON.stringify(p, null, 2));
+                this.profilesCache.set(id, p);
+                affected++;
+            }
+        }
+        console.log(`[Manager] 🏷️ Đã gán nhãn [${tagNamesOrIds.join(', ')}] cho ${affected} profiles.`);
+        return { success: true, count: affected };
+    }
+
+    removeTagsFromProfiles(profileIds, tagNamesOrIds) {
+        if (!Array.isArray(profileIds)) profileIds = [profileIds];
+        if (!Array.isArray(tagNamesOrIds)) tagNamesOrIds = [tagNamesOrIds];
+
+        let affected = 0;
+        for (const id of profileIds) {
+            const p = this.getProfile(id);
+            if (p) {
+                const cur = Array.isArray(p.tags) ? p.tags : [];
+                p.tags = cur.filter(t => !tagNamesOrIds.includes(t));
+                const metaFile = path.join(this.profilesMetaPath, `${id}.json`);
+                fs.writeFileSync(metaFile, JSON.stringify(p, null, 2));
+                this.profilesCache.set(id, p);
+                affected++;
+            }
+        }
+        console.log(`[Manager] 🏷️ Đã gỡ nhãn [${tagNamesOrIds.join(', ')}] khỏi ${affected} profiles.`);
+        return { success: true, count: affected };
+    }
+
+    /** Cập nhật proxy hàng loạt cho các profile */
+    bulkUpdateProxies(profileIds, proxies = [], options = {}) {
+        if (!Array.isArray(profileIds)) profileIds = [profileIds];
+        const mode = options.mode || 'list'; // 'list', 'single', 'clear'
+        const overwrite = options.overwrite !== false;
+
+        let rawProxies = Array.isArray(proxies) ? proxies : [proxies];
+        let validProxies = [];
+        for (const item of rawProxies) {
+            if (typeof item === 'string') {
+                const lines = item.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+                validProxies.push(...lines);
+            }
+        }
+
+        let updatedCount = 0;
+        for (let i = 0; i < profileIds.length; i++) {
+            const id = profileIds[i];
+            const p = this.getProfile(id);
+            if (!p) continue;
+
+            const hasExistingProxy = p.proxy && typeof p.proxy === 'string' && p.proxy.trim() && p.proxy.trim().toUpperCase() !== 'DIRECT';
+            if (!overwrite && hasExistingProxy) {
+                continue;
+            }
+
+            let newProxy = null;
+            if (mode === 'clear') {
+                newProxy = null;
+            } else if (mode === 'single') {
+                newProxy = validProxies.length > 0 ? validProxies[0] : null;
+            } else {
+                // list / round-robin
+                if (validProxies.length > 0) {
+                    newProxy = validProxies[updatedCount % validProxies.length];
+                } else {
+                    newProxy = null;
+                }
+            }
+
+            p.proxy = newProxy;
+            const metaFile = path.join(this.profilesMetaPath, `${id}.json`);
+            fs.writeFileSync(metaFile, JSON.stringify(p, null, 2));
+            this.profilesCache.set(id, p);
+            updatedCount++;
+        }
+
+        console.log(`[Manager] 🌐 Bulk Proxy Update: Đã cập nhật proxy cho ${updatedCount}/${profileIds.length} profiles (mode=${mode}).`);
+        return { success: true, count: updatedCount };
+    }
+
+    /** Trích xuất tài khoản Microsoft đã đăng nhập trong profile */
+    async extractAccount(profileId) {
+        const profileData = this.getProfile(profileId);
+        if (!profileData) throw new Error(`Profile ${profileId} không tồn tại!`);
+
+        let extractedEmail = null;
+
+        // 1. Thử quét khi profile đang mở
+        const running = this.runningProfiles.get(profileId);
+        if (running && running.context) {
+            extractedEmail = await extractAccountFromRunningContext(running.context);
+        }
+
+        // 2. Quét từ thư mục dữ liệu của profile
+        if (!extractedEmail) {
+            const profileDir = path.join(this.profilesDataPath, profileId);
+            extractedEmail = extractAccountFromProfileDir(profileDir);
+        }
+
+        // 3. Nếu tìm thấy email, cập nhật vào metadata
+        if (extractedEmail) {
+            profileData.account = extractedEmail;
+            const metaFile = path.join(this.profilesMetaPath, `${profileId}.json`);
+            fs.writeFileSync(metaFile, JSON.stringify(profileData, null, 2));
+            this.profilesCache.set(profileId, profileData);
+            console.log(`[Manager] 📧 Đã trích xuất tài khoản cho profile [${profileData.name}]: ${extractedEmail}`);
+            return { success: true, account: extractedEmail };
+        }
+
+        return { success: false, message: 'Chưa phát hiện tài khoản Microsoft đã đăng nhập' };
     }
 
     /** Xóa profile (xóa cả data trình duyệt) */
@@ -868,52 +1427,18 @@ class ProfileManager {
         if (!profileData) throw new Error(`Profile ${profileId} không tồn tại!`);
         
         const settings = this.getSettings();
-        const isMultiProxyEnabled = settings.multiProxy && settings.multiProxy.enabled && Array.isArray(settings.multiProxy.proxies) && settings.multiProxy.proxies.length > 0;
-        if (isMultiProxyEnabled) {
-            const allProfiles = this.listProfiles();
-            const profileIndex = allProfiles.findIndex(p => p.id === profileId);
-            const idx = profileIndex >= 0 ? profileIndex : 0;
-            const chosenProxy = settings.multiProxy.proxies[idx % settings.multiProxy.proxies.length];
-            if (chosenProxy && chosenProxy.trim()) {
-                profileData.proxy = chosenProxy.trim();
-                console.log(`[Manager] 🔀 Multi-Proxy Auto-Balancer: Profile ${profileId} (#${idx + 1}) → Proxy #${(idx % settings.multiProxy.proxies.length) + 1} [${chosenProxy.trim()}]`);
-            }
-        }
 
-        let proxyStr = profileData.proxy;
-        if (!isMultiProxyEnabled) {
-            proxyStr = 'http://127.0.0.1:8888';
-            if (!proxyService.activeUpstream) {
-                const initialProxy = profileData.proxy || '160.250.166.17:10873';
-                proxyService.activeUpstream = initialProxy;
-                console.log(`[Manager] Auto-initialized gateway activeUpstream to P1 default: ${initialProxy}`);
-            }
-        }
-        
-        const profileDir = path.join(this.profilesDataPath, profileId);
-        
-        // Kiểm tra xem profile đã có dữ liệu chưa (để biết là mở lần đầu hay mở lại)
-        const isNewProfile = !fs.existsSync(path.join(profileDir, 'Default', 'Preferences'));
-
-        // Đảm bảo profile cũ có đủ fingerprint data (backward compat)
-        const screen = profileData.screen || { width: 1920, height: 1080 };
-        const hwConcurrency = profileData.hardwareConcurrency || 8;
-        const devMemory = profileData.deviceMemory || 8;
-        let timezone = profileData.timezone || 'Asia/Ho_Chi_Minh';
-        let locale = profileData.locale || 'vi-VN';
-
-        // Generate a fake local IP from noiseSeed for WebRTC spoofing
-        const rawSeed = profileData.noiseSeed || '12345';
-        const seedInt = typeof rawSeed === 'string' ? (parseInt(rawSeed.substring(0, 8), 16) || 12345) : (rawSeed || 12345);
-        const ip3 = (seedInt % 254) + 1;
-        const ip4 = ((seedInt >> 8) % 254) + 1;
-        const fakeLocalIp = `192.168.${ip3}.${ip4}`;
+        // Helper: Check nếu string là proxy hợp lệ (không rỗng, không phải NONE/DIRECT)
+        const hasValidProxy = (raw) => {
+            if (!raw) return false;
+            const s = String(raw).trim().toUpperCase();
+            return s !== '' && s !== 'NONE' && s !== 'DIRECT' && s !== 'NULL' && s !== 'UNDEFINED';
+        };
 
         // Helper: Parse proxy string (ip:port, ip:port:user:pass, user:pass:ip:port, http://user:pass@ip:port)
         const parseProxy = (raw) => {
-            if (!raw) return null;
-            let t = raw.trim();
-            if (!t) return null;
+            if (!hasValidProxy(raw)) return null;
+            let t = String(raw).trim();
 
             let server = '';
             let username = '';
@@ -955,11 +1480,68 @@ class ProfileManager {
             return { server, username, password };
         };
 
-        // Determine effective proxy (gateway mode when multi-proxy disabled, profile proxy when multi-proxy enabled)
-        const effectiveProxyRaw = isMultiProxyEnabled
-            ? profileData.proxy
-            : 'http://127.0.0.1:8888';
-        const effectiveProxyObj = parseProxy(effectiveProxyRaw);
+        let effectiveProxyRaw = null;
+        const isMultiProxyEnabled = settings.multiProxy && settings.multiProxy.enabled && Array.isArray(settings.multiProxy.proxies) && settings.multiProxy.proxies.length > 0;
+
+        if (this.isFeed) {
+            // ====================================================================
+            // CƠ CHẾ FEED MANAGER:
+            // - Có proxy: dùng đúng IP/cổng/user/pass của proxy profile đó trực tiếp
+            // - Không có proxy: dùng IP mạng thật của máy tính (Direct connection)
+            // - Tuyệt đối KHÔNG bao giờ ép qua cổng trung gian 127.0.0.1:8888
+            // ====================================================================
+            if (hasValidProxy(profileData.proxy)) {
+                effectiveProxyRaw = profileData.proxy.trim();
+                console.log(`[FeedManager] 🌐 Profile [${profileData.name}] CÓ PROXY → Sử dụng Proxy riêng: ${effectiveProxyRaw}`);
+            } else {
+                effectiveProxyRaw = null;
+                console.log(`[FeedManager] 🏠 Profile [${profileData.name}] KHÔNG CÓ PROXY → Kết nối trực tiếp qua mạng máy thật`);
+            }
+        } else {
+            // Profile Manager gốc (Xsurau)
+            if (isMultiProxyEnabled) {
+                const allProfiles = this.listProfiles();
+                const profileIndex = allProfiles.findIndex(p => p.id === profileId);
+                const idx = profileIndex >= 0 ? profileIndex : 0;
+                const chosenProxy = settings.multiProxy.proxies[idx % settings.multiProxy.proxies.length];
+                if (chosenProxy && chosenProxy.trim()) {
+                    profileData.proxy = chosenProxy.trim();
+                    console.log(`[Manager] 🔀 Multi-Proxy Auto-Balancer: Profile ${profileId} (#${idx + 1}) → Proxy #${(idx % settings.multiProxy.proxies.length) + 1} [${chosenProxy.trim()}]`);
+                }
+                effectiveProxyRaw = profileData.proxy;
+            } else if (options.proxyMode === 'individual' || options.proxyMode === 'direct') {
+                effectiveProxyRaw = hasValidProxy(profileData.proxy) ? profileData.proxy.trim() : null;
+            } else {
+                // Gateway 8888 mode
+                effectiveProxyRaw = 'http://127.0.0.1:8888';
+                if (!proxyService.activeUpstream) {
+                    const initialProxy = (hasValidProxy(profileData.proxy) ? profileData.proxy.trim() : null) || '160.250.166.17:10873';
+                    proxyService.activeUpstream = initialProxy;
+                    console.log(`[Manager] Auto-initialized gateway activeUpstream to P1 default: ${initialProxy}`);
+                }
+            }
+        }
+
+        const effectiveProxyObj = effectiveProxyRaw ? parseProxy(effectiveProxyRaw) : null;
+        
+        const profileDir = path.join(this.profilesDataPath, profileId);
+        
+        // Kiểm tra xem profile đã có dữ liệu chưa (để biết là mở lần đầu hay mở lại)
+        const isNewProfile = !fs.existsSync(path.join(profileDir, 'Default', 'Preferences'));
+
+        // Đảm bảo profile cũ có đủ fingerprint data (backward compat)
+        const screen = profileData.screen || { width: 1920, height: 1080 };
+        const hwConcurrency = profileData.hardwareConcurrency || 8;
+        const devMemory = profileData.deviceMemory || 8;
+        let timezone = profileData.timezone || 'Asia/Ho_Chi_Minh';
+        let locale = profileData.locale || 'vi-VN';
+
+        // Generate a fake local IP from noiseSeed for WebRTC spoofing
+        const rawSeed = profileData.noiseSeed || '12345';
+        const seedInt = typeof rawSeed === 'string' ? (parseInt(rawSeed.substring(0, 8), 16) || 12345) : (rawSeed || 12345);
+        const ip3 = (seedInt % 254) + 1;
+        const ip4 = ((seedInt >> 8) % 254) + 1;
+        const fakeLocalIp = `192.168.${ip3}.${ip4}`;
 
         // Auto Geo & Proxy Spoofing: Tự động đổi Múi giờ, Vị trí GPS, Locale & WebRTC IP theo Proxy
         const autoGeoSettings = settings.autoGeoProxy || {
@@ -974,11 +1556,11 @@ class ProfileManager {
         let geolocationConfig = null;
 
         // Proxy dùng để tra cứu GeoIP:
-        // Nếu multi-proxy bật: dùng profileData.proxy
-        // Nếu gateway mode: dùng upstream proxy của gateway (proxyService.activeUpstream)
-        const proxyForGeo = isMultiProxyEnabled
-            ? profileData.proxy
-            : (options.proxyMode === 'individual' ? profileData.proxy : (proxyService.activeUpstream || null));
+        // Nếu feed hoặc individual: dùng effectiveProxyRaw (null nếu direct máy thật)
+        // Nếu gateway mode: dùng upstream proxy của gateway
+        const proxyForGeo = (this.isFeed || options.proxyMode === 'individual' || options.proxyMode === 'direct' || isMultiProxyEnabled)
+            ? effectiveProxyRaw
+            : (proxyService.activeUpstream || null);
 
         if (autoGeoSettings.enabled !== false) {
             try {
@@ -1017,10 +1599,9 @@ class ProfileManager {
             }
         } else {
             // Khi tắt Auto Geo: giữ nguyên logic WebRTC cũ
-            const parsedIpCheckProxy = parseProxy(profileData.proxy);
-            if (parsedIpCheckProxy && parsedIpCheckProxy.server && (options.proxyMode !== 'global' || isMultiProxyEnabled)) {
+            if (effectiveProxyRaw) {
                 try {
-                    const fallbackGeo = await geoService.resolveProxyGeo(profileData.proxy, profileData.noiseSeed);
+                    const fallbackGeo = await geoService.resolveProxyGeo(effectiveProxyRaw, profileData.noiseSeed);
                     if (fallbackGeo && fallbackGeo.ip && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(fallbackGeo.ip)) {
                         webrtcIp = fallbackGeo.ip;
                     }
@@ -1161,10 +1742,26 @@ class ProfileManager {
             launchConfig.permissions = ['geolocation'];
         }
 
+        let anonymizedProxyUrl = null;
         if (effectiveProxyObj && effectiveProxyObj.server) {
-            launchConfig.proxy = { server: effectiveProxyObj.server };
-            if (effectiveProxyObj.username) launchConfig.proxy.username = effectiveProxyObj.username;
-            if (effectiveProxyObj.password) launchConfig.proxy.password = effectiveProxyObj.password;
+            if (effectiveProxyObj.username || effectiveProxyObj.password) {
+                try {
+                    // Dùng proxy-chain tạo bridge local 127.0.0.1 để tự động xác thực proxy
+                    // Tránh triệt để Chromium hiện popup "Sign in: The proxy requires a username and password"
+                    const formattedProxy = proxyService.toProxyUrl(effectiveProxyRaw);
+                    anonymizedProxyUrl = await proxyChain.anonymizeProxy(formattedProxy);
+                    this.anonymizedProxies.set(profileId, anonymizedProxyUrl);
+                    launchConfig.proxy = { server: anonymizedProxyUrl };
+                    console.log(`[Manager] 🛡️ Proxy bridge tự động xác thực: ${anonymizedProxyUrl} -> ${effectiveProxyObj.server}`);
+                } catch (anonErr) {
+                    console.warn(`[Manager] ⚠️ AnonymizeProxy error: ${anonErr.message}`);
+                    launchConfig.proxy = { server: effectiveProxyObj.server };
+                    if (effectiveProxyObj.username) launchConfig.proxy.username = effectiveProxyObj.username;
+                    if (effectiveProxyObj.password) launchConfig.proxy.password = effectiveProxyObj.password;
+                }
+            } else {
+                launchConfig.proxy = { server: effectiveProxyObj.server };
+            }
         }
 
         console.log(`[Manager] 🚀 Đang mở profile [${profileData.name}]...`);
@@ -1207,8 +1804,20 @@ class ProfileManager {
                     );
                     setTimeout(resolve, 3000);
                 });
-                context = await chromium.launchPersistentContext(profileDir, launchConfig);
+                try {
+                    context = await chromium.launchPersistentContext(profileDir, launchConfig);
+                } catch (retryErr) {
+                    if (anonymizedProxyUrl) {
+                        try { await proxyChain.closeAnonymizedProxy(anonymizedProxyUrl, true); } catch (_) {}
+                        this.anonymizedProxies.delete(profileId);
+                    }
+                    throw retryErr;
+                }
             } else {
+                if (anonymizedProxyUrl) {
+                    try { await proxyChain.closeAnonymizedProxy(anonymizedProxyUrl, true); } catch (_) {}
+                    this.anonymizedProxies.delete(profileId);
+                }
                 throw err;
             }
         }
@@ -1295,11 +1904,100 @@ class ProfileManager {
         // Lưu vào bộ theo dõi
         this.runningProfiles.set(profileId, { context, page });
 
+        // ====================================================================
+        // REAL-TIME AUTO-SYNC TÀI KHOẢN MICROSOFT KHI ĐANG MỞ HOẶC KHI ĐĂNG NHẬP
+        // ====================================================================
+        const triggerSync = async () => {
+            try {
+                if (!this.runningProfiles.has(profileId)) return;
+                const email = await extractAccountFromRunningContext(context);
+                if (email && isValidAccountEmail(email) && email !== profileData.account) {
+                    profileData.account = email;
+                    const metaFile = path.join(this.profilesMetaPath, `${profileId}.json`);
+                    fs.writeFileSync(metaFile, JSON.stringify(profileData, null, 2));
+                    this.profilesCache.set(profileId, profileData);
+                    console.log(`[Manager] ⚡ [Live-Sync] Đã tự động nhận diện & sync tài khoản: ${email}`);
+                }
+            } catch (_) {}
+        };
+
+        // 1. Tự động sync ngay khi vừa mở trình duyệt lên
+        setTimeout(async () => {
+            if (!profileData.account) {
+                await this.extractAccount(profileId).catch(() => {});
+            } else {
+                await triggerSync();
+            }
+        }, 1200);
+
+        // 2. Gắn listener trên mọi trang (khi chuyển tab, đổi URL, load xong, form submit)
+        const setupPageSync = (p) => {
+            p.on('framenavigated', (frame) => {
+                if (frame === p.mainFrame()) {
+                    const u = frame.url();
+                    if (u.includes('microsoft') || u.includes('live.com') || u.includes('bing.com') || u.includes('office.com') || u.includes('msn.com')) {
+                        setTimeout(triggerSync, 800);
+                    }
+                }
+            });
+
+            p.on('domcontentloaded', () => {
+                const u = p.url();
+                if (u.includes('microsoft') || u.includes('live.com') || u.includes('bing.com') || u.includes('office.com') || u.includes('msn.com')) {
+                    setTimeout(triggerSync, 600);
+                }
+            });
+
+            // Bắt email ngay lập tức khi người dùng submit form đăng nhập Microsoft
+            p.on('request', (req) => {
+                try {
+                    const postData = req.postData();
+                    if (postData && (postData.includes('login=') || postData.includes('loginfmt=') || postData.includes('username='))) {
+                        const m = postData.match(/(?:login|loginfmt|username)=([^&]+)/i);
+                        if (m) {
+                            const clean = decodeURIComponent(m[1]).trim().toLowerCase();
+                            if (isValidAccountEmail(clean) && clean !== profileData.account) {
+                                profileData.account = clean;
+                                const metaFile = path.join(this.profilesMetaPath, `${profileId}.json`);
+                                fs.writeFileSync(metaFile, JSON.stringify(profileData, null, 2));
+                                this.profilesCache.set(profileId, profileData);
+                                console.log(`[Manager] ⚡ [Live-Sync] Bắt email từ form đăng nhập: ${clean}`);
+                            }
+                        }
+                    }
+                } catch (_) {}
+            });
+        };
+
+        context.pages().forEach(setupPageSync);
+        context.on('page', setupPageSync);
+
+        // 3. Poller ngầm nhẹ nhàng kiểm tra mỗi 2.5s khi đang mở
+        const liveSyncInterval = setInterval(async () => {
+            if (!this.runningProfiles.has(profileId)) {
+                clearInterval(liveSyncInterval);
+                return;
+            }
+            if (!profileData.account) {
+                await triggerSync();
+            }
+        }, 2500);
+
         // Khi profile bị đóng (user đóng cửa sổ), tự dọn dẹp
         context.on('close', () => {
+            clearInterval(liveSyncInterval);
             this.runningProfiles.delete(profileId);
+            if (this.anonymizedProxies.has(profileId)) {
+                const anonUrl = this.anonymizedProxies.get(profileId);
+                this.anonymizedProxies.delete(profileId);
+                proxyChain.closeAnonymizedProxy(anonUrl, true).catch(() => {});
+            }
             stopGestureWatcher(profileId); // Dừng watcher nếu có
             console.log(`[Manager] ⏹️ Profile [${profileData.name}] đã đóng.`);
+            // Tự động quét tài khoản Microsoft sau khi tắt
+            setTimeout(() => {
+                this.extractAccount(profileId).catch(() => {});
+            }, 1200);
         });
 
         // Gesture Captcha Watcher KHÔNG tự động gắn khi mở browser.
@@ -1337,8 +2035,25 @@ class ProfileManager {
     /** Đóng 1 profile */
     async closeProfile(profileId, skipWmic = false) {
         stopGestureWatcher(profileId); // Dừng watcher ngay lập tức trước khi close context
+        if (this.anonymizedProxies.has(profileId)) {
+            const anonUrl = this.anonymizedProxies.get(profileId);
+            this.anonymizedProxies.delete(profileId);
+            try {
+                await proxyChain.closeAnonymizedProxy(anonUrl, true);
+            } catch (_) {}
+        }
         const running = this.runningProfiles.get(profileId);
         
+        // Thử quét tài khoản trước khi context bị đóng
+        if (running && running.context) {
+            try {
+                await Promise.race([
+                    this.extractAccount(profileId),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Extract Timeout')), 1000))
+                ]);
+            } catch (_) {}
+        }
+
         // 1. Dọn khỏi RAM ngay lập tức để UI nhận phản hồi
         if (running) {
             this.runningProfiles.delete(profileId);
@@ -1361,6 +2076,10 @@ class ProfileManager {
 
     /** Đóng tất cả đồng thời */
     async closeAll() {
+        for (const [pId, anonUrl] of this.anonymizedProxies.entries()) {
+            try { await proxyChain.closeAnonymizedProxy(anonUrl, true); } catch (_) {}
+        }
+        this.anonymizedProxies.clear();
         const ids = [...this.runningProfiles.keys()];
         ids.forEach(id => stopGestureWatcher(id));
         

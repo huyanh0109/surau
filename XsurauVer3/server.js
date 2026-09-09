@@ -63,6 +63,7 @@ startVideoServer();
 
 const app = express();
 const manager = new ProfileManager();
+const feedManager = new ProfileManager({ baseDir: 'H:\\Loopy feed', isFeed: true });
 const automationEngine = new AutomationEngine(manager);
 const PORT = process.env.API_PORT || 3334;
 
@@ -316,6 +317,215 @@ app.post('/api/profiles/:id/close', async (req, res) => {
 app.post('/api/close-all', (req, res) => {
     manager.closeAll(); // Không await để trả về ngay lập tức
     res.json({ success: true });
+});
+
+// ============================================================================
+// FEED MANAGER API (H:\Loopy feed)
+// ============================================================================
+
+app.get('/api/feed/profiles', (req, res) => res.json(feedManager.listProfiles()));
+
+app.get('/api/feed/profiles/:id', (req, res) => {
+    const profile = feedManager.getProfile(req.params.id);
+    if (!profile) return res.status(404).json({ error: 'Feed Profile không tồn tại' });
+    res.json(profile);
+});
+
+app.post('/api/feed/profiles', (req, res) => {
+    const { name, proxy, extensions, options, group, tags, account } = req.body;
+    const finalOptions = { ...(options || {}) };
+    if (group !== undefined) finalOptions.group = group;
+    if (tags !== undefined) finalOptions.tags = tags;
+    if (account !== undefined) finalOptions.account = account;
+    res.json(feedManager.createProfile(name, proxy, extensions, finalOptions));
+});
+
+app.put('/api/feed/profiles/:id', (req, res) => {
+    try { res.json(feedManager.updateProfile(req.params.id, req.body)); }
+    catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.delete('/api/feed/profiles/all', async (req, res) => {
+    try { 
+        const count = await feedManager.deleteAllProfiles();
+        res.json({ success: true, count }); 
+    }
+    catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.delete('/api/feed/profiles/:id', (req, res) => {
+    try { feedManager.deleteProfile(req.params.id); res.json({ success: true }); }
+    catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.post('/api/feed/profiles/bulk', (req, res) => {
+    const { count, namePrefix, proxies, options, group, tags } = req.body;
+    if (!count || count < 1 || count > 500) return res.status(400).json({ error: 'Số lượng từ 1-500' });
+    const finalOptions = { ...(options || {}) };
+    if (group !== undefined) finalOptions.group = group;
+    if (tags !== undefined) finalOptions.tags = tags;
+    const profiles = feedManager.bulkCreateProfiles(count, namePrefix || 'Feed Profile', proxies || [], finalOptions);
+    res.json({ success: true, count: profiles.length, profiles });
+});
+
+app.post('/api/feed/profiles/:id/launch', async (req, res) => {
+    try {
+        const { blockImages, startUrl, windowSize, windowPosition, scaleFactor, proxyMode } = req.body || {};
+        const result = await feedManager.launchProfile(req.params.id, { blockImages, startUrl, windowSize, windowPosition, scaleFactor, proxyMode });
+        if (windowSize || windowPosition) {
+            feedManager.saveLayout([{ profileId: req.params.id, windowSize, windowPosition, scaleFactor }]);
+        }
+        res.json({
+            success: true, status: 'running',
+            profileId: req.params.id, profileName: result.profileData.name,
+            wsEndpoint: result.wsEndpoint, debugPort: result.debugPort,
+            remoteDebugAddress: result.debugPort ? `127.0.0.1:${result.debugPort}` : null,
+        });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.post('/api/feed/profiles/:id/close', async (req, res) => {
+    try { await feedManager.closeProfile(req.params.id); res.json({ success: true }); }
+    catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.post('/api/feed/close-all', (req, res) => {
+    feedManager.closeAll();
+    res.json({ success: true });
+});
+
+app.post('/api/feed/profiles/:id/extract-account', async (req, res) => {
+    try {
+        const result = await feedManager.extractAccount(req.params.id);
+        res.json(result);
+    } catch (e) {
+        res.status(400).json({ error: e.message });
+    }
+});
+
+app.post('/api/feed/profiles/extract-all', async (req, res) => {
+    try {
+        const profiles = feedManager.listProfiles();
+        const results = [];
+        for (const p of profiles) {
+            try {
+                const r = await feedManager.extractAccount(p.id);
+                results.push({ id: p.id, name: p.name, ...r });
+            } catch (err) {
+                results.push({ id: p.id, name: p.name, success: false, error: err.message });
+            }
+        }
+        res.json({ success: true, results });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/feed/archives', (req, res) => res.json(feedManager.getArchiveGroups()));
+
+app.post('/api/feed/archives', (req, res) => {
+    const { profileIds, groupName } = req.body;
+    try {
+        const result = feedManager.archiveProfiles(profileIds, groupName);
+        res.json(result);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.post('/api/feed/archives/restore', (req, res) => {
+    const { profileIds, groupName } = req.body;
+    try {
+        const result = feedManager.restoreProfiles(profileIds, groupName);
+        res.json(result);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.delete('/api/feed/archives/:groupName', (req, res) => {
+    try {
+        const success = feedManager.deleteArchiveGroup(req.params.groupName);
+        res.json({ success });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// ============================================================================
+// FEED GROUPS & TAGS API
+// ============================================================================
+// Groups
+app.get('/api/feed/groups', (req, res) => res.json(feedManager.getGroups()));
+app.post('/api/feed/groups', (req, res) => {
+    try {
+        const { name, color } = req.body || {};
+        res.json(feedManager.createGroup(name, color));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.put('/api/feed/groups/:id', (req, res) => {
+    try {
+        res.json(feedManager.updateGroup(req.params.id, req.body || {}));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.delete('/api/feed/groups/:id', (req, res) => {
+    try {
+        res.json(feedManager.deleteGroup(req.params.id));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.post('/api/feed/groups/move', (req, res) => {
+    try {
+        const { profileIds, groupId } = req.body || {};
+        res.json(feedManager.moveToGroup(profileIds, groupId));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Tags
+app.get('/api/feed/tags', (req, res) => res.json(feedManager.getTags()));
+app.post('/api/feed/tags', (req, res) => {
+    try {
+        const { name, color } = req.body || {};
+        res.json(feedManager.createTag(name, color));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.put('/api/feed/tags/:id', (req, res) => {
+    try {
+        res.json(feedManager.updateTag(req.params.id, req.body || {}));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.delete('/api/feed/tags/:id', (req, res) => {
+    try {
+        res.json(feedManager.deleteTag(req.params.id));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.post('/api/feed/tags/bulk-add', (req, res) => {
+    try {
+        const { profileIds, tags } = req.body || {};
+        res.json(feedManager.addTagsToProfiles(profileIds, tags));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.post('/api/feed/tags/bulk-remove', (req, res) => {
+    try {
+        const { profileIds, tags } = req.body || {};
+        res.json(feedManager.removeTagsFromProfiles(profileIds, tags));
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Bulk Proxy API
+app.post('/api/feed/profiles/bulk-proxy', (req, res) => {
+    try {
+        const { profileIds, proxies, mode, overwrite } = req.body || {};
+        const targets = Array.isArray(profileIds) && profileIds.length > 0 
+            ? profileIds 
+            : feedManager.listProfiles().map(p => p.id);
+        const result = feedManager.bulkUpdateProxies(targets, proxies, { mode, overwrite });
+        res.json(result);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.post('/api/profiles/bulk-proxy', (req, res) => {
+    try {
+        const { profileIds, proxies, mode, overwrite } = req.body || {};
+        const targets = Array.isArray(profileIds) && profileIds.length > 0 
+            ? profileIds 
+            : manager.listProfiles().map(p => p.id);
+        const result = manager.bulkUpdateProxies(targets, proxies, { mode, overwrite });
+        res.json(result);
+    } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 // ============================================================================
