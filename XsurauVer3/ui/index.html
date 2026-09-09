@@ -1440,6 +1440,181 @@
         #feedBulkActionBar #feedSelectedCount {
             border-radius: 0 !important;
         }
+
+        /* =================================================== */
+        /* CYBER CUSTOM DROPDOWNS (VUÔNG VẮN, HI-TECH)        */
+        /* =================================================== */
+        .cyber-dropdown-wrapper {
+            position: relative;
+            user-select: none;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        .cyber-dropdown-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #090a0f;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 0px !important;
+            padding: 8px 12px;
+            color: #f1f5f9;
+            font-family: 'JetBrains Mono', monospace, inherit;
+            font-size: 11.5px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+            min-height: 36px;
+            box-sizing: border-box;
+        }
+
+        .cyber-dropdown-trigger:hover {
+            border-color: #38bdf8;
+            background-color: #0f131d;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2), inset 0 1px 3px rgba(0, 0, 0, 0.6);
+        }
+
+        .cyber-dropdown-trigger:focus,
+        .cyber-dropdown-trigger.open {
+            border-color: #38bdf8;
+            background-color: #0f131d;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.35), inset 0 1px 3px rgba(0, 0, 0, 0.8);
+            outline: none;
+        }
+
+        .cyber-dropdown-label {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cyber-dropdown-arrow {
+            width: 14px;
+            height: 14px;
+            stroke: #38bdf8;
+            stroke-width: 2.5;
+            fill: none;
+            stroke-linecap: square;
+            stroke-linejoin: miter;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .cyber-dropdown-trigger.open .cyber-dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .cyber-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 99999;
+            margin-top: 2px;
+            background: #080a0f;
+            border: 1px solid #38bdf8;
+            border-radius: 0px !important;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.95), 0 0 16px rgba(56, 189, 248, 0.25);
+            max-height: 220px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #38bdf8 #050505;
+        }
+
+        .cyber-dropdown-menu::-webkit-scrollbar {
+            width: 5px;
+        }
+        .cyber-dropdown-menu::-webkit-scrollbar-track {
+            background: #050505;
+        }
+        .cyber-dropdown-menu::-webkit-scrollbar-thumb {
+            background: #1e293b;
+        }
+        .cyber-dropdown-menu::-webkit-scrollbar-thumb:hover {
+            background: #38bdf8;
+        }
+
+        .cyber-dropdown-item {
+            padding: 8px 12px;
+            font-family: 'JetBrains Mono', monospace, inherit;
+            font-size: 11.5px;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 0px !important;
+            border-left: 2px solid transparent;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cyber-dropdown-item:hover {
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border-left-color: #38bdf8;
+        }
+
+        .cyber-dropdown-item.selected {
+            background: rgba(56, 189, 248, 0.2);
+            color: #ffffff;
+            font-weight: 700;
+            border-left-color: #38bdf8;
+        }
+
+        /* Native Select Baseline Fallback (Square, custom arrow) */
+        #tab-feed select,
+        [id^="feed"][id*="ModalOverlay"] select,
+        #feedModalOverlay select,
+        #feedBulkModalOverlay select,
+        #feedBulkProxyModalOverlay select,
+        #feedLayoutModalOverlay select,
+        #feedBulkMoveModalOverlay select,
+        #feedQuickAssignModalOverlay select {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            background: #080a0f url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='square' stroke-linejoin='miter'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 12px center !important;
+            background-size: 11px 11px !important;
+            border: 1px solid rgba(56, 189, 248, 0.4) !important;
+            border-radius: 0px !important;
+            color: #f1f5f9 !important;
+            font-family: 'JetBrains Mono', monospace, inherit !important;
+            font-size: 11.5px !important;
+            padding: 8px 32px 8px 12px !important;
+            outline: none !important;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6) !important;
+            cursor: pointer !important;
+        }
+
+        #tab-feed select:focus,
+        [id^="feed"][id*="ModalOverlay"] select:focus,
+        #feedModalOverlay select:focus,
+        #feedBulkModalOverlay select:focus,
+        #feedBulkProxyModalOverlay select:focus,
+        #feedLayoutModalOverlay select:focus,
+        #feedBulkMoveModalOverlay select:focus,
+        #feedQuickAssignModalOverlay select:focus {
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.4), inset 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+        }
+
+        #tab-feed select option,
+        [id^="feed"][id*="ModalOverlay"] select option,
+        #feedModalOverlay select option,
+        #feedBulkModalOverlay select option,
+        #feedBulkProxyModalOverlay select option,
+        #feedLayoutModalOverlay select option,
+        #feedBulkMoveModalOverlay select option,
+        #feedQuickAssignModalOverlay select option {
+            background: #080a0f !important;
+            color: #f1f5f9 !important;
+            padding: 10px 14px !important;
+            border-radius: 0px !important;
+        }
     </style>
 </head>
 
@@ -3011,6 +3186,7 @@
             }
             if (tabId === 'feed') {
                 loadFeedProfiles();
+                setTimeout(initAllFeedCyberDropdowns, 50);
             }
             if (tabId === 'automation') {
                 refreshAutoProfiles();
@@ -3605,6 +3781,7 @@
             if (fbCpu && fbCpu.children.length === 0) fbCpu.innerHTML = cpuOptions;
             if (fbRam && fbRam.children.length === 0) fbRam.innerHTML = ramOptions;
             if (fbTz && fbTz.children.length === 0) fbTz.innerHTML = tzOptions;
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         function toggleCreationModeFieldsUI() {
@@ -4288,6 +4465,7 @@
                 feedGroups.map(g => `<option value="${g.id}">${escHtml(g.name)}</option>`).join('');
             
             document.getElementById('feedBulkMoveModalOverlay').classList.add('active');
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         async function confirmFeedBulkMove() {
@@ -4774,6 +4952,7 @@
             }
 
             document.getElementById('feedQuickAssignModalOverlay').classList.add('active');
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         async function saveFeedQuickAssign() {
@@ -4919,22 +5098,266 @@
             });
         }
 
+        // ========================================================================
+        // CYBER CUSTOM DROPDOWN ENGINE (SQUARE, HI-TECH, NO OS BLUE POPUP)
+        // ========================================================================
+        function enhanceFeedDropdown(selectEl) {
+            if (!selectEl) return;
+            if (selectEl.dataset.cyberEnhanced === 'true') {
+                if (typeof selectEl._syncCyberDropdown === 'function') {
+                    selectEl._syncCyberDropdown();
+                }
+                return;
+            }
+            selectEl.dataset.cyberEnhanced = 'true';
+
+            // Hide native select visually
+            selectEl.style.display = 'none';
+
+            // Create wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = 'cyber-dropdown-wrapper';
+            if (selectEl.style.width) wrapper.style.width = selectEl.style.width;
+
+            const trigger = document.createElement('div');
+            trigger.className = 'cyber-dropdown-trigger';
+            trigger.tabIndex = 0;
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'cyber-dropdown-label';
+
+            const arrowSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            arrowSvg.setAttribute('viewBox', '0 0 24 24');
+            arrowSvg.setAttribute('class', 'cyber-dropdown-arrow');
+            arrowSvg.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+
+            trigger.appendChild(labelSpan);
+            trigger.appendChild(arrowSvg);
+
+            const menu = document.createElement('div');
+            menu.className = 'cyber-dropdown-menu';
+            menu.style.display = 'none';
+
+            wrapper.appendChild(trigger);
+            wrapper.appendChild(menu);
+
+            if (selectEl.parentNode) {
+                selectEl.parentNode.insertBefore(wrapper, selectEl.nextSibling);
+            }
+
+            function syncOptions() {
+                menu.innerHTML = '';
+                const options = Array.from(selectEl.options);
+                let currentVal = selectEl.value;
+                let activeOption = (selectEl.selectedIndex >= 0 ? selectEl.options[selectEl.selectedIndex] : null) || options.find(o => o.value === currentVal) || options[0];
+
+                labelSpan.textContent = activeOption ? activeOption.text : '-- Chọn --';
+                labelSpan.title = labelSpan.textContent;
+
+                options.forEach((opt, idx) => {
+                    const item = document.createElement('div');
+                    const isSelected = (opt.value === selectEl.value) || (selectEl.selectedIndex === idx);
+                    item.className = 'cyber-dropdown-item' + (isSelected ? ' selected' : '');
+                    item.textContent = opt.text;
+                    item.title = opt.text;
+                    item.dataset.value = opt.value;
+                    item.dataset.index = idx;
+
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        selectEl.value = opt.value;
+                        selectEl.selectedIndex = idx;
+                        labelSpan.textContent = opt.text;
+                        labelSpan.title = opt.text;
+
+                        menu.querySelectorAll('.cyber-dropdown-item').forEach(el => el.classList.remove('selected'));
+                        item.classList.add('selected');
+
+                        closeMenu();
+                        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        selectEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        if (typeof selectEl.onchange === 'function') {
+                            try { selectEl.onchange(new Event('change')); } catch (_) {}
+                        }
+                    });
+
+                    menu.appendChild(item);
+                });
+            }
+
+            function openMenu() {
+                document.querySelectorAll('.cyber-dropdown-menu').forEach(m => {
+                    if (m !== menu) m.style.display = 'none';
+                });
+                document.querySelectorAll('.cyber-dropdown-trigger').forEach(t => {
+                    if (t !== trigger) t.classList.remove('open');
+                });
+
+                syncOptions();
+
+                // Smart positioning: flip upward if near bottom of viewport
+                const rect = trigger.getBoundingClientRect();
+                const spaceBelow = window.innerHeight - rect.bottom;
+                if (spaceBelow < 220 && rect.top > 220) {
+                    menu.style.top = 'auto';
+                    menu.style.bottom = '100%';
+                    menu.style.marginTop = '0';
+                    menu.style.marginBottom = '2px';
+                } else {
+                    menu.style.top = '100%';
+                    menu.style.bottom = 'auto';
+                    menu.style.marginTop = '2px';
+                    menu.style.marginBottom = '0';
+                }
+
+                menu.style.display = 'block';
+                trigger.classList.add('open');
+
+                const selectedItem = menu.querySelector('.cyber-dropdown-item.selected');
+                if (selectedItem) selectedItem.scrollIntoView({ block: 'nearest' });
+            }
+
+            function closeMenu() {
+                menu.style.display = 'none';
+                trigger.classList.remove('open');
+            }
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (menu.style.display === 'block') closeMenu();
+                else openMenu();
+            });
+
+            trigger.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (menu.style.display === 'block') closeMenu();
+                    else openMenu();
+                } else if (e.key === 'Escape') {
+                    closeMenu();
+                } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (menu.style.display !== 'block') {
+                        openMenu();
+                    } else {
+                        const items = Array.from(menu.querySelectorAll('.cyber-dropdown-item'));
+                        let curIdx = items.findIndex(el => el.classList.contains('selected'));
+                        if (e.key === 'ArrowDown') curIdx = Math.min(items.length - 1, curIdx + 1);
+                        else curIdx = Math.max(0, curIdx - 1);
+                        if (items[curIdx]) {
+                            items[curIdx].click();
+                            openMenu();
+                        }
+                    }
+                }
+            });
+
+            try {
+                const proto = Object.getPrototypeOf(selectEl);
+                const origValDesc = Object.getOwnPropertyDescriptor(proto, 'value');
+                if (origValDesc && origValDesc.set) {
+                    Object.defineProperty(selectEl, 'value', {
+                        get() { return origValDesc.get.call(this); },
+                        set(val) {
+                            origValDesc.set.call(this, val);
+                            syncOptions();
+                        },
+                        configurable: true
+                    });
+                }
+                const origIdxDesc = Object.getOwnPropertyDescriptor(proto, 'selectedIndex');
+                if (origIdxDesc && origIdxDesc.set) {
+                    Object.defineProperty(selectEl, 'selectedIndex', {
+                        get() { return origIdxDesc.get.call(this); },
+                        set(idx) {
+                            origIdxDesc.set.call(this, idx);
+                            syncOptions();
+                        },
+                        configurable: true
+                    });
+                }
+            } catch (_) {}
+
+            const observer = new MutationObserver(() => syncOptions());
+            observer.observe(selectEl, { childList: true, subtree: true });
+
+            selectEl._syncCyberDropdown = syncOptions;
+            syncOptions();
+        }
+
+        function initAllFeedCyberDropdowns() {
+            const selectors = [
+                '#tab-feed select',
+                '[id^="feed"][id*="ModalOverlay"] select',
+                '#feedModalOverlay select',
+                '#feedBulkModalOverlay select',
+                '#feedBulkProxyModalOverlay select',
+                '#feedLayoutModalOverlay select',
+                '#feedBulkMoveModalOverlay select',
+                '#feedQuickAssignModalOverlay select'
+            ];
+            document.querySelectorAll(selectors.join(', ')).forEach(sel => {
+                enhanceFeedDropdown(sel);
+            });
+        }
+
+        // Auto-observe newly injected selects in feed or modals
+        let _feedDropdownInitTimer = null;
+        const _feedDropdownObserver = new MutationObserver((mutations) => {
+            let hasNewSelect = false;
+            for (const m of mutations) {
+                for (const node of m.addedNodes) {
+                    if (node.nodeType === 1) {
+                        if ((node.tagName === 'SELECT' && !node.dataset.cyberEnhanced) || 
+                            (node.querySelector && node.querySelector('select:not([data-cyber-enhanced="true"])'))) {
+                            hasNewSelect = true;
+                            break;
+                        }
+                    }
+                }
+                if (hasNewSelect) break;
+            }
+            if (hasNewSelect) {
+                if (_feedDropdownInitTimer) clearTimeout(_feedDropdownInitTimer);
+                _feedDropdownInitTimer = setTimeout(initAllFeedCyberDropdowns, 30);
+            }
+        });
+        try {
+            _feedDropdownObserver.observe(document.body, { childList: true, subtree: true });
+        } catch (_) {}
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('.cyber-dropdown-wrapper')) {
+                document.querySelectorAll('.cyber-dropdown-menu').forEach(m => m.style.display = 'none');
+                document.querySelectorAll('.cyber-dropdown-trigger').forEach(t => t.classList.remove('open'));
+            }
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.cyber-dropdown-menu').forEach(m => m.style.display = 'none');
+                document.querySelectorAll('.cyber-dropdown-trigger').forEach(t => t.classList.remove('open'));
+            }
+        });
+
         function toggleFeedCreateModalCustomFieldsUI() {
             const mode = document.getElementById('feedCreateProfileModeSelect').value;
             const container = document.getElementById('feedCreateModalCustomFieldsArea');
             if (container) container.style.display = mode === 'custom' ? 'flex' : 'none';
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         function toggleFeedBulkModalCustomFieldsUI() {
             const mode = document.getElementById('feedBulkProfileModeSelect').value;
             const container = document.getElementById('feedBulkModalCustomFieldsArea');
             if (container) container.style.display = mode === 'custom' ? 'flex' : 'none';
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         function toggleFeedLayoutMode() {
             const mode = document.getElementById('feedLayoutMode').value;
             const opts = document.getElementById('feedCustomLayoutOptions');
             if (opts) opts.style.display = mode === 'custom' ? 'block' : 'none';
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         async function openFeedCreateModal() {
@@ -4994,6 +5417,7 @@
             } catch (e) {}
 
             document.getElementById('feedModalOverlay').classList.add('active');
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         async function openFeedEditModal(id) {
@@ -5043,6 +5467,7 @@
             if (customArea) customArea.style.display = 'none';
 
             document.getElementById('feedModalOverlay').classList.add('active');
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         async function saveFeedProfile() {
@@ -5122,9 +5547,13 @@
                 } catch (e) {}
             }
             document.getElementById('feedBulkModalOverlay').classList.add('active');
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
-        function openFeedLayoutModal() { document.getElementById('feedLayoutModalOverlay').classList.add('active'); }
+        function openFeedLayoutModal() {
+            document.getElementById('feedLayoutModalOverlay').classList.add('active');
+            setTimeout(initAllFeedCyberDropdowns, 20);
+        }
 
         async function bulkCreateFeed() {
             const count = parseInt(document.getElementById('feedBulkCount').value);
@@ -5181,6 +5610,7 @@
 
             toggleFeedBulkProxyModeUI();
             document.getElementById('feedBulkProxyModalOverlay').classList.add('active');
+            setTimeout(initAllFeedCyberDropdowns, 20);
         }
 
         function toggleFeedBulkProxyModeUI() {
@@ -8071,6 +8501,7 @@
         loadGlobalExts();
         loadGoogleSheetSettings();
         initLiveConsoleToggleUI();
+        setTimeout(initAllFeedCyberDropdowns, 50);
 
         // =======================
         // SOLVE GESTURE + PAUSE
