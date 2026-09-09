@@ -1957,12 +1957,12 @@
                 <thead>
                     <tr>
                         <th style="width: 40px;"><input type="checkbox" id="selectAllFeedProfiles" onclick="toggleAllFeedProfileCheck()"></th>
-                        <th>NAME</th>
-                        <th>NHÓM</th>
-                        <th>NHÃN (TAGS)</th>
+                        <th style="width: 70px;">ID</th>
                         <th>ACCOUNT</th>
-                        <th>STATUS</th>
+                        <th>NHÓM</th>
+                        <th>TAG</th>
                         <th>PROXY</th>
+                        <th>STATUS</th>
                         <th style="text-align:right;">ACTIONS</th>
                     </tr>
                 </thead>
@@ -1980,7 +1980,7 @@
             <div class="modal" style="max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto;">
                 <h2 id="feedModalTitle">CREATE FEED PROFILE</h2>
                 <input type="hidden" id="feedEditProfileId">
-                <div class="form-group"><label>NAME</label><input type="text" id="feedInputName" placeholder="Tên Feed Profile"></div>
+                <div class="form-group"><label>ID PROFILE (SỐ THỨ TỰ TĂNG DẦN)</label><input type="text" id="feedInputName" placeholder="Tự động sinh ID tiếp theo..."></div>
                 <div class="form-group" id="feedAccountFormGroup">
                     <label>TÀI KHOẢN MICROSOFT (EMAIL)</label>
                     <input type="text" id="feedInputAccount" placeholder="abc@sad.com">
@@ -2028,8 +2028,9 @@
         <div class="modal-overlay" id="feedBulkModalOverlay">
             <div class="modal" style="max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto;">
                 <h2>BULK CREATE FEED PROFILES</h2>
-                <div class="form-group"><label>COUNT</label><input type="number" id="feedBulkCount" min="1" max="500" value="10"></div>
-                <div class="form-group"><label>PREFIX</label><input type="text" id="feedBulkPrefix" value="Feed"></div>
+                <div class="form-group"><label>SỐ LƯỢNG PROFILE CẦN TẠO</label><input type="number" id="feedBulkCount" min="1" max="500" value="10"></div>
+                <div style="font-size: 11px; color: var(--accent); margin-bottom: 12px; font-family: monospace;">Tự động đánh số ID tăng dần liên tiếp cho các profile được tạo mới.</div>
+                <input type="hidden" id="feedBulkPrefix" value="Profile">
                 <div class="form-group">
                     <label>GÁN VÀO NHÓM (GROUP)</label>
                     <select id="feedBulkGroup" class="settings-input" style="width: 100%;">
@@ -4093,6 +4094,13 @@
                 tagMap.set(t.name.toLowerCase(), t);
             });
 
+            filtered.sort((a, b) => {
+                const numA = parseInt(a.id, 10);
+                const numB = parseInt(b.id, 10);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return String(a.id).localeCompare(String(b.id));
+            });
+
             table.innerHTML = filtered.map(p => {
                 const isChecked = selectedFeedProfileIds.has(p.id);
                 const hasProxy = p.proxy && p.proxy.trim() && p.proxy.trim().toUpperCase() !== 'NONE' && p.proxy.trim().toUpperCase() !== 'DIRECT';
@@ -4122,29 +4130,28 @@
                         return `<span class="tag-pill" style="border:1px solid ${tagColor}; color:${tagColor}; background:${tagColor}15;" title="Nhãn: ${escHtml(tagName)}">${escHtml(tagName)}</span>`;
                     }).join(' ');
                 }
-                tagsHtml += ` <button class="btn btn-ghost btn-sm" style="padding:1px 6px; font-size:10px; border-radius:3px; margin-left:2px; vertical-align:middle;" onclick="openFeedQuickAssign('${p.id}')" title="Gán / Bỏ nhãn">+</button>`;
+                tagsHtml += ` <button class="btn btn-ghost btn-sm" style="padding:1px 6px; font-size:10px; border-radius:0; margin-left:2px; vertical-align:middle;" onclick="openFeedQuickAssign('${p.id}')" title="Gán / Bỏ nhãn">+</button>`;
 
                 return `
         <tr class="${isChecked ? 'row-selected' : ''}">
             <td><input type="checkbox" class="feed-profile-check" data-id="${p.id}" ${isChecked ? 'checked' : ''} onchange="toggleFeedProfileCheck('${p.id}', this.checked)"></td>
             <td>
-                <div class="profile-name">${escHtml(p.name)}</div>
-                <div class="profile-id">${p.id}</div>
+                <span style="font-weight: 800; font-family: monospace; font-size: 13px; color: var(--accent);">${escHtml(p.id)}</span>
             </td>
-            <td>${groupBadge}</td>
-            <td style="max-width:240px;">${tagsHtml}</td>
             <td class="account-cell" id="feed-acc-${p.id}" style="min-width: 170px;">
                 ${p.account 
                     ? `<span style="color:#38bdf8; font-weight:600; font-family:monospace; font-size:11px;" title="${escHtml(p.account)}">${escHtml(p.account)}</span>`
                     : `<span style="color:var(--text-muted); font-size:11px;">—</span>`
                 }
             </td>
+            <td>${groupBadge}</td>
+            <td style="max-width:240px;">${tagsHtml}</td>
+            <td class="proxy-cell" title="${escHtml(p.proxy || 'Mạng máy thật')}">${displayProxy}</td>
             <td>
                 <span class="badge badge-${p.status}">
                     ${p.status === 'running' ? 'RUNNING' : 'STOPPED'}
                 </span>
             </td>
-            <td class="proxy-cell" title="${escHtml(p.proxy || 'Mạng máy thật')}">${displayProxy}</td>
             <td class="actions" style="white-space: nowrap; justify-content: flex-end;">
                 ${p.status === 'running'
                     ? `<button class="btn btn-red-tint btn-xs" onclick="closeFeedProfile('${p.id}')">DỪNG</button>`
@@ -4934,7 +4941,17 @@
             await fetchFingerprintOptionsUI();
             document.getElementById('feedModalTitle').textContent = 'CREATE FEED PROFILE';
             document.getElementById('feedEditProfileId').value = '';
-            document.getElementById('feedInputName').value = '';
+            
+            let maxId = 0;
+            feedProfilesList.forEach(p => {
+                const n = parseInt(p.id, 10);
+                if (!isNaN(n) && n > maxId) maxId = n;
+            });
+            const inputName = document.getElementById('feedInputName');
+            if (inputName) {
+                inputName.value = String(maxId + 1);
+                inputName.readOnly = false;
+            }
             if (document.getElementById('feedInputAccount')) document.getElementById('feedInputAccount').value = '';
             document.getElementById('feedInputProxy').value = '';
             document.getElementById('feedInputExtensions').value = '';
@@ -4982,9 +4999,13 @@
         async function openFeedEditModal(id) {
             const res = await fetch(`${API}/feed/profiles/${id}`);
             const p = await res.json();
-            document.getElementById('feedModalTitle').textContent = 'EDIT FEED PROFILE';
+            document.getElementById('feedModalTitle').textContent = 'EDIT FEED PROFILE: ID ' + p.id;
             document.getElementById('feedEditProfileId').value = id;
-            document.getElementById('feedInputName').value = p.name || '';
+            const inputName = document.getElementById('feedInputName');
+            if (inputName) {
+                inputName.value = p.id;
+                inputName.readOnly = true;
+            }
             if (document.getElementById('feedInputAccount')) document.getElementById('feedInputAccount').value = p.account || '';
             document.getElementById('feedInputProxy').value = p.proxy || '';
             document.getElementById('feedInputExtensions').value = (p.extensions || []).join('\n');
@@ -5043,7 +5064,7 @@
                 showToast('UPDATED FEED PROFILE.');
             } else {
                 const mode = document.getElementById('feedCreateProfileModeSelect').value;
-                const options = { mode, account, group, tags };
+                const options = { id: name, mode, account, group, tags };
                 if (mode === 'custom') {
                     options.userAgent = document.getElementById('feedCreateCustomUA').value;
                     options.gpu = document.getElementById('feedCreateCustomGpu').value;

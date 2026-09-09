@@ -757,7 +757,31 @@ class ProfileManager {
 
     /** Tạo profile mới */
     createProfile(name, proxy = null, extensions = [], customOptions = {}) {
-        const id = 'profile_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex');
+        let id;
+        if (customOptions.id) {
+            id = String(customOptions.id).trim();
+        } else if (name && /^\d+$/.test(String(name).trim())) {
+            id = String(name).trim();
+        } else if (this.isFeed) {
+            let maxId = 0;
+            const existingIds = Array.from(this.profilesCache.keys());
+            if (fs.existsSync(this.profilesMetaPath)) {
+                try {
+                    fs.readdirSync(this.profilesMetaPath).forEach(f => {
+                        const base = f.replace(/\.json$/i, '');
+                        if (!existingIds.includes(base)) existingIds.push(base);
+                    });
+                } catch (_) {}
+            }
+            existingIds.forEach(val => {
+                const n = parseInt(val, 10);
+                if (!isNaN(n) && n > maxId) maxId = n;
+            });
+            id = String(maxId + 1);
+        } else {
+            id = 'profile_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex');
+        }
+
         const noiseSeed = crypto.randomBytes(16).toString('hex');
         const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
@@ -860,10 +884,35 @@ class ProfileManager {
     /** Tạo hàng loạt profile */
     bulkCreateProfiles(count, namePrefix = 'Profile', proxies = [], customOptions = {}) {
         const created = [];
+        let startNum = 1;
+        if (this.isFeed) {
+            let maxId = 0;
+            const existingIds = Array.from(this.profilesCache.keys());
+            if (fs.existsSync(this.profilesMetaPath)) {
+                try {
+                    fs.readdirSync(this.profilesMetaPath).forEach(f => {
+                        const base = f.replace(/\.json$/i, '');
+                        if (!existingIds.includes(base)) existingIds.push(base);
+                    });
+                } catch (_) {}
+            }
+            existingIds.forEach(val => {
+                const n = parseInt(val, 10);
+                if (!isNaN(n) && n > maxId) maxId = n;
+            });
+            startNum = maxId + 1;
+        }
+
         for (let i = 0; i < count; i++) {
-            const num = String(i + 1).padStart(3, '0');
             const proxy = proxies[i] || null;
-            const profile = this.createProfile(`${namePrefix} ${num}`, proxy, [], customOptions);
+            let profile;
+            if (this.isFeed) {
+                const profileId = String(startNum + i);
+                profile = this.createProfile(profileId, proxy, [], { ...customOptions, id: profileId });
+            } else {
+                const num = String(i + 1).padStart(3, '0');
+                profile = this.createProfile(`${namePrefix} ${num}`, proxy, [], customOptions);
+            }
             created.push(profile);
         }
         console.log(`[Manager] 📦 Đã tạo ${count} profile hàng loạt!`);
