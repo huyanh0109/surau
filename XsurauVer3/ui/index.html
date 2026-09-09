@@ -1256,6 +1256,178 @@
             cursor: pointer;
             accent-color: #38bdf8;
         }
+
+        /* REFINED MODERN BUTTON SYSTEM */
+        .btn-xs {
+            padding: 3px 8px !important;
+            font-size: 10.5px !important;
+            border-radius: 3px !important;
+        }
+
+        /* Primary Accent Gold Button */
+        .btn-accent-solid {
+            background: #f5b000 !important;
+            color: #050505 !important;
+            border: 1px solid #f5b000 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 2px 8px rgba(245, 176, 0, 0.25);
+        }
+        .btn-accent-solid:hover {
+            background: #ffd700 !important;
+            border-color: #ffd700 !important;
+            box-shadow: 0 2px 14px rgba(245, 176, 0, 0.45);
+        }
+
+        /* Secondary Accent Tint Button */
+        .btn-accent-tint {
+            background: rgba(245, 176, 0, 0.08) !important;
+            border: 1px solid rgba(245, 176, 0, 0.35) !important;
+            color: #f5b000 !important;
+        }
+        .btn-accent-tint:hover {
+            background: rgba(245, 176, 0, 0.18) !important;
+            border-color: #f5b000 !important;
+        }
+
+        /* Cyan Tint Button */
+        .btn-cyan-tint {
+            background: rgba(56, 189, 248, 0.08) !important;
+            border: 1px solid rgba(56, 189, 248, 0.35) !important;
+            color: #38bdf8 !important;
+        }
+        .btn-cyan-tint:hover {
+            background: rgba(56, 189, 248, 0.2) !important;
+            border-color: #38bdf8 !important;
+        }
+
+        /* Green / Run Tint Button */
+        .btn-green-tint {
+            background: rgba(16, 185, 129, 0.12) !important;
+            border: 1px solid rgba(16, 185, 129, 0.4) !important;
+            color: #34d399 !important;
+        }
+        .btn-green-tint:hover {
+            background: rgba(16, 185, 129, 0.22) !important;
+            border-color: #10b981 !important;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+        }
+
+        /* Solid Green Run Button */
+        .btn-green-solid {
+            background: #10b981 !important;
+            color: #042f2e !important;
+            border: 1px solid #10b981 !important;
+            font-weight: 800 !important;
+        }
+        .btn-green-solid:hover {
+            background: #34d399 !important;
+            border-color: #34d399 !important;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Red / Danger Tint Button */
+        .btn-red-tint {
+            background: rgba(239, 68, 68, 0.1) !important;
+            border: 1px solid rgba(239, 68, 68, 0.35) !important;
+            color: #f87171 !important;
+        }
+        .btn-red-tint:hover {
+            background: rgba(239, 68, 68, 0.22) !important;
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+        }
+
+        /* Solid Red Danger Button */
+        .btn-red-solid {
+            background: #ef4444 !important;
+            color: #fff !important;
+            border: 1px solid #ef4444 !important;
+            font-weight: 800 !important;
+        }
+        .btn-red-solid:hover {
+            background: #dc2626 !important;
+            border-color: #dc2626 !important;
+            box-shadow: 0 2px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        /* Purple / Indigo Tint Button */
+        .btn-purple-tint {
+            background: rgba(168, 85, 247, 0.1) !important;
+            border: 1px solid rgba(168, 85, 247, 0.35) !important;
+            color: #c084fc !important;
+        }
+        .btn-purple-tint:hover {
+            background: rgba(168, 85, 247, 0.2) !important;
+            border-color: #a855f7 !important;
+        }
+
+        /* Amber / Orange Tint Button */
+        .btn-amber-tint {
+            background: rgba(245, 158, 11, 0.1) !important;
+            border: 1px solid rgba(245, 158, 11, 0.35) !important;
+            color: #fbbf24 !important;
+        }
+        .btn-amber-tint:hover {
+            background: rgba(245, 158, 11, 0.2) !important;
+            border-color: #f59e0b !important;
+        }
+
+        /* Clean Neutral Ghost Button */
+        .btn-ghost-clean {
+            background: rgba(255, 255, 255, 0.04) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            color: #ccc !important;
+        }
+        .btn-ghost-clean:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border-color: rgba(255, 255, 255, 0.3) !important;
+            color: #fff !important;
+        }
+
+        /* Segmented Button Group */
+        .feed-btn-group {
+            display: inline-flex;
+            align-items: center;
+        }
+        .feed-btn-group > .btn {
+            border-radius: 0;
+            margin-right: -1px;
+        }
+        .feed-btn-group > .btn:first-child {
+            border-top-left-radius: 4px;
+            border-bottom-left-radius: 4px;
+        }
+        .feed-btn-group > .btn:last-child {
+            border-top-right-radius: 4px;
+            border-bottom-right-radius: 4px;
+            margin-right: 0;
+        }
+
+        /* Capsule Info Pill */
+        .feed-info-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 12px;
+            font-size: 11px;
+            font-family: monospace;
+            font-weight: 600;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #888;
+            letter-spacing: 0.3px;
+        }
+
+        /* Custom Danger Modal Styling */
+        .confirm-modal-danger {
+            border: 1px solid rgba(239, 68, 68, 0.5) !important;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 30px rgba(239, 68, 68, 0.2) !important;
+            background: #0e0e10 !important;
+        }
+        .confirm-modal-danger::before,
+        .confirm-modal-danger::after {
+            border-color: #ef4444 !important;
+        }
     </style>
 </head>
 
@@ -1683,74 +1855,88 @@
     <!-- ========================================== -->
     <div class="tab-content" id="tab-feed">
 
-        <div class="toolbar">
-            <div class="toolbar-left" style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
-                <button class="btn btn-primary" onclick="openFeedCreateModal()">CREATE PROFILE</button>
-                <button class="btn btn-orange" onclick="openFeedBulkModal()">BULK CREATE</button>
-                <button class="btn btn-yellow" onclick="openFeedBulkProxyModal()">BULK PROXY</button>
-                <button class="btn btn-ghost btn-sm" id="feedToolbarSelectAllBtn" onclick="toggleFeedSelectAllFromToolbar()" style="font-size: 11px; font-weight: 700; color: #38bdf8; border-color: rgba(56,189,248,0.5);">CHỌN TẤT CẢ</button>
-                <span style="display:inline-flex; align-items:center; padding:5px 12px; font-size:11px; background:rgba(245,176,0,0.1); border:1px solid var(--accent); color:var(--accent); font-family:monospace; font-weight:bold; letter-spacing:0.5px;">
+        <!-- TOOLBAR: FEED MANAGER -->
+        <div class="toolbar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 32px 14px;">
+            <!-- Left Group: Profile Creation & Setup -->
+            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <button class="btn btn-accent-solid" onclick="openFeedCreateModal()">+ TẠO PROFILE</button>
+                <button class="btn btn-accent-tint" onclick="openFeedBulkModal()">TẠO HÀNG LOẠT</button>
+                <button class="btn btn-cyan-tint" onclick="openFeedBulkProxyModal()">ĐỔI PROXY</button>
+                <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 0 4px;"></div>
+                <span class="feed-info-pill" style="color: var(--accent); border-color: rgba(245, 176, 0, 0.25); background: rgba(245, 176, 0, 0.05);">
                     STORAGE: H:\Loopy feed
                 </span>
-                <span id="feedCountBadge" style="display:inline-flex; align-items:center; padding:5px 10px; font-size:11px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-primary); font-family:monospace;">
+                <span id="feedCountBadge" class="feed-info-pill">
                     0 PROFILES
                 </span>
             </div>
-            <div style="display:flex;gap:8px;">
-                <button class="btn btn-ghost" onclick="loadFeedProfiles()">REFRESH</button>
-                <div style="display:flex;">
-                    <button class="btn btn-run btn-sm" onclick="launchAllFeedProfiles()">LAUNCH ALL</button>
-                    <button class="btn btn-run btn-sm" style="border-left: none;" onclick="openFeedLayoutModal()">GRID</button>
-                </div>
-                <button class="btn btn-danger btn-sm" onclick="closeAllFeedProfiles()">CEASE ALL</button>
-                <button class="btn btn-ghost btn-sm" onclick="deleteAllFeedProfilesUI()" style="color: var(--red); border-color: var(--red);">PURGE ALL</button>
-            </div>
-        </div>
 
-        <!-- FEED GROUPS BAR -->
-        <div class="feed-groups-bar" style="padding: 0 32px 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.06);">
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" id="feedGroupTabsContainer">
-                <!-- Populated dynamically -->
-            </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <button class="btn btn-ghost btn-sm" onclick="openFeedCreateGroupModal()" style="color: #38bdf8; border-color: #38bdf8; font-size: 11px;">TẠO NHÓM</button>
-                <button class="btn btn-ghost btn-sm" onclick="openFeedManageGroupsModal()" style="font-size: 11px;">QUẢN LÝ NHÓM</button>
-            </div>
-        </div>
-
-        <!-- FEED TAGS FILTER BAR -->
-        <div class="feed-tags-bar" style="padding: 8px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.2);">
+            <!-- Right Group: Global Execution Actions -->
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <span style="font-size: 11px; font-weight: 800; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; letter-spacing: 0.5px;">
-                    LỌC THEO NHÃN:
-                </span>
-                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" id="feedTagChipsContainer">
-                    <!-- Populated dynamically -->
+                <button class="btn btn-ghost-clean" onclick="loadFeedProfiles()">LÀM MỚI</button>
+                <div class="feed-btn-group">
+                    <button class="btn btn-green-tint" onclick="launchAllFeedProfiles()" style="border-right-color: rgba(16,185,129,0.3);">KHỞI CHẠY TẤT CẢ</button>
+                    <button class="btn btn-green-tint" onclick="openFeedLayoutModal()" title="Cài đặt bố cục lưới Grid">GRID</button>
+                </div>
+                <button class="btn btn-red-tint" onclick="closeAllFeedProfiles()">DỪNG TẤT CẢ</button>
+                <button class="btn btn-ghost-clean" onclick="deleteAllFeedProfilesUI()" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.25);" title="Xóa vĩnh viễn toàn bộ profile trong H:\Loopy feed">XÓA TẤT CẢ</button>
+            </div>
+        </div>
+
+        <!-- UNIFIED FILTER PANEL: GROUPS & TAGS -->
+        <div style="margin: 0 32px 12px; background: rgba(18, 18, 22, 0.6); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px; padding: 10px 16px; display: flex; flex-direction: column; gap: 8px;">
+            <!-- Group Tabs Row -->
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 10.5px; font-weight: 800; color: var(--text-muted); font-family: monospace; letter-spacing: 0.5px; min-width: 50px;">
+                        NHÓM:
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" id="feedGroupTabsContainer">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button class="btn btn-cyan-tint btn-xs" onclick="openFeedCreateGroupModal()">+ THÊM NHÓM</button>
+                    <button class="btn btn-ghost-clean btn-xs" onclick="openFeedManageGroupsModal()">QUẢN LÝ</button>
                 </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <button class="btn btn-ghost btn-sm" onclick="openFeedCreateTagModal()" style="color: #10b981; border-color: #10b981; font-size: 11px;">TẠO NHÃN</button>
-                <button class="btn btn-ghost btn-sm" onclick="openFeedManageTagsModal()" style="font-size: 11px;">QUẢN LÝ NHÃN</button>
+
+            <!-- Tag Filter Row -->
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.04);">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 10.5px; font-weight: 800; color: var(--text-muted); font-family: monospace; letter-spacing: 0.5px; min-width: 50px;">
+                        NHÃN:
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" id="feedTagChipsContainer">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button class="btn btn-green-tint btn-xs" onclick="openFeedCreateTagModal()">+ THÊM NHÃN</button>
+                    <button class="btn btn-ghost-clean btn-xs" onclick="openFeedManageTagsModal()">QUẢN LÝ</button>
+                </div>
             </div>
         </div>
 
         <!-- FEED BULK ACTION BAR -->
-        <div id="feedBulkActionBar" style="display: none; padding: 10px 32px; background: rgba(56, 189, 248, 0.08); border-top: 1px solid rgba(56, 189, 248, 0.3); border-bottom: 1px solid rgba(56, 189, 248, 0.3); align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div id="feedBulkActionBar" style="display: none; margin: 0 32px 14px; padding: 10px 18px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.1), rgba(99, 102, 241, 0.1)); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 6px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.35);">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 12px; font-weight: 800; color: #38bdf8; font-family: monospace;">
-                    ĐÃ CHỌN: <span id="feedSelectedCount" style="color: #fff; background: rgba(56,189,248,0.25); padding: 2px 7px; border-radius: 3px;">0</span> PROFILE
+                <span style="font-size: 11.5px; font-weight: 800; color: #38bdf8; font-family: monospace; display: inline-flex; align-items: center; gap: 6px;">
+                    ĐÃ CHỌN: <span id="feedSelectedCount" style="color: #fff; background: rgba(56,189,248,0.3); padding: 2px 8px; border-radius: 3px; font-weight: 800;">0</span> PROFILE
                 </span>
-                <button class="btn btn-ghost btn-sm" onclick="clearFeedSelection()" style="font-size: 10.5px;">BỎ CHỌN</button>
-                <button class="btn btn-ghost btn-sm" onclick="selectAllFilteredFeedProfiles()" style="font-size: 10.5px; color:#38bdf8; border-color:#38bdf8;">CHỌN HẾT</button>
+                <button class="btn btn-cyan-tint btn-xs" onclick="selectAllFilteredFeedProfiles()">CHỌN HẾT</button>
+                <button class="btn btn-ghost-clean btn-xs" onclick="clearFeedSelection()">BỎ CHỌN</button>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <button class="btn btn-primary btn-sm" onclick="openFeedBulkMoveModal()" style="font-size: 11px;">CHUYỂN NHÓM</button>
-                <button class="btn btn-ghost btn-sm" style="color: #10b981; border-color: #10b981; font-size: 11px;" onclick="openFeedBulkAddTagModal()">GÁN NHÃN</button>
-                <button class="btn btn-ghost btn-sm" style="color: #f87171; border-color: #f87171; font-size: 11px;" onclick="openFeedBulkRemoveTagModal()">BỎ NHÃN</button>
-                <button class="btn btn-yellow btn-sm" onclick="openFeedBulkProxyModal()" style="font-size: 11px;">ĐỔI PROXY</button>
-                <button class="btn btn-run btn-sm" onclick="launchSelectedFeedProfiles()" style="font-size: 11px;">KHỞI CHẠY (GRID)</button>
-                <button class="btn btn-stop btn-sm" onclick="closeSelectedFeedProfiles()" style="font-size: 11px;">ĐÓNG ĐÃ CHỌN</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteSelectedFeedProfiles()" style="font-size: 11px;">XÓA ĐÃ CHỌN</button>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <button class="btn btn-purple-tint btn-xs" onclick="openFeedBulkMoveModal()">CHUYỂN NHÓM</button>
+                <button class="btn btn-green-tint btn-xs" onclick="openFeedBulkAddTagModal()">GÁN NHÃN</button>
+                <button class="btn btn-ghost-clean btn-xs" style="color: #94a3b8;" onclick="openFeedBulkRemoveTagModal()">BỎ NHÃN</button>
+                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.12); margin: 0 2px;"></div>
+                <button class="btn btn-accent-tint btn-xs" onclick="openFeedBulkProxyModal()">ĐỔI PROXY</button>
+                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.12); margin: 0 2px;"></div>
+                <button class="btn btn-green-solid btn-xs" onclick="launchSelectedFeedProfiles()">KHỞI CHẠY (GRID)</button>
+                <button class="btn btn-amber-tint btn-xs" onclick="closeSelectedFeedProfiles()">ĐÓNG</button>
+                <button class="btn btn-red-solid btn-xs" onclick="deleteSelectedFeedProfiles()">XÓA ĐÃ CHỌN</button>
             </div>
         </div>
 
@@ -2112,6 +2298,35 @@
                 <div class="modal-actions">
                     <button class="btn btn-ghost" onclick="closeModal('feedQuickAssignModalOverlay')">HỦY</button>
                     <button class="btn btn-primary" onclick="saveFeedQuickAssign()">LƯU THAY ĐỔI</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CUSTOM BEAUTIFUL CONFIRMATION MODAL -->
+        <div class="modal-overlay" id="feedConfirmModalOverlay">
+            <div class="modal confirm-modal-danger" style="max-width: 460px; width: 92%;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="feedConfirmBadge" style="background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #f87171; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.5px;">CẢNH BÁO</span>
+                        <h2 id="feedConfirmTitle" style="margin: 0; font-size: 15px; color: #fff;">XÁC NHẬN XÓA</h2>
+                    </div>
+                    <button class="modal-close" onclick="closeModal('feedConfirmModalOverlay')">&times;</button>
+                </div>
+
+                <div id="feedConfirmTargetBox" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 12px 14px; border-radius: 4px; margin-bottom: 14px;">
+                    <div id="feedConfirmTargetName" style="font-weight: 700; color: #fff; font-size: 13px; margin-bottom: 4px;"></div>
+                    <div id="feedConfirmTargetDetails" style="font-size: 11px; color: var(--text-muted); font-family: monospace;"></div>
+                </div>
+
+                <div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 10px 14px; border-radius: 3px; margin-bottom: 20px;">
+                    <div id="feedConfirmWarningText" style="font-size: 11.5px; color: #fca5a5; line-height: 1.5;">
+                        Dữ liệu sẽ bị xóa vĩnh viễn khỏi máy tính và không thể khôi phục.
+                    </div>
+                </div>
+
+                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="btn btn-ghost-clean" onclick="closeModal('feedConfirmModalOverlay')">HỦY BỎ</button>
+                    <button id="feedConfirmSubmitBtn" class="btn btn-red-solid" style="padding: 8px 20px;">XÁC NHẬN XÓA</button>
                 </div>
             </div>
         </div>
@@ -3919,14 +4134,14 @@
                 </span>
             </td>
             <td class="proxy-cell" title="${escHtml(p.proxy || 'Mạng máy thật')}">${displayProxy}</td>
-            <td class="actions">
-                <button class="btn btn-ghost btn-sm" onclick="showFeedProfileInfo('${p.id}')">INFO</button>
+            <td class="actions" style="white-space: nowrap;">
+                <button class="btn btn-ghost-clean btn-xs" onclick="showFeedProfileInfo('${p.id}')">INFO</button>
                 ${p.status === 'running'
-                    ? `<button class="btn btn-stop btn-sm" onclick="closeFeedProfile('${p.id}')">CEASE</button>`
-                    : `<button class="btn btn-run btn-sm" onclick="launchFeedProfile('${p.id}')">LAUNCH</button>`
+                    ? `<button class="btn btn-red-tint btn-xs" onclick="closeFeedProfile('${p.id}')">DỪNG</button>`
+                    : `<button class="btn btn-green-tint btn-xs" onclick="launchFeedProfile('${p.id}')">CHẠY</button>`
                 }
-                <button class="btn btn-ghost btn-sm" onclick="openFeedEditModal('${p.id}')">EDIT</button>
-                <button class="btn btn-ghost btn-sm" onclick="deleteFeedProfile('${p.id}')" ${p.status === 'running' ? 'disabled style="opacity:0.3"' : ''}>DEL</button>
+                <button class="btn btn-ghost-clean btn-xs" onclick="openFeedEditModal('${p.id}')">SỬA</button>
+                <button class="btn btn-red-tint btn-xs" onclick="deleteFeedProfile('${p.id}')" ${p.status === 'running' ? 'disabled style="opacity:0.25; cursor:not-allowed;"' : ''}>XÓA</button>
             </td>
         </tr>
         `;
@@ -4242,17 +4457,70 @@
             loadFeedProfiles();
         }
 
+        function openConfirmModal({
+            title = 'XÁC NHẬN XÓA',
+            badge = 'CẢNH BÁO DỮ LIỆU',
+            targetName = '',
+            targetDetails = '',
+            warningText = 'Dữ liệu sẽ bị xóa vĩnh viễn khỏi máy tính và không thể khôi phục.',
+            confirmBtnText = 'XÁC NHẬN XÓA',
+            onConfirm = async () => {}
+        }) {
+            const titleEl = document.getElementById('feedConfirmTitle');
+            const badgeEl = document.getElementById('feedConfirmBadge');
+            const nameEl = document.getElementById('feedConfirmTargetName');
+            const detailsEl = document.getElementById('feedConfirmTargetDetails');
+            const warnEl = document.getElementById('feedConfirmWarningText');
+            const submitBtn = document.getElementById('feedConfirmSubmitBtn');
+
+            if (titleEl) titleEl.textContent = title;
+            if (badgeEl) badgeEl.textContent = badge;
+            if (nameEl) nameEl.textContent = targetName;
+            if (detailsEl) detailsEl.textContent = targetDetails;
+            if (warnEl) warnEl.textContent = warningText;
+
+            if (submitBtn) {
+                submitBtn.textContent = confirmBtnText;
+                submitBtn.disabled = false;
+                submitBtn.onclick = async () => {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'ĐANG XỬ LÝ...';
+                    try {
+                        await onConfirm();
+                    } catch (e) {
+                        showToast('Lỗi: ' + e.message);
+                    } finally {
+                        closeModal('feedConfirmModalOverlay');
+                        submitBtn.disabled = false;
+                    }
+                };
+            }
+            document.getElementById('feedConfirmModalOverlay').classList.add('active');
+        }
+
         async function deleteSelectedFeedProfiles() {
             const ids = getSelectedFeedProfileIds();
             if (ids.length === 0) return showToast('Vui lòng chọn ít nhất 1 profile!');
-            if (!confirm(`XÁC NHẬN XÓA ${ids.length} FEED PROFILES ĐÃ CHỌN?\nDữ liệu trong H:\\Loopy feed sẽ bị xóa vĩnh viễn!`)) return;
 
-            for (const id of ids) {
-                await fetch(`${API}/feed/profiles/${id}`, { method: 'DELETE' });
-                selectedFeedProfileIds.delete(id);
-            }
-            showToast(`ĐÃ XÓA ${ids.length} FEED PROFILES!`);
-            loadFeedProfiles();
+            const names = feedProfilesList.filter(p => ids.includes(p.id)).map(p => p.name);
+            const previewNames = names.slice(0, 3).join(', ') + (names.length > 3 ? ` ... và ${names.length - 3} profiles khác` : '');
+
+            openConfirmModal({
+                title: 'XÁC NHẬN XÓA NHIỀU PROFILES',
+                badge: 'XÓA HÀNG LOẠT',
+                targetName: `Đang chọn ${ids.length} profiles để xóa`,
+                targetDetails: `Danh sách: ${previewNames}`,
+                warningText: `CẢNH BÁO: Toàn bộ ${ids.length} thư mục profiles trong H:\\Loopy feed sẽ bị xóa vĩnh viễn khỏi máy tính. Hành động này không thể hoàn tác!`,
+                confirmBtnText: `XÓA ${ids.length} PROFILES`,
+                onConfirm: async () => {
+                    for (const id of ids) {
+                        await fetch(`${API}/feed/profiles/${id}`, { method: 'DELETE' });
+                        selectedFeedProfileIds.delete(id);
+                    }
+                    showToast(`ĐÃ XÓA ${ids.length} FEED PROFILES!`);
+                    loadFeedProfiles();
+                }
+            });
         }
 
         function openFeedCreateGroupModal() {
@@ -4340,17 +4608,21 @@
         async function deleteFeedGroup(id) {
             const g = feedGroups.find(item => item.id === id);
             const name = g ? g.name : id;
-            if (!confirm(`Bạn có chắc muốn xóa nhóm "${name}"?\n(Các profile thuộc nhóm này sẽ chuyển về "Chưa phân nhóm")`)) return;
-
-            try {
-                await fetch(`${API}/feed/groups/${id}`, { method: 'DELETE' });
-                showToast(`Đã xóa nhóm "${name}"!`);
-                if (currentFeedGroupFilter === id) currentFeedGroupFilter = 'ALL';
-                await loadFeedProfiles();
-                openFeedManageGroupsModal();
-            } catch (e) {
-                showToast('Lỗi: ' + e.message);
-            }
+            openConfirmModal({
+                title: 'XÁC NHẬN XÓA NHÓM',
+                badge: 'XÓA NHÓM',
+                targetName: `Nhóm: ${name}`,
+                targetDetails: `ID nhóm: ${id}`,
+                warningText: 'Nhóm sẽ bị xóa. Tất cả profile thuộc nhóm này sẽ được chuyển về "Chưa phân nhóm" (dữ liệu profile vẫn an toàn).',
+                confirmBtnText: 'XÓA NHÓM',
+                onConfirm: async () => {
+                    await fetch(`${API}/feed/groups/${id}`, { method: 'DELETE' });
+                    showToast(`Đã xóa nhóm "${name}"!`);
+                    if (currentFeedGroupFilter === id) currentFeedGroupFilter = 'ALL';
+                    await loadFeedProfiles();
+                    openFeedManageGroupsModal();
+                }
+            });
         }
 
         function openFeedCreateTagModal() {
@@ -4438,17 +4710,21 @@
         async function deleteFeedTag(id) {
             const t = feedTags.find(item => item.id === id);
             const name = t ? t.name : id;
-            if (!confirm(`Bạn có chắc muốn xóa nhãn "${name}"?\n(Nhãn này sẽ được gỡ bỏ khỏi tất cả profile)`)) return;
-
-            try {
-                await fetch(`${API}/feed/tags/${id}`, { method: 'DELETE' });
-                showToast(`Đã xóa nhãn "${name}"!`);
-                if (currentFeedTagFilter === id) currentFeedTagFilter = 'ALL';
-                await loadFeedProfiles();
-                openFeedManageTagsModal();
-            } catch (e) {
-                showToast('Lỗi: ' + e.message);
-            }
+            openConfirmModal({
+                title: 'XÁC NHẬN XÓA NHÃN',
+                badge: 'XÓA NHÃN',
+                targetName: `Nhãn (Tag): ${name}`,
+                targetDetails: `ID nhãn: ${id}`,
+                warningText: 'Nhãn này sẽ bị xóa và gỡ bỏ khỏi tất cả các profile đang sử dụng.',
+                confirmBtnText: 'XÓA NHÃN',
+                onConfirm: async () => {
+                    await fetch(`${API}/feed/tags/${id}`, { method: 'DELETE' });
+                    showToast(`Đã xóa nhãn "${name}"!`);
+                    if (currentFeedTagFilter === id) currentFeedTagFilter = 'ALL';
+                    await loadFeedProfiles();
+                    openFeedManageTagsModal();
+                }
+            });
         }
 
         function openFeedQuickAssign(profileId) {
@@ -4586,19 +4862,43 @@
         }
 
         async function deleteFeedProfile(id) {
-            if (!confirm('PURGE this feed profile? (Data in H:\\Loopy feed will be deleted)')) return;
-            const res = await fetch(`${API}/feed/profiles/${id}`, { method: 'DELETE' });
-            const data = await res.json();
-            if (data.error) showToast('ERROR: ' + data.error);
-            else showToast('PURGED FEED PROFILE.');
-            loadFeedProfiles();
+            const p = feedProfilesList.find(item => item.id === id);
+            const pName = p ? p.name : id;
+            openConfirmModal({
+                title: 'XÁC NHẬN XÓA PROFILE',
+                badge: 'XÓA PROFILE',
+                targetName: `Profile: ${pName}`,
+                targetDetails: `ID: ${id} | Thư mục: H:\\Loopy feed\\${id}`,
+                warningText: 'Toàn bộ dữ liệu cookie, lịch sử duyệt web và tài khoản đăng nhập của profile này sẽ bị xóa vĩnh viễn khỏi H:\\Loopy feed.',
+                confirmBtnText: 'XÓA VĨNH VIỄN',
+                onConfirm: async () => {
+                    const res = await fetch(`${API}/feed/profiles/${id}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (data.error) showToast('Lỗi: ' + data.error);
+                    else showToast('ĐÃ XÓA PROFILE THÀNH CÔNG.');
+                    selectedFeedProfileIds.delete(id);
+                    loadFeedProfiles();
+                }
+            });
         }
 
         async function deleteAllFeedProfilesUI() {
-            if (!confirm('WIPE ALL FEED PROFILES IN H:\\Loopy feed? CANNOT BE UNDONE.')) return;
-            await fetch(`${API}/feed/profiles/all`, { method: 'DELETE' });
-            showToast('ALL FEED PROFILES PURGED.');
-            loadFeedProfiles();
+            if (feedProfilesList.length === 0) return showToast('Không có profile nào để xóa!');
+
+            openConfirmModal({
+                title: 'XÓA TOÀN BỘ FEED PROFILES',
+                badge: 'NGUY HIỂM',
+                targetName: `Xóa TẤT CẢ (${feedProfilesList.length}) profiles trong H:\\Loopy feed`,
+                targetDetails: `Thư mục lưu trữ: H:\\Loopy feed`,
+                warningText: 'CẢNH BÁO CỰC KỲ NGUY HIỂM: Toàn bộ tất cả profile trong thư mục H:\\Loopy feed sẽ bị xóa sạch hoàn toàn. Hành động này KHÔNG THỂ HOÀN TÁC!',
+                confirmBtnText: 'XÓA TẤT CẢ VĨNH VIỄN',
+                onConfirm: async () => {
+                    await fetch(`${API}/feed/profiles/all`, { method: 'DELETE' });
+                    selectedFeedProfileIds.clear();
+                    showToast('ĐÃ XÓA TOÀN BỘ FEED PROFILES.');
+                    loadFeedProfiles();
+                }
+            });
         }
 
         function toggleFeedCreateModalCustomFieldsUI() {
@@ -4931,26 +5231,31 @@
                 : feedProfilesList.map(p => p.id);
 
             if (targets.length === 0) return showToast('Không có profile nào!');
-            if (!confirm(`Xóa toàn bộ proxy của ${targets.length} profile để chuyển về dùng IP máy thật (Direct)?`)) return;
 
-            try {
-                const res = await fetch(`${API}/feed/profiles/bulk-proxy`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        profileIds: targets,
-                        proxies: [],
-                        mode: 'clear',
-                        overwrite: true
-                    })
-                });
-                const data = await res.json();
-                showToast(`Đã xóa proxy của ${data.count} profile (Direct IP)!`);
-                closeModal('feedBulkProxyModalOverlay');
-                loadFeedProfiles();
-            } catch (e) {
-                showToast('Lỗi: ' + e.message);
-            }
+            openConfirmModal({
+                title: 'XÁC NHẬN XÓA PROXY',
+                badge: 'CHUYỂN DIRECT IP',
+                targetName: `Áp dụng cho ${targets.length} profiles mục tiêu`,
+                targetDetails: `Chế độ: Direct IP (IP máy thật)`,
+                warningText: 'Toàn bộ proxy đã gán sẽ bị xóa bỏ khỏi profile. Trình duyệt khi mở sẽ sử dụng kết nối mạng trực tiếp của máy tính.',
+                confirmBtnText: 'XÓA PROXY',
+                onConfirm: async () => {
+                    const res = await fetch(`${API}/feed/profiles/bulk-proxy`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            profileIds: targets,
+                            proxies: [],
+                            mode: 'clear',
+                            overwrite: true
+                        })
+                    });
+                    const data = await res.json();
+                    showToast(`Đã xóa proxy của ${data.count} profile (Direct IP)!`);
+                    closeModal('feedBulkProxyModalOverlay');
+                    loadFeedProfiles();
+                }
+            });
         }
 
         async function showFeedProfileInfo(id) {
