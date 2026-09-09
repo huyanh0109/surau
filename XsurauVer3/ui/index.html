@@ -1944,9 +1944,24 @@
         <div class="modal-overlay" id="bulkModalOverlay">
             <div class="modal" style="max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto;">
                 <h2>BULK CREATE</h2>
-                <div class="form-group"><label>COUNT</label><input type="number" id="bulkCount" min="1" max="500" value="10"></div>
+                <div class="form-group"><label>COUNT</label><input type="number" id="bulkCount" min="1" max="500" value="10" oninput="updateMainBulkProxyHint()"></div>
                 <div class="form-group"><label>PREFIX</label><input type="text" id="bulkPrefix" value="Profile"></div>
-                <div class="form-group"><label>PROXIES</label><textarea id="bulkCreateProxies" placeholder="Mỗi dòng 1 proxy..."></textarea></div>
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                        <label style="margin-bottom: 0;">PROXIES</label>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 10px; color: var(--text-muted); font-family: monospace; font-weight: bold; text-transform: uppercase;">CHẾ ĐỘ:</span>
+                            <select id="bulkProxyModeSelect" class="settings-input" style="padding: 2px 8px; font-size: 11px; font-weight: bold; color: var(--accent); width: auto; height: 26px; border: 1px solid rgba(245, 176, 0, 0.4);" onchange="updateMainBulkProxyHint()">
+                                <option value="single">1 PROXY CHO TẤT CẢ PROFILE</option>
+                                <option value="auto" selected>TỰ ĐỘNG (1 Proxy = Dùng chung | Nhiều = Xoay vòng)</option>
+                                <option value="rotate">XOAY VÒNG (Chia đều danh sách)</option>
+                                <option value="list">TUẦN TỰ (Mỗi dòng 1 profile)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <textarea id="bulkCreateProxies" style="height: 85px; font-family: monospace; font-size: 11px;" placeholder="Nhập 1 proxy để dùng chung cho tất cả profile, hoặc nhập nhiều proxy (mỗi dòng 1 proxy)..." oninput="updateMainBulkProxyHint()"></textarea>
+                    <div id="bulkProxyHintBadge" style="display: none; font-size: 11px; margin-top: 6px; font-family: monospace; padding: 6px 12px; border-radius: 4px; line-height: 1.5;"></div>
+                </div>
                 
                 <div class="form-group">
                     <label>FINGERPRINT MODE</label>
@@ -2213,7 +2228,7 @@
         <div class="modal-overlay" id="feedBulkModalOverlay">
             <div class="modal" style="max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto;">
                 <h2>BULK CREATE FEED PROFILES</h2>
-                <div class="form-group"><label>SỐ LƯỢNG PROFILE CẦN TẠO</label><input type="number" id="feedBulkCount" min="1" max="500" value="10"></div>
+                <div class="form-group"><label>SỐ LƯỢNG PROFILE CẦN TẠO</label><input type="number" id="feedBulkCount" min="1" max="500" value="10" oninput="updateFeedBulkProxyHint()"></div>
                 <div style="font-size: 11px; color: var(--accent); margin-bottom: 12px; font-family: monospace;">Tự động đánh số ID tăng dần liên tiếp cho các profile được tạo mới.</div>
                 <input type="hidden" id="feedBulkPrefix" value="Profile">
                 <div class="form-group">
@@ -2226,7 +2241,22 @@
                     <label>GÁN NHÃN (TAGS)</label>
                     <div id="feedBulkTagsList" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0;"></div>
                 </div>
-                <div class="form-group"><label>PROXIES</label><textarea id="feedBulkCreateProxies" placeholder="Mỗi dòng 1 proxy..."></textarea></div>
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                        <label style="margin-bottom: 0;">PROXIES</label>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 10px; color: var(--text-muted); font-family: monospace; font-weight: bold; text-transform: uppercase;">CHẾ ĐỘ PROXY:</span>
+                            <select id="feedBulkProxyModeSelect" class="settings-input" style="padding: 2px 8px; font-size: 11px; font-weight: bold; color: var(--accent); width: auto; height: 26px; border: 1px solid rgba(245, 176, 0, 0.4);" onchange="updateFeedBulkProxyHint()">
+                                <option value="single">1 PROXY CHO TẤT CẢ PROFILE</option>
+                                <option value="auto" selected>TỰ ĐỘNG (1 Proxy = Dùng chung | Nhiều = Xoay vòng)</option>
+                                <option value="rotate">XOAY VÒNG (Chia đều danh sách)</option>
+                                <option value="list">TUẦN TỰ (Mỗi dòng 1 profile)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <textarea id="feedBulkCreateProxies" style="height: 85px; font-family: monospace; font-size: 11px;" placeholder="Nhập 1 proxy để dùng chung cho tất cả profile, hoặc nhập nhiều proxy (mỗi dòng 1 proxy)..." oninput="updateFeedBulkProxyHint()"></textarea>
+                    <div id="feedBulkProxyHintBadge" style="display: none; font-size: 11px; margin-top: 6px; font-family: monospace; padding: 6px 12px; border-radius: 4px; line-height: 1.5;"></div>
+                </div>
                 
                 <div class="form-group">
                     <label>FINGERPRINT MODE</label>
@@ -4142,6 +4172,43 @@
             loadProfiles();
         }
 
+        function updateMainBulkProxyHint() {
+            const countInput = document.getElementById('bulkCount');
+            const proxiesTextarea = document.getElementById('bulkCreateProxies');
+            const modeSelect = document.getElementById('bulkProxyModeSelect');
+            const hintBadge = document.getElementById('bulkProxyHintBadge');
+            if (!hintBadge) return;
+
+            const count = parseInt(countInput ? countInput.value : '0', 10) || 0;
+            const text = proxiesTextarea ? proxiesTextarea.value.trim() : '';
+            const proxies = text ? text.split('\n').map(s => s.trim()).filter(Boolean) : [];
+            const mode = modeSelect ? modeSelect.value : 'auto';
+
+            if (proxies.length === 0) {
+                hintBadge.style.display = 'none';
+                return;
+            }
+
+            hintBadge.style.display = 'block';
+
+            if (mode === 'single' || (mode === 'auto' && proxies.length === 1)) {
+                hintBadge.innerHTML = `✓ <strong>1 Proxy cho nhiều Profile:</strong> Sẽ dùng chung proxy <code>${escHtml(proxies[0])}</code> cho toàn bộ <strong>${count}</strong> profile.`;
+                hintBadge.style.color = 'var(--accent)';
+                hintBadge.style.borderColor = 'rgba(245, 176, 0, 0.4)';
+                hintBadge.style.background = 'rgba(245, 176, 0, 0.08)';
+            } else if (mode === 'rotate' || (mode === 'auto' && proxies.length < count)) {
+                hintBadge.innerHTML = `✓ <strong>Xoay vòng:</strong> ${proxies.length} proxy sẽ được chia đều lần lượt cho <strong>${count}</strong> profile.`;
+                hintBadge.style.color = '#38bdf8';
+                hintBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                hintBadge.style.background = 'rgba(56, 189, 248, 0.08)';
+            } else {
+                hintBadge.innerHTML = `✓ <strong>Tuần tự:</strong> ${count} profile đầu tiên sẽ nhận ${count} proxy riêng biệt.`;
+                hintBadge.style.color = '#10b981';
+                hintBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                hintBadge.style.background = 'rgba(16, 185, 129, 0.08)';
+            }
+        }
+
         async function openBulkModal() {
             await fetchFingerprintOptionsUI();
             const modeSelect = document.getElementById('bulkProfileModeSelect');
@@ -4154,6 +4221,7 @@
                     toggleBulkModalCustomFieldsUI();
                 } catch (e) {}
             }
+            updateMainBulkProxyHint();
             document.getElementById('bulkModalOverlay').classList.add('active');
         }
 
@@ -4164,9 +4232,10 @@
             const count = parseInt(document.getElementById('bulkCount').value);
             const prefix = document.getElementById('bulkPrefix').value;
             const proxies = document.getElementById('bulkCreateProxies').value.split('\n').map(s => s.trim()).filter(Boolean);
+            const proxyMode = document.getElementById('bulkProxyModeSelect') ? document.getElementById('bulkProxyModeSelect').value : 'auto';
 
             const mode = document.getElementById('bulkProfileModeSelect').value;
-            const options = { mode };
+            const options = { mode, proxyMode };
             if (mode === 'custom') {
                 options.userAgent = document.getElementById('bulkCustomUA').value;
                 options.gpu = document.getElementById('bulkCustomGpu').value;
@@ -4179,7 +4248,7 @@
             await fetch(`${API}/profiles/bulk`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ count, prefix, proxies, options })
+                body: JSON.stringify({ count, prefix, proxies, options, proxyMode })
             });
             showToast(`CREATED ${count} PROFILES`);
             closeModal('bulkModalOverlay');
@@ -5768,6 +5837,65 @@
             loadFeedProfiles();
         }
 
+        function updateFeedBulkProxyHint() {
+            const countInput = document.getElementById('feedBulkCount');
+            const proxiesTextarea = document.getElementById('feedBulkCreateProxies');
+            const modeSelect = document.getElementById('feedBulkProxyModeSelect');
+            const hintBadge = document.getElementById('feedBulkProxyHintBadge');
+            if (!hintBadge) return;
+
+            const count = parseInt(countInput ? countInput.value : '0', 10) || 0;
+            const text = proxiesTextarea ? proxiesTextarea.value.trim() : '';
+            const proxies = text ? text.split('\n').map(s => s.trim()).filter(Boolean) : [];
+            const mode = modeSelect ? modeSelect.value : 'auto';
+
+            if (proxies.length === 0) {
+                hintBadge.style.display = 'none';
+                return;
+            }
+
+            hintBadge.style.display = 'block';
+
+            if (mode === 'single') {
+                hintBadge.innerHTML = `✓ <strong>1 Proxy cho nhiều Profile:</strong> Sẽ dùng chung proxy <code>${escHtml(proxies[0])}</code> cho toàn bộ <strong>${count}</strong> profile được tạo.`;
+                hintBadge.style.color = 'var(--accent)';
+                hintBadge.style.borderColor = 'rgba(245, 176, 0, 0.4)';
+                hintBadge.style.background = 'rgba(245, 176, 0, 0.08)';
+            } else if (mode === 'rotate') {
+                hintBadge.innerHTML = `✓ <strong>Xoay vòng:</strong> ${proxies.length} proxy sẽ được chia đều lần lượt cho <strong>${count}</strong> profile.`;
+                hintBadge.style.color = '#38bdf8';
+                hintBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                hintBadge.style.background = 'rgba(56, 189, 248, 0.08)';
+            } else if (mode === 'list') {
+                if (proxies.length >= count) {
+                    hintBadge.innerHTML = `✓ <strong>Tuần tự:</strong> ${count} profile đầu tiên sẽ nhận ${count} proxy riêng biệt.`;
+                } else {
+                    hintBadge.innerHTML = `⚠️ <strong>Tuần tự:</strong> Có ${proxies.length} proxy cho ${count} profile (${count - proxies.length} profile còn lại sẽ không có proxy / Direct). Hãy chọn <em>"1 Proxy cho tất cả"</em> hoặc <em>"Xoay vòng"</em> nếu muốn tất cả đều có proxy.`;
+                }
+                hintBadge.style.color = '#a3e635';
+                hintBadge.style.borderColor = 'rgba(163, 230, 53, 0.4)';
+                hintBadge.style.background = 'rgba(163, 230, 53, 0.08)';
+            } else {
+                // mode === 'auto'
+                if (proxies.length === 1) {
+                    hintBadge.innerHTML = `✓ <strong>Tự động nhận diện:</strong> Đã nhập 1 proxy -> Sẽ dùng chung proxy này cho cả <strong>${count}</strong> profile được tạo!`;
+                    hintBadge.style.color = 'var(--accent)';
+                    hintBadge.style.borderColor = 'rgba(245, 176, 0, 0.4)';
+                    hintBadge.style.background = 'rgba(245, 176, 0, 0.08)';
+                } else if (proxies.length < count) {
+                    hintBadge.innerHTML = `✓ <strong>Tự động nhận diện:</strong> Có ${proxies.length} proxy cho ${count} profile -> Sẽ tự động xoay vòng để profile nào cũng có proxy.`;
+                    hintBadge.style.color = '#38bdf8';
+                    hintBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    hintBadge.style.background = 'rgba(56, 189, 248, 0.08)';
+                } else {
+                    hintBadge.innerHTML = `✓ <strong>Tự động nhận diện:</strong> Đủ ${proxies.length} proxy -> Gán tuần tự mỗi profile 1 proxy riêng biệt.`;
+                    hintBadge.style.color = '#10b981';
+                    hintBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                    hintBadge.style.background = 'rgba(16, 185, 129, 0.08)';
+                }
+            }
+        }
+
         async function openFeedBulkModal() {
             await fetchFingerprintOptionsUI();
 
@@ -5804,10 +5932,10 @@
                     toggleFeedBulkModalCustomFieldsUI();
                 } catch (e) {}
             }
+            updateFeedBulkProxyHint();
             document.getElementById('feedBulkModalOverlay').classList.add('active');
             setTimeout(initAllFeedCyberDropdowns, 20);
         }
-
 
         async function bulkCreateFeed() {
             const count = parseInt(document.getElementById('feedBulkCount').value);
@@ -5815,9 +5943,10 @@
             const group = document.getElementById('feedBulkGroup') ? document.getElementById('feedBulkGroup').value : '';
             const tags = Array.from(document.querySelectorAll('#feedBulkTagsList input[type="checkbox"]:checked')).map(c => c.value);
             const proxies = document.getElementById('feedBulkCreateProxies').value.split('\n').map(s => s.trim()).filter(Boolean);
+            const proxyMode = document.getElementById('feedBulkProxyModeSelect') ? document.getElementById('feedBulkProxyModeSelect').value : 'auto';
 
             const mode = document.getElementById('feedBulkProfileModeSelect').value;
-            const options = { mode, group, tags };
+            const options = { mode, group, tags, proxyMode };
             if (mode === 'custom') {
                 options.userAgent = document.getElementById('feedBulkCustomUA').value;
                 options.gpu = document.getElementById('feedBulkCustomGpu').value;
@@ -5830,7 +5959,7 @@
             await fetch(`${API}/feed/profiles/bulk`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ count, namePrefix: prefix, proxies, options, group, tags })
+                body: JSON.stringify({ count, namePrefix: prefix, proxies, options, group, tags, proxyMode })
             });
             showToast(`CREATED ${count} FEED PROFILES`);
             closeModal('feedBulkModalOverlay');

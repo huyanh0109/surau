@@ -903,8 +903,38 @@ class ProfileManager {
             startNum = maxId + 1;
         }
 
+        const proxyMode = customOptions.proxyMode || 'auto';
+        const validProxies = Array.isArray(proxies)
+            ? proxies.map(s => (typeof s === 'string' ? s.trim() : s)).filter(Boolean)
+            : [];
+
         for (let i = 0; i < count; i++) {
-            const proxy = proxies[i] || null;
+            let proxy = null;
+            if (validProxies.length > 0) {
+                if (proxyMode === 'single') {
+                    // Dùng chung 1 proxy cho tất cả profile
+                    proxy = validProxies[0];
+                } else if (proxyMode === 'rotate') {
+                    // Xoay vòng tuần tự qua danh sách proxy
+                    proxy = validProxies[i % validProxies.length];
+                } else if (proxyMode === 'list') {
+                    // Tuần tự mỗi dòng 1 profile, nếu thiếu thì null
+                    proxy = validProxies[i] || null;
+                } else {
+                    // Mặc định 'auto':
+                    // - Nếu chỉ nhập 1 proxy -> tự động dùng chung cho TẤT CẢ profile được tạo
+                    // - Nếu nhập nhiều proxy nhưng ít hơn số profile -> tự động xoay vòng chia đều
+                    // - Nếu đủ hoặc thừa proxy -> gán tuần tự 1:1
+                    if (validProxies.length === 1) {
+                        proxy = validProxies[0];
+                    } else if (validProxies.length < count) {
+                        proxy = validProxies[i % validProxies.length];
+                    } else {
+                        proxy = validProxies[i] || null;
+                    }
+                }
+            }
+
             let profile;
             if (this.isFeed) {
                 const profileId = String(startNum + i);
@@ -915,7 +945,7 @@ class ProfileManager {
             }
             created.push(profile);
         }
-        console.log(`[Manager] 📦 Đã tạo ${count} profile hàng loạt!`);
+        console.log(`[Manager] 📦 Đã tạo ${count} profile hàng loạt! (ProxyMode: ${proxyMode}, Proxies: ${validProxies.length})`);
         return created;
     }
 

@@ -279,9 +279,11 @@ app.delete('/api/archives/:groupName', (req, res) => {
 });
 
 app.post('/api/profiles/bulk', (req, res) => {
-    const { count, namePrefix, proxies, options } = req.body;
+    const { count, namePrefix, proxies, options, proxyMode } = req.body;
     if (!count || count < 1 || count > 500) return res.status(400).json({ error: 'Số lượng từ 1-500' });
-    const profiles = manager.bulkCreateProfiles(count, namePrefix || 'Profile', proxies || [], options);
+    const finalOptions = { ...(options || {}) };
+    if (proxyMode) finalOptions.proxyMode = proxyMode;
+    const profiles = manager.bulkCreateProfiles(count, namePrefix || 'Profile', proxies || [], finalOptions);
     res.json({ success: true, count: profiles.length, profiles });
 });
 
@@ -359,11 +361,12 @@ app.delete('/api/feed/profiles/:id', (req, res) => {
 });
 
 app.post('/api/feed/profiles/bulk', (req, res) => {
-    const { count, namePrefix, proxies, options, group, tags } = req.body;
+    const { count, namePrefix, proxies, options, group, tags, proxyMode } = req.body;
     if (!count || count < 1 || count > 500) return res.status(400).json({ error: 'Số lượng từ 1-500' });
     const finalOptions = { ...(options || {}) };
     if (group !== undefined) finalOptions.group = group;
     if (tags !== undefined) finalOptions.tags = tags;
+    if (proxyMode !== undefined) finalOptions.proxyMode = proxyMode;
     const profiles = feedManager.bulkCreateProfiles(count, namePrefix || 'Feed Profile', proxies || [], finalOptions);
     res.json({ success: true, count: profiles.length, profiles });
 });
