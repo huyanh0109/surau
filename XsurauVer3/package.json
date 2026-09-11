@@ -16,6 +16,8 @@
     "otplib": "^13.4.0",
     "patchright": "^1.59.4",
     "playwright": "^1.43.0",
-    "proxy-chain": "^2.7.1"
+    "proxy-chain": "^2.7.1",
+    "socks": "^2.8.8",
+    "socks-proxy-agent": "^8.0.5"
   }
 }

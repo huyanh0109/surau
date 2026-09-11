@@ -8,6 +8,7 @@ const { stopGestureWatcher } = require('./gesture-watcher');
 const proxyService = require('./proxy-service');
 const proxyChain = require('proxy-chain');
 const geoService = require('./geo-service');
+const { probeIsSocks5, parseProxyDetails, createSocksBridge } = require('./socks-bridge');
 
 // ============================================================================
 // CƠ SỞ DỮ LIỆU GPU ĐỂ RANDOMIZE WEBGL CHO MỖI PROFILE
@@ -307,6 +308,64 @@ async function extractAccountFromRunningContext(context) {
     return null;
 }
 
+/**
+ * Thiết lập Microsoft Bing làm công cụ tìm kiếm mặc định cho profile
+ * (Phục vụ kiếm điểm thưởng Microsoft Rewards theo đúng cơ chế của extension Bing Rewards)
+ */
+function applyBingDefaultSearch(profileDir) {
+    try {
+        if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
+
+        const bingTemplate = {
+            short_name: "Microsoft Bing",
+            keyword: "bing.com",
+            url: "https://www.bing.com/search?FORM=U523MF&PC=U523&q={searchTerms}",
+            suggestions_url: "https://www.bing.com/osjson.aspx?FORM=U523DF&PC=U523&query={searchTerms}",
+            favicon_url: "https://www.bing.com/favicon.ico",
+            image_url: "https://www.bing.com/images/detail/search?iss=sbiupload&FORM=CHROMI#enterInsights",
+            image_url_post_params: "imageBin={google:imageThumbnailBase64}",
+            new_tab_url: "https://www.bing.com/chrome/newtab",
+            safe_for_autoreplace: true,
+            date_created: "0",
+            last_modified: "0",
+            is_active: 1,
+            usage_count: 0,
+            prepopulate_id: 3,
+            synced_guid: "5b5934c9-5215-42b1-a745-89273a1b83c8"
+        };
+
+        // 1. Ghi initial_preferences ở thư mục gốc profileDir để Chromium đọc khi khởi tạo lần đầu
+        const initPrefPath = path.join(profileDir, 'initial_preferences');
+        if (!fs.existsSync(initPrefPath)) {
+            fs.writeFileSync(initPrefPath, JSON.stringify({
+                default_search_provider: { enabled: true },
+                default_search_provider_data: { template_url_data: bingTemplate }
+            }, null, 2));
+        }
+
+        // 2. Cập nhật Default/Preferences
+        const defaultDir = path.join(profileDir, 'Default');
+        if (!fs.existsSync(defaultDir)) fs.mkdirSync(defaultDir, { recursive: true });
+
+        const prefPath = path.join(defaultDir, 'Preferences');
+        let prefs = {};
+        if (fs.existsSync(prefPath)) {
+            try { prefs = JSON.parse(fs.readFileSync(prefPath, 'utf8')); } catch (_) {}
+        }
+
+        if (!prefs.default_search_provider) prefs.default_search_provider = {};
+        prefs.default_search_provider.enabled = true;
+        prefs.default_search_provider.reset_occurred = false;
+
+        if (!prefs.default_search_provider_data) prefs.default_search_provider_data = {};
+        prefs.default_search_provider_data.template_url_data = bingTemplate;
+
+        fs.writeFileSync(prefPath, JSON.stringify(prefs, null, 2));
+    } catch (e) {
+        console.warn(`[Manager] ⚠️ Không thể đặt Bing làm search engine mặc định: ${e.message}`);
+    }
+}
+
 class ProfileManager {
     constructor(options = {}) {
         // Thay đổi thư mục lưu trữ Data sang ổ G: theo yêu cầu
@@ -536,7 +595,8 @@ class ProfileManager {
         if (!settings.globalExtensions || !Array.isArray(settings.globalExtensions) || settings.globalExtensions.length === 0) {
             settings.globalExtensions = [
                 "G:\\XsurauData\\extensions\\autosubmit",
-                "G:\\XsurauData\\extensions\\chrome-build1.14.16-prod"
+                "G:\\XsurauData\\extensions\\chrome-build1.14.16-prod",
+                "G:\\XsurauData\\extensions\\bing-rewards"
             ];
             changed = true;
         }
@@ -877,6 +937,13 @@ class ProfileManager {
         const metaFile = path.join(this.profilesMetaPath, `${id}.json`);
         fs.writeFileSync(metaFile, JSON.stringify(profileData, null, 2));
         this.profilesCache.set(id, profileData);
+
+        // Tự động đặt Bing làm công cụ tìm kiếm mặc định cho Feed Profile
+        if (this.isFeed) {
+            const profileDataDir = path.join(this.profilesDataPath, id);
+            applyBingDefaultSearch(profileDataDir);
+        }
+
         console.log(`[Manager] ✅ Profile: ${profileData.name} (${mode.toUpperCase()}) | GPU: ${profileData.gpu.renderer.substring(0, 40)}... | Screen: ${profileData.screen.width}x${profileData.screen.height} | Cores: ${profileData.hardwareConcurrency}`);
         return profileData;
     }
@@ -1514,49 +1581,21 @@ class ProfileManager {
             return s !== '' && s !== 'NONE' && s !== 'DIRECT' && s !== 'NULL' && s !== 'UNDEFINED';
         };
 
-        // Helper: Parse proxy string (ip:port, ip:port:user:pass, user:pass:ip:port, http://user:pass@ip:port)
+        // Helper: Parse proxy string (ip:port, ip:port:user:pass, user:pass:ip:port, socks5://..., http://...)
         const parseProxy = (raw) => {
             if (!hasValidProxy(raw)) return null;
-            let t = String(raw).trim();
-
-            let server = '';
-            let username = '';
-            let password = '';
-
-            if (t.includes('://')) {
-                try {
-                    const u = new URL(t);
-                    server = `${u.protocol}//${u.host}`;
-                    username = decodeURIComponent(u.username || '');
-                    password = decodeURIComponent(u.password || '');
-                    return { server, username, password };
-                } catch (e) {
-                    t = t.replace(/^(http|https|socks5):\/\//i, '');
-                }
-            }
-
-            const p = t.split(':');
-            if (p.length === 4) {
-                // Check if p[0] is IP/host or username
-                if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(p[0]) || (p[0].includes('.') && /^\d+$/.test(p[1]))) {
-                    // ip:port:user:pass
-                    server = `http://${p[0]}:${p[1]}`;
-                    username = p[2];
-                    password = p[3];
-                } else {
-                    // user:pass:ip:port
-                    username = p[0];
-                    password = p[1];
-                    server = `http://${p[2]}:${p[3]}`;
-                }
-            } else if (p.length === 2) {
-                // ip:port
-                server = `http://${p[0]}:${p[1]}`;
-            } else {
-                server = `http://${t}`;
-            }
-
-            return { server, username, password };
+            const details = parseProxyDetails(raw);
+            if (!details || !details.host) return null;
+            const protocol = details.isExplicitSocks ? 'socks5' : 'http';
+            const server = `${protocol}://${details.host}:${details.port}`;
+            return {
+                server,
+                host: details.host,
+                port: details.port,
+                username: details.username,
+                password: details.password,
+                isExplicitSocks: details.isExplicitSocks
+            };
         };
 
         let effectiveProxyRaw = null;
@@ -1801,9 +1840,20 @@ class ProfileManager {
                 if (e.toLowerCase().endsWith('.zip') || e.toLowerCase().endsWith('.crx')) return false;
                 return true;
             });
+
+        // Tự động gắn extension Bing Rewards nếu là Feed Profile
+        if (this.isFeed) {
+            const bingExtH = path.join(this.extensionsPath, 'bing-rewards');
+            const bingExtG = 'G:\\XsurauData\\extensions\\bing-rewards';
+            const bingPath = fs.existsSync(bingExtH) ? bingExtH : (fs.existsSync(bingExtG) ? bingExtG : null);
+            if (bingPath && !allExtensions.includes(bingPath)) {
+                allExtensions.push(bingPath);
+            }
+        }
+
         if (allExtensions.length > 0) {
             const extPaths = allExtensions.join(',');
-            args.push(`--disable-extensions-except=${extPaths}`);
+            // Không dùng --disable-extensions-except vì cờ này vô hiệu hóa cơ chế cài đặt tiện ích của Chromium (gây lỗi "Installation is not enabled")
             args.push(`--load-extension=${extPaths}`);
         }
 
@@ -1822,8 +1872,22 @@ class ProfileManager {
         }
 
         let anonymizedProxyUrl = null;
+        let socksBridge = null;
         if (effectiveProxyObj && effectiveProxyObj.server) {
-            if (effectiveProxyObj.username || effectiveProxyObj.password) {
+            const proxyDetails = parseProxyDetails(effectiveProxyRaw);
+            const isSocks = effectiveProxyObj.isExplicitSocks || (proxyDetails?.host && proxyDetails?.port && await probeIsSocks5(proxyDetails.host, proxyDetails.port));
+
+            if (isSocks && proxyDetails) {
+                try {
+                    socksBridge = await createSocksBridge(proxyDetails);
+                    anonymizedProxyUrl = socksBridge.url;
+                    this.anonymizedProxies.set(profileId, socksBridge);
+                    launchConfig.proxy = { server: socksBridge.url };
+                    console.log(`[Manager] 🧦 SOCKS5 Bridge tự động xác thực: ${socksBridge.url} -> ${proxyDetails.host}:${proxyDetails.port}`);
+                } catch (socksErr) {
+                    console.error(`[Manager] ❌ SOCKS5 Bridge error: ${socksErr.message}`);
+                }
+            } else if (effectiveProxyObj.username || effectiveProxyObj.password) {
                 try {
                     // Dùng proxy-chain tạo bridge local 127.0.0.1 để tự động xác thực proxy
                     // Tránh triệt để Chromium hiện popup "Sign in: The proxy requires a username and password"
@@ -1868,6 +1932,12 @@ class ProfileManager {
                 console.log(`[Manager] ⚠️ Không thể thiết lập zoom: ${e.message}`);
             }
         }
+
+        // Tự động đảm bảo Bing luôn là công cụ tìm kiếm mặc định cho Feed Profile
+        if (this.isFeed) {
+            applyBingDefaultSearch(profileDir);
+        }
+
         let context;
         try {
             context = await chromium.launchPersistentContext(profileDir, launchConfig);
@@ -1886,16 +1956,20 @@ class ProfileManager {
                 try {
                     context = await chromium.launchPersistentContext(profileDir, launchConfig);
                 } catch (retryErr) {
-                    if (anonymizedProxyUrl) {
-                        try { await proxyChain.closeAnonymizedProxy(anonymizedProxyUrl, true); } catch (_) {}
+                    if (this.anonymizedProxies.has(profileId)) {
+                        const b = this.anonymizedProxies.get(profileId);
                         this.anonymizedProxies.delete(profileId);
+                        if (b && typeof b.close === 'function') b.close();
+                        else if (typeof b === 'string') { try { await proxyChain.closeAnonymizedProxy(b, true); } catch (_) {} }
                     }
                     throw retryErr;
                 }
             } else {
-                if (anonymizedProxyUrl) {
-                    try { await proxyChain.closeAnonymizedProxy(anonymizedProxyUrl, true); } catch (_) {}
+                if (this.anonymizedProxies.has(profileId)) {
+                    const b = this.anonymizedProxies.get(profileId);
                     this.anonymizedProxies.delete(profileId);
+                    if (b && typeof b.close === 'function') b.close();
+                    else if (typeof b === 'string') { try { await proxyChain.closeAnonymizedProxy(b, true); } catch (_) {} }
                 }
                 throw err;
             }
@@ -2067,9 +2141,13 @@ class ProfileManager {
             clearInterval(liveSyncInterval);
             this.runningProfiles.delete(profileId);
             if (this.anonymizedProxies.has(profileId)) {
-                const anonUrl = this.anonymizedProxies.get(profileId);
+                const b = this.anonymizedProxies.get(profileId);
                 this.anonymizedProxies.delete(profileId);
-                proxyChain.closeAnonymizedProxy(anonUrl, true).catch(() => {});
+                if (b && typeof b.close === 'function') {
+                    b.close();
+                } else if (typeof b === 'string') {
+                    proxyChain.closeAnonymizedProxy(b, true).catch(() => {});
+                }
             }
             stopGestureWatcher(profileId); // Dừng watcher nếu có
             console.log(`[Manager] ⏹️ Profile [${profileData.name}] đã đóng.`);
@@ -2155,8 +2233,12 @@ class ProfileManager {
 
     /** Đóng tất cả đồng thời */
     async closeAll() {
-        for (const [pId, anonUrl] of this.anonymizedProxies.entries()) {
-            try { await proxyChain.closeAnonymizedProxy(anonUrl, true); } catch (_) {}
+        for (const [pId, b] of this.anonymizedProxies.entries()) {
+            if (b && typeof b.close === 'function') {
+                b.close();
+            } else if (typeof b === 'string') {
+                try { await proxyChain.closeAnonymizedProxy(b, true); } catch (_) {}
+            }
         }
         this.anonymizedProxies.clear();
         const ids = [...this.runningProfiles.keys()];

@@ -1,5 +1,7 @@
 const http = require('http');
 const { URL } = require('url');
+const { SocksProxyAgent } = require('socks-proxy-agent');
+const { probeIsSocks5 } = require('./socks-bridge');
 
 // Bảng ánh xạ Country Code sang Locale chuẩn
 const COUNTRY_LOCALES = {
@@ -115,6 +117,49 @@ class GeoService {
      * Query thông tin Geo trực tiếp bằng HTTP request qua proxy
      */
     async _queryGeoViaProxy(parsedProxy, timeoutMs = 3500) {
+        let isSocks = parsedProxy.protocol === 'socks5' || parsedProxy.protocol === 'socks';
+        if (!isSocks && parsedProxy.host && parsedProxy.port) {
+            isSocks = await probeIsSocks5(parsedProxy.host, parsedProxy.port, 800);
+        }
+
+        if (isSocks) {
+            return new Promise((resolve, reject) => {
+                const authPart = parsedProxy.username
+                    ? `${encodeURIComponent(parsedProxy.username)}:${encodeURIComponent(parsedProxy.password || '')}@`
+                    : '';
+                const socksUrl = `socks5://${authPart}${parsedProxy.host}:${parsedProxy.port}`;
+                const agent = new SocksProxyAgent(socksUrl);
+
+                const timer = setTimeout(() => {
+                    req.destroy();
+                    reject(new Error('SOCKS5 Proxy Geo query timeout'));
+                }, timeoutMs);
+
+                const req = http.get('http://ip-api.com/json', { agent, timeout: timeoutMs }, (res) => {
+                    let body = '';
+                    res.on('data', chunk => body += chunk);
+                    res.on('end', () => {
+                        clearTimeout(timer);
+                        try {
+                            const json = JSON.parse(body);
+                            if (json && json.status === 'success') {
+                                resolve(json);
+                            } else {
+                                reject(new Error(json.message || 'Invalid Geo response'));
+                            }
+                        } catch (err) {
+                            reject(new Error(`Failed to parse Geo JSON: ${body.substring(0, 50)}`));
+                        }
+                    });
+                });
+
+                req.on('error', (err) => {
+                    clearTimeout(timer);
+                    reject(err);
+                });
+            });
+        }
+
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 req.destroy();
