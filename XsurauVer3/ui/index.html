@@ -2185,6 +2185,13 @@
                     <label>TÀI KHOẢN MICROSOFT (EMAIL)</label>
                     <input type="text" id="feedInputAccount" placeholder="abc@sad.com">
                 </div>
+                <div class="form-group" id="feedBrowserTypeFormGroup">
+                    <label>TRÌNH DUYỆT (BROWSER)</label>
+                    <select id="feedBrowserType" class="settings-input" style="width: 100%; font-weight: bold; color: var(--accent);">
+                        <option value="chrome" selected>Google Chrome (Mặc định)</option>
+                        <option value="edge">Microsoft Edge (Giả lập Edge cho Bing / Rewards)</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label>NHÓM (GROUP)</label>
                     <select id="feedInputGroup" class="settings-input" style="width: 100%;">
@@ -2258,6 +2265,14 @@
                     <div id="feedBulkProxyHintBadge" style="display: none; font-size: 11px; margin-top: 6px; font-family: monospace; padding: 6px 12px; border-radius: 4px; line-height: 1.5;"></div>
                 </div>
                 
+                <div class="form-group" id="feedBulkBrowserTypeFormGroup">
+                    <label>TRÌNH DUYỆT (BROWSER)</label>
+                    <select id="feedBulkBrowserType" class="settings-input" style="width: 100%; font-weight: bold; color: var(--accent);">
+                        <option value="chrome" selected>Google Chrome (Mặc định)</option>
+                        <option value="edge">Microsoft Edge (Giả lập Edge cho Bing / Rewards)</option>
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label>FINGERPRINT MODE</label>
                     <select id="feedBulkProfileModeSelect" class="settings-input" style="width: 100%; font-weight: bold; color: var(--accent);" onchange="toggleFeedBulkModalCustomFieldsUI()">
@@ -4460,6 +4475,9 @@
             <td><input type="checkbox" class="feed-profile-check" data-id="${p.id}" ${isChecked ? 'checked' : ''} onchange="toggleFeedProfileCheck('${p.id}', this.checked)"></td>
             <td>
                 <span style="font-weight: 800; font-family: monospace; font-size: 13px; color: var(--accent);">${escHtml(p.id)}</span>
+                ${p.browserType === 'edge' 
+                    ? `<span class="badge" style="border-color:#38bdf8; color:#38bdf8; background:rgba(56,189,248,0.15); margin-left:6px; font-size:10px; padding:1px 5px;" title="Microsoft Edge Emulation">EDGE</span>` 
+                    : `<span class="badge" style="border-color:rgba(255,255,255,0.2); color:var(--text-muted); background:rgba(255,255,255,0.05); margin-left:6px; font-size:10px; padding:1px 5px;" title="Google Chrome">CHROME</span>`}
             </td>
             <td class="account-cell" id="feed-acc-${p.id}" style="min-width: 170px;">
                 ${p.account 
@@ -5703,6 +5721,7 @@
                 inputName.readOnly = false;
             }
             if (document.getElementById('feedInputAccount')) document.getElementById('feedInputAccount').value = '';
+            if (document.getElementById('feedBrowserType')) document.getElementById('feedBrowserType').value = 'chrome';
             document.getElementById('feedInputProxy').value = '';
             document.getElementById('feedInputExtensions').value = '';
 
@@ -5758,6 +5777,7 @@
                 inputName.readOnly = true;
             }
             if (document.getElementById('feedInputAccount')) document.getElementById('feedInputAccount').value = p.account || '';
+            if (document.getElementById('feedBrowserType')) document.getElementById('feedBrowserType').value = p.browserType || 'chrome';
             document.getElementById('feedInputProxy').value = p.proxy || '';
             document.getElementById('feedInputExtensions').value = (p.extensions || []).join('\n');
 
@@ -5802,6 +5822,7 @@
             const name = document.getElementById('feedInputName').value.trim();
             const proxy = document.getElementById('feedInputProxy').value.trim() || null;
             const account = document.getElementById('feedInputAccount') ? document.getElementById('feedInputAccount').value.trim() : '';
+            const browserType = document.getElementById('feedBrowserType') ? document.getElementById('feedBrowserType').value : 'chrome';
             const group = document.getElementById('feedInputGroup') ? document.getElementById('feedInputGroup').value : '';
             const tags = Array.from(document.querySelectorAll('#feedInputTagsList input[type="checkbox"]:checked')).map(c => c.value);
             const extText = document.getElementById('feedInputExtensions').value.trim();
@@ -5811,12 +5832,12 @@
                 await fetch(`${API}/feed/profiles/${editId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, proxy, account, group, tags, extensions })
+                    body: JSON.stringify({ name, proxy, account, group, tags, extensions, browserType })
                 });
                 showToast('UPDATED FEED PROFILE.');
             } else {
                 const mode = document.getElementById('feedCreateProfileModeSelect').value;
-                const options = { id: name, mode, account, group, tags };
+                const options = { id: name, mode, account, group, tags, browserType };
                 if (mode === 'custom') {
                     options.userAgent = document.getElementById('feedCreateCustomUA').value;
                     options.gpu = document.getElementById('feedCreateCustomGpu').value;
@@ -5829,9 +5850,9 @@
                 await fetch(`${API}/feed/profiles`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, proxy, extensions, options, group, tags })
+                    body: JSON.stringify({ name, proxy, extensions, options, group, tags, browserType })
                 });
-                showToast('FEED PROFILE CREATED IN H:\\Loopy feed!');
+                showToast(`FEED PROFILE CREATED (${browserType.toUpperCase()}) IN H:\\Loopy feed!`);
             }
             closeModal('feedModalOverlay');
             loadFeedProfiles();
@@ -5932,6 +5953,9 @@
                     toggleFeedBulkModalCustomFieldsUI();
                 } catch (e) {}
             }
+            if (document.getElementById('feedBulkBrowserType')) {
+                document.getElementById('feedBulkBrowserType').value = 'chrome';
+            }
             updateFeedBulkProxyHint();
             document.getElementById('feedBulkModalOverlay').classList.add('active');
             setTimeout(initAllFeedCyberDropdowns, 20);
@@ -5944,9 +5968,10 @@
             const tags = Array.from(document.querySelectorAll('#feedBulkTagsList input[type="checkbox"]:checked')).map(c => c.value);
             const proxies = document.getElementById('feedBulkCreateProxies').value.split('\n').map(s => s.trim()).filter(Boolean);
             const proxyMode = document.getElementById('feedBulkProxyModeSelect') ? document.getElementById('feedBulkProxyModeSelect').value : 'auto';
+            const browserType = document.getElementById('feedBulkBrowserType') ? document.getElementById('feedBulkBrowserType').value : 'chrome';
 
             const mode = document.getElementById('feedBulkProfileModeSelect').value;
-            const options = { mode, group, tags, proxyMode };
+            const options = { mode, group, tags, proxyMode, browserType };
             if (mode === 'custom') {
                 options.userAgent = document.getElementById('feedBulkCustomUA').value;
                 options.gpu = document.getElementById('feedBulkCustomGpu').value;
@@ -5959,9 +5984,9 @@
             await fetch(`${API}/feed/profiles/bulk`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ count, namePrefix: prefix, proxies, options, group, tags, proxyMode })
+                body: JSON.stringify({ count, namePrefix: prefix, proxies, options, group, tags, proxyMode, browserType })
             });
-            showToast(`CREATED ${count} FEED PROFILES`);
+            showToast(`CREATED ${count} FEED PROFILES (${browserType.toUpperCase()})`);
             closeModal('feedBulkModalOverlay');
             loadFeedProfiles();
         }
@@ -6118,6 +6143,7 @@
 
                 content.innerHTML = `
             <div><div class="settings-label">NAME</div><div class="stat-value">${escHtml(p.name)}</div></div>
+            <div><div class="settings-label">TRÌNH DUYỆT</div><div class="stat-value" style="font-size:12px; color:${p.browserType === 'edge' ? '#38bdf8' : 'var(--accent)'}; font-weight:bold;">${p.browserType === 'edge' ? '🌐 Microsoft Edge' : '🌐 Google Chrome'}</div></div>
             <div><div class="settings-label">STORAGE</div><div class="stat-value" style="font-size:12px; color:var(--cyan);">H:\\Loopy feed</div></div>
             <div><div class="settings-label">NHÓM (GROUP)</div><div class="stat-value" style="font-size:12px; color:#38bdf8;">${escHtml(groupName)}</div></div>
             <div><div class="settings-label">NHÃN (TAGS)</div><div class="stat-value" style="font-size:12px; color:#10b981;">${escHtml(tagNames)}</div></div>

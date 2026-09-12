@@ -10,6 +10,12 @@ const proxyChain = require('proxy-chain');
 const geoService = require('./geo-service');
 const { probeIsSocks5, parseProxyDetails, createSocksBridge } = require('./socks-bridge');
 
+// Module giả lập Edge riêng biệt cho Feed Manager
+let feedEdgeModule = null;
+try {
+    feedEdgeModule = require('./feed-edge');
+} catch (_) {}
+
 // ============================================================================
 // CƠ SỞ DỮ LIỆU GPU ĐỂ RANDOMIZE WEBGL CHO MỖI PROFILE
 // (Các card đồ họa phổ biến nhất trên thị trường)
@@ -849,8 +855,14 @@ class ProfileManager {
         const globalDefaults = settings.profileCreationDefaults || {};
         const mode = customOptions.mode || globalDefaults.mode || 'random';
 
+        const browserType = (customOptions.browserType === 'edge') ? 'edge' : 'chrome';
+
         let userAgent;
-        if (mode === 'custom' && customOptions.userAgent && customOptions.userAgent !== 'random') {
+        if (browserType === 'edge' && feedEdgeModule) {
+            userAgent = (mode === 'custom' && customOptions.userAgent && customOptions.userAgent !== 'random')
+                ? customOptions.userAgent
+                : feedEdgeModule.getRandomEdgeUA();
+        } else if (mode === 'custom' && customOptions.userAgent && customOptions.userAgent !== 'random') {
             userAgent = customOptions.userAgent;
         } else if (mode === 'custom' && globalDefaults.userAgent && globalDefaults.userAgent !== 'random') {
             userAgent = globalDefaults.userAgent;
@@ -921,6 +933,7 @@ class ProfileManager {
             group: customOptions.group || '',
             tags: Array.isArray(customOptions.tags) ? customOptions.tags : [],
             account: customOptions.account || '',
+            browserType,
             extensions,
             noiseSeed,
             userAgent,
@@ -941,7 +954,11 @@ class ProfileManager {
         // Tự động đặt Bing làm công cụ tìm kiếm mặc định cho Feed Profile
         if (this.isFeed) {
             const profileDataDir = path.join(this.profilesDataPath, id);
-            applyBingDefaultSearch(profileDataDir);
+            if (browserType === 'edge' && feedEdgeModule) {
+                feedEdgeModule.applyEdgeBingDefaultSearch(profileDataDir);
+            } else {
+                applyBingDefaultSearch(profileDataDir);
+            }
         }
 
         console.log(`[Manager] ✅ Profile: ${profileData.name} (${mode.toUpperCase()}) | GPU: ${profileData.gpu.renderer.substring(0, 40)}... | Screen: ${profileData.screen.width}x${profileData.screen.height} | Cores: ${profileData.hardwareConcurrency}`);
@@ -1054,6 +1071,8 @@ class ProfileManager {
         if (!data) data = JSON.parse(fs.readFileSync(metaFile, 'utf8').replace(/^\uFEFF/, ''));
 
         if (updates.name !== undefined) data.name = updates.name;
+        if (updates.browserType !== undefined) data.browserType = updates.browserType;
+        if (updates.userAgent !== undefined) data.userAgent = updates.userAgent;
         if (updates.proxy !== undefined) data.proxy = updates.proxy;
         if (updates.account !== undefined) data.account = updates.account;
         if (updates.group !== undefined) data.group = updates.group;
@@ -1954,7 +1973,11 @@ class ProfileManager {
 
         // Tự động đảm bảo Bing luôn là công cụ tìm kiếm mặc định cho Feed Profile
         if (this.isFeed) {
-            applyBingDefaultSearch(profileDir);
+            if (profileData.browserType === 'edge' && feedEdgeModule) {
+                feedEdgeModule.applyEdgeBingDefaultSearch(profileDir);
+            } else {
+                applyBingDefaultSearch(profileDir);
+            }
         }
 
         let context;
@@ -2000,6 +2023,15 @@ class ProfileManager {
                 await context.setGeolocation(geolocationConfig).catch(() => {});
                 await context.grantPermissions(['geolocation']).catch(() => {});
             } catch (e) {}
+        }
+
+        // Áp dụng môi trường giả lập Microsoft Edge cho Feed Profile
+        if (this.isFeed && profileData.browserType === 'edge' && feedEdgeModule) {
+            try {
+                await feedEdgeModule.setupEdgeContext(context, profileData);
+            } catch (edgeErr) {
+                console.warn(`[Manager] ⚠️ Lỗi khi cấu hình Edge context: ${edgeErr.message}`);
+            }
         }
 
         // ❌ KHÔNG dùng addInitScript — Cloudflare detect MỌI Object.defineProperty
