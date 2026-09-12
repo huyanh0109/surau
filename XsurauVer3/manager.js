@@ -1834,20 +1834,39 @@ class ProfileManager {
         // Gộp Extensions
         const globalExts = this.getGlobalExtensions();
         const profileExts = profileData.extensions || [];
-        const allExtensions = [...new Set([...globalExts, ...profileExts])]
-            .filter(e => {
-                if (!fs.existsSync(e)) return false;
-                if (e.toLowerCase().endsWith('.zip') || e.toLowerCase().endsWith('.crx')) return false;
-                return true;
-            });
+        const rawExtensions = [...new Set([...globalExts, ...profileExts])];
 
-        // Tự động gắn extension Bing Rewards nếu là Feed Profile
+        // Tự động gắn extension Bing Rewards nếu là Feed Profile và chưa có
         if (this.isFeed) {
             const bingExtH = path.join(this.extensionsPath, 'bing-rewards');
             const bingExtG = 'G:\\XsurauData\\extensions\\bing-rewards';
             const bingPath = fs.existsSync(bingExtH) ? bingExtH : (fs.existsSync(bingExtG) ? bingExtG : null);
-            if (bingPath && !allExtensions.includes(bingPath)) {
-                allExtensions.push(bingPath);
+            if (bingPath) {
+                rawExtensions.push(bingPath);
+            }
+        }
+
+        // Lọc extension hợp lệ và loại bỏ trùng lặp (theo manifest.name hoặc tên thư mục)
+        // để tránh trường hợp cùng 1 extension ở cả ổ G: lẫn ổ H: hoặc bị load lặp lại
+        const seenExtNames = new Set();
+        const allExtensions = [];
+        for (const ext of rawExtensions) {
+            if (!ext || typeof ext !== 'string') continue;
+            if (!fs.existsSync(ext)) continue;
+            if (ext.toLowerCase().endsWith('.zip') || ext.toLowerCase().endsWith('.crx')) continue;
+
+            let extKey = path.basename(ext).toLowerCase();
+            const manifestPath = path.join(ext, 'manifest.json');
+            if (fs.existsSync(manifestPath)) {
+                try {
+                    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+                    if (manifest.name) extKey = manifest.name.toLowerCase();
+                } catch (_) {}
+            }
+
+            if (!seenExtNames.has(extKey)) {
+                seenExtNames.add(extKey);
+                allExtensions.push(ext);
             }
         }
 
